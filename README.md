@@ -4,7 +4,10 @@ Train against last week's you. Rival is a workout logger that runs in the browse
 
 - **Ghost sets:** last session's weight × reps sits beside every set. Beat it and the ghost dissolves.
 - **Readiness check-in:** three taps (sleep, soreness, energy) adjust today's loads.
-- **Muscle heat map:** weekly sets per muscle against a 10–20 set target.
+- **Muscle heat map:** an anatomical front and back body map of weekly sets per muscle against a 10–20 set target.
+- **Programs:** suggested splits for 2 to 6 days a week, or build your own for 1 to 7 days.
+- **Something else:** train a single focus today, or a short plan for the next 7 days, without moving your program.
+- **Tools:** 108 exercises (free-weight and machine options), plate calculator, auto warm-ups, custom exercises, backup and restore.
 
 ## Structure
 
