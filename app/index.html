@@ -29,7 +29,7 @@ body{margin:0}
 :root{
   --bg:#ECEEE9; --surface:#FFFFFF; --surface-2:#F4F5F1; --ink:#14161B; --muted:#5F646D; --faint:#9EA3AB;
   --line:rgba(20,22,27,.09); --accent:#2747DB; --accent-ink:#FFFFFF; --accent-soft:rgba(39,71,219,.10);
-  --ghost:#686E7A; --win:#8A5D00; --win-bg:rgba(242,183,5,.22); --warn:#C63A25; --body:#D9DCD4;
+  --ghost:#686E7A; --win:#8A5D00; --win-bg:rgba(242,183,5,.22); --warn:#C63A25; --body:#D9DCD4; --skin:#E9EBE5; --mus0:#C9CEC4;
   --scrim:rgba(14,16,20,.38); --coach-scrim:rgba(14,16,20,.58); --glass:rgba(255,255,255,.78);
   --display:"Archivo","Arial Narrow",system-ui,sans-serif;
   --text:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -38,13 +38,13 @@ body{margin:0}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
   --line:rgba(255,255,255,.08); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
-  --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33;
+  --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; --skin:#262B34; --mus0:#3A404D;
   --scrim:rgba(0,0,0,.55); --coach-scrim:rgba(0,0,0,.68); --glass:rgba(22,25,31,.78); color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
   --line:rgba(255,255,255,.08); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
-  --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33;
+  --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; --skin:#262B34; --mus0:#3A404D;
   --scrim:rgba(0,0,0,.55); --coach-scrim:rgba(0,0,0,.68); --glass:rgba(22,25,31,.78); color-scheme:dark;
 }
 html,body{height:100%}
@@ -168,15 +168,18 @@ input{font:inherit;color:inherit}
 .map-card{padding:16px 12px}
 .bodies{display:grid;grid-template-columns:1fr 1fr;gap:4px;align-items:end}
 .body-fig{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600}
-.body-fig svg{width:100%;max-width:150px;height:auto;overflow:visible}
+.body-fig svg{width:100%;max-width:140px;height:auto;overflow:visible}
+.skin{fill:var(--skin)}
+.mu{stroke:var(--skin);stroke-width:1.2;stroke-linejoin:round}
+.nt{fill:var(--mus0)}
 .m{cursor:pointer;transition:fill 200ms ease}
-.m.l0{fill:var(--body)}
-.m.l1{fill:color-mix(in oklab,var(--accent) 26%,var(--body))}
-.m.l2{fill:color-mix(in oklab,var(--accent) 55%,var(--body))}
+.m.l0{fill:var(--mus0)}
+.m.l1{fill:color-mix(in oklab,var(--accent) 26%,var(--mus0))}
+.m.l2{fill:color-mix(in oklab,var(--accent) 55%,var(--mus0))}
 .m.l3{fill:var(--accent)}
 .m.l4{fill:var(--warn)}
-.m.sel{stroke:var(--ink);stroke-width:1.6}
-.headc{fill:var(--body)}
+.m.sel{stroke:var(--ink);stroke-width:2.4}
+.m:focus-visible{outline:none;stroke:var(--accent);stroke-width:2.4}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin-top:14px;font-size:12px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -1107,31 +1110,21 @@ const lvl = v => v <= 0 ? 0 : v < 5 ? 1 : v < 10 ? 2 : v <= 20 ? 3 : 4;
 const zoneWord = v => v <= 0 ? 'Not trained' : v < 10 ? 'Below target' : v <= 20 ? 'In target zone' : 'Above target';
 const r1 = v => Math.round(v * 2) / 2;
 
+/* Body map: original anatomical drawing. Left half only (200 x 428 box, centre x = 100); the right half is mirrored.
+   Muscles are cut to the body outline, and a skin-coloured stroke draws the thin gaps between them. */
+const BODY = {skin:['M100,9 C109,9 115,17 115,28 C115,39 109,46 100,46 C91,46 85,39 85,28 C85,17 91,9 100,9 Z','M90,38 L100,38 L100,66 L85,66 C88,57 90,48 90,38 Z','M100,52 L90,52 C84,58 70,60 60,61 C46,62 37,72 36,88 C35,98 37,106 40,112 L58,112 C62,106 66,100 68,96 C69,118 68,138 68,158 C67,176 64,192 63,208 C62,218 64,226 70,232 L100,236 Z','M38,98 C34,116 34,134 36,150 C32,164 27,184 26,204 C26,214 27,222 28,228 L44,228 C48,214 54,198 58,184 C62,170 62,160 61,150 C62,136 62,120 62,104 Z','M28,226 C24,234 24,248 28,258 C31,265 39,265 41,259 C44,250 45,238 44,226 Z','M64,206 C59,224 57,246 58,268 C59,290 61,306 63,320 C60,336 59,354 61,372 C63,388 69,400 71,408 L87,408 C88,396 89,380 90,364 C91,348 92,334 92,322 C93,306 95,284 97,264 C98,252 100,242 100,232 Z','M70,405 C65,411 63,417 65,421 C70,424 83,424 89,422 C90,417 89,411 87,405 Z'],
+  front:{'traps':['M90,52 C85,58 74,61 62,62 C66,66 74,67 82,66 C86,65 89,62 91,58 Z'],'shoulders':['M35,86 C34,96 36,104 40,110 C46,108 52,104 56,98 C62,90 66,80 68,70 C67,66 66,64 64,64 C50,62 37,70 35,86 Z'],'chest':['M99,66 L99,104 C92,108 82,108 74,104 C68,100 66,92 68,84 C70,76 75,70 82,67 C88,65 94,65 99,66 Z'],'biceps':['M40,113 C36,124 35,136 36,148 C37,154 40,158 44,159 C52,157 58,150 60,140 C61,130 60,120 58,112 C52,111 45,111 40,113 Z'],'forearms':['M36,162 C31,174 28,190 27,206 C27,214 28,222 30,228 L37,228 C38,214 40,198 43,186 C45,178 46,170 45,163 Z','M48,163 C54,166 59,172 59,182 C59,196 52,212 44,228 L40,228 C42,212 45,198 47,186 C48,178 48,170 48,163 Z'],'abs':['M91,106 L99,106 L99,126 L91,126 C89,126 88,125 88,123 L88,109 C88,107 89,106 91,106 Z','M91,129 L99,129 L99,149 L91,149 C89,149 88,148 88,146 L88,132 C88,130 89,129 91,129 Z','M91,152 L99,152 L99,172 L91,172 C89,172 88,171 88,169 L88,155 C88,153 89,152 91,152 Z','M88,175 L99,175 L99,212 C94,210 90,202 88,192 Z','M70,106 C76,108 81,108 85,107 L85,190 C79,187 74,181 70,173 C68,160 68,140 68,124 C68,116 69,110 70,106 Z'],'quads':['M62,212 C57,230 56,252 57,272 C58,290 61,304 65,314 C69,317 74,317 77,314 C76,296 76,270 77,248 C78,234 76,222 72,213 Z','M80,220 C78,242 78,266 80,288 C81,300 84,308 88,312 C91,306 93,296 93,284 C94,262 92,240 88,224 C85,217 82,216 80,220 Z','M93,290 C90,298 90,308 92,316 C94,320 97,318 98,312 C99,304 98,296 95,288 Z'],'calves':['M60,326 C57,340 57,354 60,366 C62,374 66,380 71,384 C71,366 71,346 72,330 Z','M85,328 C90,338 93,352 92,366 C91,378 88,386 86,392 C85,372 84,352 84,336 Z']},
+  frontNt:['M96,232 C93,246 93,262 95,280 C98,266 101,250 101,236 Z','M75,328 C73,344 73,362 75,386 L80,386 C81,364 82,344 82,328 Z'],
+  back:{'traps':['M100,42 C96,50 91,57 83,60 C76,62 68,63 62,65 C72,70 82,80 88,92 C94,104 97,116 100,130 Z'],'shoulders':['M35,86 C34,96 36,104 40,110 C46,108 52,103 56,97 C61,89 64,80 64,70 C63,67 62,66 61,66 C49,63 37,70 35,86 Z'],'lats':['M66,74 C72,79 78,86 82,96 C83,100 84,103 84,106 C78,109 71,109 66,107 C63,98 63,86 66,74 Z','M65,112 C72,113 80,112 87,109 C92,118 96,128 99,140 L99,172 C92,175 84,178 77,182 C73,170 69,152 67,136 C66,128 65,120 65,112 Z'],'triceps':['M40,113 C36,124 35,136 36,148 C37,154 40,158 44,159 C52,157 58,150 60,140 C61,130 60,120 58,112 C52,111 45,111 40,113 Z'],'forearms':['M36,162 C31,174 28,190 27,206 C27,214 28,222 30,228 L37,228 C38,214 40,198 43,186 C45,178 46,170 45,163 Z','M48,163 C54,166 59,172 59,182 C59,196 52,212 44,228 L40,228 C42,212 45,198 47,186 C48,178 48,170 48,163 Z'],'lowerback':['M90,180 L99,180 L99,212 C95,212 91,210 88,206 C87,198 88,188 90,180 Z'],'glutes':['M66,196 C69,188 76,184 84,186 C86,193 86,201 84,207 C78,208 71,206 66,203 Z','M99,215 L99,252 C92,258 80,260 68,254 C63,244 62,230 65,218 C72,212 86,212 99,215 Z'],'hamstrings':['M62,262 C59,278 60,296 63,310 C65,316 69,320 73,322 C75,304 77,284 79,268 C79,264 77,262 74,261 Z','M83,264 C81,280 81,298 84,312 C85,318 88,322 91,324 C93,306 95,286 96,270 C95,265 92,263 88,262 Z'],'calves':['M64,330 C60,342 60,356 62,368 C64,378 70,384 76,386 C78,372 79,354 78,338 C77,332 74,329 70,328 Z','M82,328 C87,330 90,340 91,352 C91,366 88,378 84,390 C81,376 80,356 80,340 C80,334 80,330 82,328 Z']}};
 function bodySVG(side, w) {
-  const S2 = (mu, el) => `<g class="m l${lvl(w[mu].sets)}${selMuscle === mu ? ' sel' : ''}" data-act="muscle" data-m="${mu}" role="button" tabindex="0" aria-label="${MUSCLES[mu]}, ${r1(w[mu].sets)} sets">${el}</g>`;
-  const R = (x, y, wd, h) => `<rect x="${x}" y="${y}" width="${wd}" height="${h}" rx="${Math.min(wd, h) / 2}"/>`;
-  const C = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}"/>`;
-  let g = `<circle class="headc" cx="60" cy="18" r="12"/>`;
-  if (side === 'front') {
-    g += S2('shoulders', C(35, 52, 10) + C(85, 52, 10));
-    g += S2('chest', `<rect x="43" y="42" width="16.5" height="24" rx="8"/><rect x="60.5" y="42" width="16.5" height="24" rx="8"/>`);
-    g += S2('biceps', R(23, 64, 11, 28) + R(86, 64, 11, 28));
-    g += S2('forearms', R(18, 96, 10, 32) + R(92, 96, 10, 32));
-    g += S2('abs', `<rect x="47" y="69" width="26" height="44" rx="10"/>`);
-    g += S2('quads', R(41, 118, 17, 56) + R(62, 118, 17, 56));
-    g += S2('calves', R(43, 180, 12, 40) + R(65, 180, 12, 40));
-  } else {
-    g += S2('traps', `<rect x="44" y="33" width="32" height="14" rx="7"/>`);
-    g += S2('shoulders', C(35, 52, 10) + C(85, 52, 10));
-    g += S2('lats', `<rect x="43" y="49" width="16.5" height="42" rx="8"/><rect x="60.5" y="49" width="16.5" height="42" rx="8"/>`);
-    g += S2('triceps', R(23, 64, 11, 28) + R(86, 64, 11, 28));
-    g += S2('forearms', R(18, 96, 10, 32) + R(92, 96, 10, 32));
-    g += S2('lowerback', `<rect x="49" y="94" width="22" height="19" rx="8"/>`);
-    g += S2('glutes', `<rect x="41" y="116" width="18.5" height="24" rx="9"/><rect x="60.5" y="116" width="18.5" height="24" rx="9"/>`);
-    g += S2('hamstrings', R(41, 143, 17, 34) + R(62, 143, 17, 34));
-    g += S2('calves', R(43, 182, 12, 38) + R(65, 182, 12, 38));
-  }
-  return `<svg viewBox="0 0 120 226" role="group" aria-label="${side === 'front' ? 'Front' : 'Back'} of body">${g}</svg>`;
+  const MIR = 'matrix(-1 0 0 1 200 0)', P = (a, t) => a.map(d => `<path${t ? ` transform="${t}"` : ''} d="${d}"/>`).join('');
+  const both = a => P(a) + P(a, MIR), id = 'bclip-' + side;
+  const S2 = (mu, a) => `<g class="mu m l${lvl(w[mu].sets)}${selMuscle === mu ? ' sel' : ''}" data-act="muscle" data-m="${mu}" role="button" tabindex="0" aria-label="${MUSCLES[mu]}, ${r1(w[mu].sets)} sets">${both(a)}</g>`;
+  const M = side === 'front' ? BODY.front : BODY.back;
+  let g = `<defs><clipPath id="${id}">${both(BODY.skin)}</clipPath></defs><g class="skin">${both(BODY.skin)}</g><g clip-path="url(#${id})">`;
+  if (side === 'front') g += `<g class="mu nt">${both(BODY.frontNt)}</g>`;
+  for (const mu of Object.keys(M)) g += S2(mu, M[mu]);
+  return `<svg viewBox="0 0 200 428" role="group" aria-label="${side === 'front' ? 'Front' : 'Back'} of body">${g}</g></svg>`;
 }
 
 function liftSeries(exId) {
@@ -1178,7 +1171,7 @@ function vProgress() {
     <div class="stats section" style="margin-top:20px"><div class="stat"><b>${ss.length}</b><span>${ss.length === 1 ? 'session' : 'sessions'}</span></div><div class="stat"><b>${setsN}</b><span>hard sets</span></div><div class="stat"><b>${beat}</b><span>ghosts beaten</span></div></div>
     <section class="section"><div class="section-head"><h2 class="h2">Weekly sets by muscle</h2></div>
       <div class="card map-card"><div class="bodies"><div class="body-fig">${bodySVG('front', w)}Front</div><div class="body-fig">${bodySVG('back', w)}Back</div></div>
-      <div class="legend"><span><i style="background:var(--body)"></i>None</span><span><i style="background:color-mix(in oklab,var(--accent) 55%,var(--body))"></i>Under 10</span><span><i style="background:var(--accent)"></i>10–20 target</span><span><i style="background:var(--warn)"></i>Over 20</span></div>
+      <div class="legend"><span><i style="background:var(--mus0)"></i>None</span><span><i style="background:color-mix(in oklab,var(--accent) 55%,var(--mus0))"></i>Under 10</span><span><i style="background:var(--accent)"></i>10–20 target</span><span><i style="background:var(--warn)"></i>Over 20</span></div>
       ${detail}<div class="mlist">${rows}</div></div></section>
     <section class="section"><div class="section-head"><h2 class="h2">Main lifts</h2><span class="sub">Change since first log</span></div><div class="card" style="padding:4px 12px">${lifts || '<p class="empty">Log a lift twice to see its trend.</p>'}</div></section>
     <section class="section"><div class="section-head"><h2 class="h2">History</h2></div><div class="card" style="padding:4px 12px">${hist || '<p class="empty">Finished workouts show up here.</p>'}</div></section>`;
