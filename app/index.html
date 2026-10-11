@@ -207,7 +207,9 @@ input{font:inherit;color:inherit}
 .prog-card .vs .link{padding:0 2px;font-size:13.5px}
 .prog-card .acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .prog-card .acts .btn{flex:1;min-width:140px}
-.dh-r{display:flex;align-items:center;gap:10px}
+.dh-r{display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap}
+.day-h{gap:10px}
+.day-h .h2{min-width:0;overflow-wrap:anywhere}
 .prog-hint{display:block;margin-top:10px;text-align:left;font-size:14px}
 .dpw{margin-top:10px}
 .dpw button{font-family:var(--display);font-size:17px;font-weight:750}
@@ -365,7 +367,22 @@ input{font:inherit;color:inherit}
 .add-ex{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:18px;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--accent);font-weight:650}
 .ex{scroll-margin-top:12px}
 .stepper button:disabled{opacity:.35}
-.toast{display:flex;align-items:center;gap:14px}
+.toast{display:flex;align-items:center;gap:14px;max-width:calc(100% - 32px)}
+.has-resume .toasts{bottom:calc(128px + env(safe-area-inset-bottom,0px))}
+.resume{max-width:calc(100% - 32px)}
+.resume .rn{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.title.long{font-size:34px}
+.wo-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.ex-act .rm{margin-left:auto;color:var(--muted)}
+.ex-act button.armed{color:var(--warn)}
+@media (max-width:380px){
+  .cols,.set{grid-template-columns:20px minmax(0,1fr) 64px 48px 42px;gap:6px}
+  .check{width:42px}
+  .g-txt{font-size:12.5px;padding:0 5px;height:auto;min-height:26px;white-space:normal;line-height:1.15;text-align:center}
+  .ex-h{flex-wrap:wrap}
+  .ex-tools{flex-wrap:wrap}
+  .wo-t{font-size:18px}
+}
 .ex-tools{display:flex;gap:6px;flex:none}
 .wu{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 4px 10px}
 .wu-l{font-size:11.5px;font-weight:650;color:var(--faint);margin-right:2px}
@@ -612,7 +629,7 @@ function warmups(en, ei) {
   const out = [];
   if (bt && w >= 60) out.push({w:bar, r:10, bar:true});
   for (const [f, r] of steps) {
-    let x = roundTo(w * f, inc); if (bt) x = Math.max(x, bar);
+    let x = roundW(w * f, inc); if (bt) x = Math.max(x, bar);
     if (x >= w || (out.length && x <= out[out.length - 1].w)) continue;
     out.push({w:x, r});
   }
@@ -719,6 +736,13 @@ const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
 
 function U() { return S.profile.units; }
+// Weight steps people can actually load. In lb, plates and dumbbells go up in 2.5, 5 or 10 lb, not in converted kg.
+const lbStep = incKg => incKg <= 1.25 ? 2.5 : incKg <= 2.5 ? 5 : 10;
+function stepKg(incKg) { return U() === 'lb' ? lbStep(incKg) / 2.20462 : incKg; }
+function roundW(kg, incKg) {
+  if (U() !== 'lb') return roundTo(kg, incKg);
+  const st = lbStep(incKg || 2.5); return Math.round(kg * 2.20462 / st) * st / 2.20462;
+}
 function fmtW(kg) {
   if (kg == null || isNaN(kg)) return '';
   const v = U() === 'lb' ? Math.round(kg * 2.20462 * 2) / 2 : Math.round(kg * 100) / 100;
@@ -800,6 +824,9 @@ function normalizeProfile() {
   const dp = defaultProfile();
   for (const k of ['warmups', 'bars', 'custom']) if (S.profile[k] == null) S.profile[k] = dp[k];
   S.profile.custom.forEach(registerCustom);
+  // Drop plan slots that point at exercises this version doesn't know (a hand-edited or newer backup), and never leave the plan empty.
+  S.profile.days.forEach(d => { d.ex = d.ex.filter(sl => sl && EX[sl.id]); });
+  if (!S.profile.days.length) S.profile.days = clone(PROGRAM);
   // Plans made before programs existed: the untouched 4-day plan is the original template, anything else is custom.
   if (!S.profile.program) {
     const orig = S.profile.days.map(d => d.name).join('/') === 'Upper/Lower/Push/Pull';
@@ -842,9 +869,11 @@ function planSlot(slot, tier) {
     let w = null, r = slot.lo;
     if (gs) {
       w = gs.w; r = Math.min(Math.max(gs.r + 1, slot.lo), slot.hi);
-      if (allTop) { w = gs.w + (ex.inc || 0); r = slot.lo; }
+      if (allTop && !(ex.bw && !gs.w)) { w = gs.w + stepKg(ex.inc || 2.5); r = slot.lo; }
+      else if (allTop) r = Math.min(slot.hi + 2, (gs.r || slot.hi) + 1);
+      if (w > 0 && U() === 'lb') w = roundW(w, ex.inc || 2.5);
     }
-    if (w != null && w > 0 && tier.factor < 1) w = roundTo(w * tier.factor, ex.inc || 1);
+    if (w != null && w > 0 && tier.factor < 1) w = roundW(w * tier.factor, ex.inc || 1);
     out.push({w, r, g: g[i] || null});
   }
   return out;
@@ -904,12 +933,12 @@ function vToday() {
       <span class="ln"><span class="tg">${tw}${pp[0] && pp[0].w != null ? ' × ' + pp.map(x => x.r).join(', ') : ''}</span>${g.length ? `<span class="gh">Ghost ${ex.bw && !g[0].w ? 'BW' : fmtW(g[0].w)} × ${g.map(x => x.r).join(', ')}</span>` : ''}</span></div>`;
   }).join('');
   const act = S.active
-    ? `<button class="btn primary big press" data-act="resume">Resume ${esc(S.active.dayName)}</button>`
-    : `<button class="btn primary big press" data-act="start">Start ${esc(day.name)}</button>`;
+    ? `<button class="btn primary big press" data-act="resume">Resume ${S.active.dayName.length > 16 ? 'workout' : esc(S.active.dayName)}</button>`
+    : `<button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button>`;
   return `<header><p class="date">${fmtDate(Date.now())}</p>${weekStrip()}</header>
     ${installNote()}
     ${hasSamples() ? `<div class="sample-note"><span>You're looking at sample workouts.</span><button data-act="clearsample">Clear them</button></div>` : ''}
-    <section class="hero"><h1 class="title">${esc(day.name)}</h1>
+    <section class="hero"><h1 class="title${day.name.length > 12 ? ' long' : ''}">${esc(day.name)}</h1>
       <p class="sub">Day ${idx + 1} of ${n}, about ${mins} minutes, ${pl(sets, 'set')}</p>
       <div class="daypick" role="group" aria-label="Choose today's session">${p.days.map((d, i) => `<button class="chip press" data-act="day" data-i="${i}" aria-pressed="${i === idx}">${esc(d.name)}</button>`).join('')}</div>
       ${p.programPicked ? '' : `<button class="link prog-hint" data-act="program">Training ${n === 4 ? 'more or less than 4' : 'a different number of'} days a week? Pick a program</button>`}
@@ -1186,7 +1215,8 @@ function readBackup(file) {
   const fr = new FileReader();
   fr.onload = () => {
     let d = null; try { d = JSON.parse(fr.result); } catch (e) {}
-    if (!d || d.app !== 'rival' || !d.profile || !Array.isArray(d.profile.days) || !Array.isArray(d.sessions)) { toast("That file isn't a Rival backup"); return; }
+    const okDays = d && d.profile && Array.isArray(d.profile.days) && d.profile.days.length > 0 && d.profile.days.every(x => x && typeof x.name === 'string' && Array.isArray(x.ex));
+    if (!d || d.app !== 'rival' || !okDays || !Array.isArray(d.sessions)) { toast("That file isn't a Rival backup, or it has no plan in it"); return; }
     pendingImport = d;
     const when = d.exportedAt ? fmtDate(d.exportedAt, {day:'numeric', month:'long', year:'numeric'}) : 'an unknown date';
     openSheet(`<h2 class="h2">Restore this backup?</h2><p class="sub">${pl(d.sessions.length, 'workout')} and your plan, exported ${esc(when)}. This replaces everything currently on this phone.</p>
@@ -1205,8 +1235,8 @@ function render() {
 function updateResume() {
   const r = $('#resume');
   const show = !!S.active && !$('#wo').classList.contains('open');
-  r.hidden = !show;
-  if (show) r.innerHTML = `<span>${esc(S.active.dayName)}</span><span class="num" data-elapsed>${fmtClock((Date.now() - S.active.startedAt) / 1000)}</span><span class="pill">Resume</span>`;
+  r.hidden = !show; document.body.classList.toggle('has-resume', show);
+  if (show) r.innerHTML = `<span class="rn">${esc(S.active.dayName)}</span><span class="num" data-elapsed>${fmtClock((Date.now() - S.active.startedAt) / 1000)}</span><span class="pill">Resume</span>`;
 }
 
 /* ================= sheets ================= */
@@ -1258,6 +1288,7 @@ function dragToDismiss(wrap) {
 /* ================= toast ================= */
 function toast(msg, action) {
   const box = $('#toasts'), t = document.createElement('div');
+  box.querySelectorAll('.toast').forEach(o => o.remove());
   t.className = 'toast'; const sp = document.createElement('span'); sp.textContent = msg; t.appendChild(sp);
   let timer = 0;
   const hide = () => { clearTimeout(timer); t.classList.remove('show'); setTimeout(() => t.remove(), 260); };
@@ -1316,7 +1347,7 @@ function exBlock(en, ei) {
     <p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p>${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
-    <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button>${en.sets.length > 1 ? `<button data-act="delset" data-e="${ei}">Remove last set</button>` : ''}</div></section>`;
+    <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button>${en.sets.length > 1 ? `<button data-act="delset" data-e="${ei}">Remove last set</button>` : ''}<button class="rm" data-act="rmex" data-e="${ei}" aria-label="Remove ${esc(ex.n)} from this workout">Remove</button></div></section>`;
 }
 function renderWorkout() {
   const a = S.active; if (!a) return;
@@ -1422,7 +1453,8 @@ function saveWorkout() {
     entries: a.entries.map(en => ({exId:en.exId, sets: en.sets.filter(x => x.done).map(x => ({w:x.w, r:x.r, res:x.res}))})).filter(en => en.sets.length),
     updatedAt: Date.now()};
   S.sessions.push(sess);
-  S.profile.nextDay = (a.dayIdx + 1) % S.profile.days.length;
+  const at = S.profile.days[a.dayIdx] && S.profile.days[a.dayIdx].name === a.dayName ? a.dayIdx : S.profile.days.findIndex(d => d.name === a.dayName);
+  S.profile.nextDay = at >= 0 ? (at + 1) % S.profile.days.length : S.profile.nextDay % S.profile.days.length;
   S.active = null;
   touch(); Sync.session(sess);
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
@@ -1713,12 +1745,22 @@ const acts = {
   log(el) { logSet(el.closest('.set')); },
   addset(el) {
     const ei = +el.dataset.e, en = S.active.entries[ei], last = en.sets[en.sets.length - 1];
-    en.sets.push({w: last ? last.w : null, r: last ? last.r : en.lo, g: null, done:false, res:null});
+    const prev = lastWith(en.exId), g = prev && prev.sets[en.sets.length];
+    en.sets.push({w: last ? last.w : null, r: last ? last.r : en.lo, g: g ? {w:g.w, r:g.r} : null, done:false, res:null});
     persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
   },
   delset(el) {
     const ei = +el.dataset.e, en = S.active.entries[ei]; if (en.sets.length < 2) return;
+    if (en.sets[en.sets.length - 1].done && !el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again: it\'s logged'; return; }
     en.sets.pop(); persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
+  },
+  rmex(el) {
+    const ei = +el.dataset.e, en = S.active.entries[ei];
+    if (en.sets.some(x => x.done) && !el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to remove'; return; }
+    const [gone] = S.active.entries.splice(ei, 1); persist();
+    const y = wo.querySelector('.wo-body') ? wo.querySelector('.wo-body').scrollTop : 0;
+    renderWorkout(); const body = wo.querySelector('.wo-body'); if (body) body.scrollTop = y;
+    toast('Removed ' + (EX[gone.exId] ? EX[gone.exId].n : 'exercise'), {label:'Undo', fn: () => { if (!S.active) return; S.active.entries.splice(ei, 0, gone); persist(); renderWorkout(); }});
   },
   finish() { finishSheet(); },
   save() { saveWorkout(); },
@@ -1726,7 +1768,10 @@ const acts = {
     if (!el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to discard'; return; }
     S.active = null; persist(); hideRest(); closeSheet(); minimizeWorkout(); toast('Workout discarded');
   },
-  rest15() { restEnd += 15000; restTotal += 15; tickRest(); },
+  rest15() {
+    if (restEnd <= Date.now()) { startRest(15); return; }
+    restEnd += 15000; restTotal += 15; tickRest();
+  },
   restskip() { hideRest(); },
   closesheet() { closeSheet(); },
   muscle(el) { selMuscle = selMuscle === el.dataset.m ? null : el.dataset.m; const y = window.scrollY; render(); window.scrollTo(0, y); },
