@@ -29,7 +29,7 @@ body{margin:0}
 :root{
   --bg:#ECEEE9; --surface:#FFFFFF; --surface-2:#F4F5F1; --ink:#14161B; --muted:#5F646D; --faint:#9EA3AB;
   --line:rgba(20,22,27,.09); --accent:#2747DB; --accent-ink:#FFFFFF; --accent-soft:rgba(39,71,219,.10);
-  --ghost:#878E9D; --win:#946500; --win-bg:rgba(242,183,5,.22); --warn:#C63A25; --body:#D9DCD4;
+  --ghost:#686E7A; --win:#8A5D00; --win-bg:rgba(242,183,5,.22); --warn:#C63A25; --body:#D9DCD4;
   --scrim:rgba(14,16,20,.38); --coach-scrim:rgba(14,16,20,.58); --glass:rgba(255,255,255,.78);
   --display:"Archivo","Arial Narrow",system-ui,sans-serif;
   --text:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -38,13 +38,13 @@ body{margin:0}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
   --line:rgba(255,255,255,.08); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
-  --ghost:#717887; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33;
+  --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33;
   --scrim:rgba(0,0,0,.55); --coach-scrim:rgba(0,0,0,.68); --glass:rgba(22,25,31,.78); color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
   --line:rgba(255,255,255,.08); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
-  --ghost:#717887; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33;
+  --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33;
   --scrim:rgba(0,0,0,.55); --coach-scrim:rgba(0,0,0,.68); --glass:rgba(22,25,31,.78); color-scheme:dark;
 }
 html,body{height:100%}
@@ -65,7 +65,7 @@ input{font:inherit;color:inherit}
   padding:6px 12px calc(6px + env(safe-area-inset-bottom,0px));background:var(--glass);
   -webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);border-top:1px solid var(--line)}
 .tabs-in{display:flex;width:100%;max-width:420px;justify-content:space-around}
-.tab{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:76px;padding:6px 8px;border-radius:12px;color:var(--faint);font-size:12px;font-weight:600}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:76px;padding:6px 8px;border-radius:12px;color:var(--muted);font-size:12px;font-weight:600}
 .tab svg{width:24px;height:24px}
 .tab[aria-current="page"]{color:var(--ink)}
 .tab .press-in{transition:transform 140ms var(--ease-out)}
@@ -218,7 +218,7 @@ input{font:inherit;color:inherit}
 .prog[aria-current="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
 .prog-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .prog-top b{font-family:var(--display);font-stretch:112%;font-size:18px;font-weight:750;line-height:1.15}
-.tagc{flex:none;font-size:11.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 8px;border-radius:7px}
+.tagc{flex:none;font-size:11.5px;font-weight:700;color:var(--tagc,var(--accent));background:var(--accent-soft);padding:3px 8px;border-radius:7px}
 .tagc.cur{color:var(--accent-ink);background:var(--accent)}
 .prog-blurb{font-size:14px;color:var(--muted);line-height:1.35}
 .prog-days{font-size:13.5px;font-weight:600;line-height:1.35}
@@ -290,7 +290,7 @@ input{font:inherit;color:inherit}
 .ex-h .h3{font-size:17px}
 .ex-meta{font-size:13px;color:var(--muted);padding:2px 4px 10px}
 .cols,.set{display:grid;grid-template-columns:24px minmax(0,1fr) 78px 58px 44px;gap:8px;align-items:center}
-.cols{font-size:11.5px;font-weight:650;color:var(--faint);padding:0 4px 6px}
+.cols{font-size:11.5px;font-weight:650;color:var(--muted);padding:0 4px 6px}
 .cols span:nth-child(3),.cols span:nth-child(4){text-align:center}
 .set{padding:4px 4px;border-radius:14px;transition:background-color 200ms ease}
 .set .n{font-family:var(--display);font-variant-numeric:tabular-nums;font-weight:700;color:var(--muted);text-align:center}
@@ -298,7 +298,7 @@ input{font:inherit;color:inherit}
 .g-txt{display:inline-flex;align-items:center;height:28px;padding:0 8px;border-radius:9px;border:1.5px dashed color-mix(in oklab,var(--ghost) 70%,transparent);
   font-family:var(--display);font-variant-numeric:tabular-nums;font-size:14px;color:var(--ghost);white-space:nowrap;
   transition:filter 220ms ease,opacity 220ms ease,transform 220ms var(--ease-out)}
-.g-txt.none{border-color:transparent;font-family:var(--text);font-size:13px;color:var(--faint);padding:0}
+.g-txt.none{border-color:transparent;font-family:var(--text);font-size:13px;color:var(--muted);padding:0}
 .g-win{position:absolute;left:0;top:50%;display:inline-flex;align-items:center;height:26px;padding:0 8px;border-radius:8px;font-size:12.5px;font-weight:700;white-space:nowrap;
   background:var(--win-bg);color:var(--win);opacity:0;transform:translateY(-50%) scale(.9);transition:opacity 240ms var(--ease-out),transform 240ms var(--ease-out);pointer-events:none}
 .g-win.match{background:var(--surface-2);color:var(--muted)}
@@ -346,7 +346,7 @@ input{font:inherit;color:inherit}
 .mv{padding:14px 0;border-bottom:1px solid var(--line)}
 .mv:last-child{border-bottom:0}
 .mv-m{font-size:13.5px;color:var(--ink);margin-top:3px}
-.mv-m span{display:inline-block;min-width:74px;font-size:12px;font-weight:650;color:var(--faint)}
+.mv-m span{display:inline-block;min-width:74px;font-size:12px;font-weight:650;color:var(--muted)}
 .mv-m.sec{color:var(--muted)}
 .mv-box{margin:10px 0 2px;padding:10px 12px;border-radius:14px;background:var(--surface-2)}
 .mv-box .mv-m:first-child{margin-top:0}
@@ -354,7 +354,7 @@ input{font:inherit;color:inherit}
 .opt{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:62px;padding:9px 30px 10px 12px;border-radius:14px;background:var(--surface-2);text-align:left;
   transition:transform 140ms var(--ease-out),background-color 160ms ease}
 .opt:active{transform:scale(.97)}
-.opt small{font-size:11.5px;font-weight:650;color:var(--faint)}
+.opt small{font-size:11.5px;font-weight:650;color:var(--muted)}
 .opt b{font-size:13.5px;font-weight:650;line-height:1.25}
 .opt i{position:absolute;right:10px;top:9px;font-style:normal;font-weight:700;font-size:18px;color:var(--accent);line-height:1}
 .opt.has{background:var(--accent-soft)}
@@ -377,6 +377,8 @@ input{font:inherit;color:inherit}
 .ex-act button.armed{color:var(--warn)}
 @media (max-width:380px){
   .cols,.set{grid-template-columns:20px minmax(0,1fr) 64px 48px 42px;gap:6px}
+  .lift{grid-template-columns:minmax(0,1fr) 64px 64px;gap:8px}
+  .spark{width:64px}
   .check{width:42px}
   .g-txt{font-size:12.5px;padding:0 5px;height:auto;min-height:26px;white-space:normal;line-height:1.15;text-align:center}
   .ex-h{flex-wrap:wrap}
@@ -385,7 +387,7 @@ input{font:inherit;color:inherit}
 }
 .ex-tools{display:flex;gap:6px;flex:none}
 .wu{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 4px 10px}
-.wu-l{font-size:11.5px;font-weight:650;color:var(--faint);margin-right:2px}
+.wu-l{font-size:11.5px;font-weight:650;color:var(--muted);margin-right:2px}
 .wu-c{height:32px;padding:0 10px;border-radius:9px;background:var(--surface-2);font-family:var(--display);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:600;color:var(--muted);
   transition:background-color 160ms ease,color 160ms ease,transform 140ms var(--ease-out)}
 .wu-c:active{transform:scale(.96)}
@@ -598,7 +600,7 @@ const PLATE_LOOK = {
 function toUnit(kg) { return U() === 'lb' ? Math.round(kg * 2.20462 * 2) / 2 : Math.round(kg * 100) / 100; }
 const barUnit = barKg => U() === 'lb' ? Math.round(toUnit(barKg) / 5) * 5 : toUnit(barKg);
 function plateSplit(totalKg, barKg) {
-  const list = PLATES[U()], total = toUnit(totalKg), bar = barUnit(barKg);
+  const list = PLATES[U()], total = Math.min(toUnit(totalKg), toUnit(MAX_KG)), bar = barUnit(barKg); // capped so a typo can't ask for thousands of plates
   let side = (total - bar) / 2; const out = [];
   if (side < 0) return {plates:[], loaded:bar, short:true};
   for (const p of list) { while (side >= p - 1e-6) { out.push(p); side -= p; } }
@@ -763,15 +765,91 @@ function defaultProfile() {
   return {v:1, units:'kg', restC:150, restI:90, days:clone(PROGRAM), program:{id:'ulpp', name:'Upper / Lower / Push / Pull'}, programPicked:false, nextDay:0, readiness:null, sampleCleared:false, updatedAt:0,
     warmups:true, bars:{bar:20, ez:10, smith:15}, custom:[]};
 }
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY); if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s || !s.profile || !Array.isArray(s.sessions)) return null;
-    return s;
-  } catch (e) { return null; }
+/* ---- data safety: everything read from storage or a backup file is checked before the app uses it,
+   so one bad value can never blank the screen. Out-of-range numbers are clamped, broken records dropped. ---- */
+const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
+const fin = x => typeof x === 'number' && Number.isFinite(x);
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+const str = (x, max, d = '') => typeof x === 'string' ? x.slice(0, max) : d;
+const MAX_KG = 2500, MAX_REPS = 999; // far beyond anything a person lifts; stops typos like 99999 from being saved
+function cleanSlot(sl) {
+  if (!isObj(sl) || typeof sl.id !== 'string') return null;
+  const lo = clamp(Math.round(fin(sl.lo) ? sl.lo : 8), 1, 30);
+  const out = {id:sl.id, sets:clamp(Math.round(fin(sl.sets) ? sl.sets : 3), 1, 8), lo, hi:clamp(Math.round(fin(sl.hi) ? sl.hi : lo), lo, 40)};
+  if (fin(sl.rest)) out.rest = clamp(Math.round(sl.rest), 30, 600);
+  if (typeof sl.note === 'string' && sl.note) out.note = sl.note.slice(0, 80);
+  return out;
 }
-function persist() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function cleanDay(d, i) {
+  if (!isObj(d) || !Array.isArray(d.ex)) return null;
+  return {name:str(d.name, 24).trim() || 'Day ' + (i + 1), ex:d.ex.map(cleanSlot).filter(Boolean)};
+}
+function cleanCustom(c) {
+  if (!isObj(c) || typeof c.id !== 'string' || !/^c[A-Za-z0-9_-]{1,40}$/.test(c.id)) return null;
+  const n = str(c.n, 40).trim(); if (!n) return null;
+  const known = a => (Array.isArray(a) ? a : []).filter(m => typeof m === 'string' && Object.prototype.hasOwnProperty.call(MUSC, m));
+  const prim = known(c.prim);
+  return {id:c.id, n, kind:['free', 'mach', 'bw'].includes(c.kind) ? c.kind : 'free', c:c.c ? 1 : 0, prim, sec:known(c.sec).filter(m => !prim.includes(m)),
+    inc:fin(c.inc) && c.inc > 0 && c.inc <= 25 ? c.inc : 2.5, ...(c.hidden ? {hidden:true} : {})};
+}
+function cleanSession(s) {
+  if (!isObj(s) || !fin(s.date) || !Array.isArray(s.entries)) return null;
+  const entries = s.entries.map(en => {
+    if (!isObj(en) || typeof en.exId !== 'string' || !Array.isArray(en.sets)) return null;
+    const sets = en.sets.filter(x => isObj(x) && fin(x.r) && x.r > 0 && (fin(x.w) || x.w == null))
+      .map(x => ({w:fin(x.w) ? clamp(x.w, 0, MAX_KG) : 0, r:clamp(Math.round(x.r), 1, MAX_REPS), res:x.res === 'beat' || x.res === 'match' ? x.res : null}));
+    return sets.length ? {exId:en.exId, sets} : null;
+  }).filter(Boolean);
+  if (!entries.length) return null;
+  return {id:str(s.id, 60) || newId(), dayIdx:fin(s.dayIdx) ? s.dayIdx : 0, dayName:str(s.dayName, 40) || 'Workout', date:s.date,
+    dur:fin(s.dur) ? clamp(Math.round(s.dur), 0, 1440) : 0, readiness:fin(s.readiness) ? clamp(Math.round(s.readiness), 0, 100) : null,
+    entries, ...(s.sample ? {sample:true} : {}), updatedAt:fin(s.updatedAt) ? s.updatedAt : 0};
+}
+function cleanSessions(list) {
+  const seen = new Set();
+  return (Array.isArray(list) ? list : []).map(cleanSession).filter(Boolean).map(s => { if (seen.has(s.id)) s.id = newId(); seen.add(s.id); return s; });
+}
+function cleanActive(a) {
+  if (!isObj(a) || !fin(a.startedAt) || !Array.isArray(a.entries)) return null;
+  if (!a.entries.every(en => isObj(en) && typeof en.exId === 'string' && Array.isArray(en.sets) && en.sets.every(isObj))) return null;
+  a.id = str(a.id, 60) || newId(); a.dayName = str(a.dayName, 40) || 'Workout';
+  a.entries.forEach(en => { en.lo = fin(en.lo) ? en.lo : 8; en.hi = fin(en.hi) ? en.hi : en.lo; en.rest = fin(en.rest) ? en.rest : 90; en.note = str(en.note, 80); });
+  return a;
+}
+function cleanProfile(p0) {
+  const p = isObj(p0) ? p0 : {}, out = Object.assign(defaultProfile(), p);
+  if (!(isObj(p.program) && typeof p.program.id === 'string' && typeof p.program.name === 'string')) delete out.program; // normalizeProfile works it out from the days
+  else out.program = {id:p.program.id.slice(0, 30), name:p.program.name.slice(0, 40)};
+  out.v = 1;
+  out.units = out.units === 'lb' ? 'lb' : 'kg';
+  out.restC = fin(out.restC) ? clamp(Math.round(out.restC), 30, 600) : 150;
+  out.restI = fin(out.restI) ? clamp(Math.round(out.restI), 30, 600) : 90;
+  out.warmups = out.warmups !== false;
+  const b = isObj(out.bars) ? out.bars : {};
+  out.bars = {bar:fin(b.bar) ? clamp(b.bar, 0, 40) : 20, ez:fin(b.ez) ? clamp(b.ez, 0, 40) : 10, smith:fin(b.smith) ? clamp(b.smith, 0, 40) : 15};
+  out.custom = (Array.isArray(out.custom) ? out.custom : []).map(cleanCustom).filter(Boolean);
+  out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
+  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared;
+  const r = out.readiness;
+  out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
+  return out;
+}
+function load() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(KEY); if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (isObj(s) && isObj(s.profile) && Array.isArray(s.sessions)) return s;
+  } catch (e) {}
+  // Unreadable: keep a copy for recovery, then start fresh rather than showing a blank screen.
+  try { if (raw) localStorage.setItem(KEY + '.unreadable', raw); } catch (e) {}
+  return null;
+}
+let saveWarned = false;
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); saveWarned = false; }
+  catch (e) { if (!saveWarned) { saveWarned = true; try { toast("Couldn't save on this phone. Export a backup so you don't lose your workouts."); } catch (e2) {} } }
+}
 
 function cmpGhost(set, g) {
   if (!g || !set) return null;
@@ -819,25 +897,31 @@ function makeSamples() {
 }
 function fresh() { return {profile: defaultProfile(), sessions: makeSamples(), active: null}; }
 
-let S = load() || fresh();
+const loaded = load();
+let S = loaded || fresh();
 function normalizeProfile() {
-  const dp = defaultProfile();
-  for (const k of ['warmups', 'bars', 'custom']) if (S.profile[k] == null) S.profile[k] = dp[k];
+  S.profile = cleanProfile(S.profile);
+  S.sessions = cleanSessions(S.sessions);
+  S.active = cleanActive(S.active);
+  // A custom exercise can never replace a built-in one.
+  S.profile.custom = S.profile.custom.filter(c => !EX[c.id] || EX[c.id].custom);
   S.profile.custom.forEach(registerCustom);
   // Drop plan slots that point at exercises this version doesn't know (a hand-edited or newer backup), and never leave the plan empty.
-  S.profile.days.forEach(d => { d.ex = d.ex.filter(sl => sl && EX[sl.id]); });
+  S.profile.days.forEach(d => { d.ex = d.ex.filter(sl => EX[sl.id]); });
   if (!S.profile.days.length) S.profile.days = clone(PROGRAM);
+  S.profile.nextDay = Number.isInteger(S.profile.nextDay) && S.profile.nextDay >= 0 ? S.profile.nextDay % S.profile.days.length : 0;
   // Plans made before programs existed: the untouched 4-day plan is the original template, anything else is custom.
   if (!S.profile.program) {
     const orig = S.profile.days.map(d => d.name).join('/') === 'Upper/Lower/Push/Pull';
     S.profile.program = orig ? {id:'ulpp', name:'Upper / Lower / Push / Pull'} : {id:'custom', name:'Custom split'};
-    S.profile.programPicked = S.profile.programPicked || false;
-    persist();
   }
   // Tour flags. Someone arriving with real workouts (an older install or a restored backup) has used the app already.
-  if (!S.profile.tour) { const used = S.sessions.some(x => !x.sample); S.profile.tour = {done:used, wo:used}; }
+  const t = S.profile.tour;
+  if (isObj(t)) S.profile.tour = {done:!!t.done, wo:!!t.wo};
+  else { const used = S.sessions.some(x => !x.sample); S.profile.tour = {done:used, wo:used}; }
 }
 normalizeProfile();
+if (loaded) persist();
 let tab = 'today';
 let draftR = {};
 let selMuscle = null;
@@ -934,7 +1018,7 @@ function vToday() {
   }).join('');
   const act = S.active
     ? `<button class="btn primary big press" data-act="resume">Resume ${S.active.dayName.length > 16 ? 'workout' : esc(S.active.dayName)}</button>`
-    : `<button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button>`;
+    : day.ex.length ? `<button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button>` : '';
   return `<header><p class="date">${fmtDate(Date.now())}</p>${weekStrip()}</header>
     ${installNote()}
     ${hasSamples() ? `<div class="sample-note"><span>You're looking at sample workouts.</span><button data-act="clearsample">Clear them</button></div>` : ''}
@@ -1031,7 +1115,7 @@ function vProgress() {
   }).join('');
   const hist = sorted().slice(0, 12).map(s => {
     const n = s.entries.reduce((a, e) => a + e.sets.length, 0), b = s.entries.reduce((a, e) => a + e.sets.filter(x => x.res === 'beat').length, 0);
-    return `<button class="hist" data-act="session" data-id="${s.id}"><span class="nm">${esc(s.dayName)}${s.sample ? '<span class="tag-sample">Sample</span>' : ''}</span><span class="r">${pl(n, 'set')}</span><span class="sub">${fmtDate(s.date, {weekday:'short', day:'numeric', month:'short'})}, ${s.dur} min</span><span class="r">${b ? `<b>${b}</b> beat the ghost` : 'No ghosts beaten'}</span></button>`;
+    return `<button class="hist" data-act="session" data-id="${esc(s.id)}"><span class="nm">${esc(s.dayName)}${s.sample ? '<span class="tag-sample">Sample</span>' : ''}</span><span class="r">${pl(n, 'set')}</span><span class="sub">${fmtDate(s.date, {weekday:'short', day:'numeric', month:'short'})}, ${s.dur} min</span><span class="r">${b ? `<b>${b}</b> beat the ghost` : 'No ghosts beaten'}</span></button>`;
   }).join('');
   return `<header><p class="date">Last 7 days</p><h1 class="title">Progress</h1></header>
     <div class="stats section" style="margin-top:20px"><div class="stat"><b>${ss.length}</b><span>${ss.length === 1 ? 'session' : 'sessions'}</span></div><div class="stat"><b>${setsN}</b><span>hard sets</span></div><div class="stat"><b>${beat}</b><span>ghosts beaten</span></div></div>
@@ -1215,11 +1299,13 @@ function readBackup(file) {
   const fr = new FileReader();
   fr.onload = () => {
     let d = null; try { d = JSON.parse(fr.result); } catch (e) {}
-    const okDays = d && d.profile && Array.isArray(d.profile.days) && d.profile.days.length > 0 && d.profile.days.every(x => x && typeof x.name === 'string' && Array.isArray(x.ex));
+    const okDays = isObj(d) && isObj(d.profile) && Array.isArray(d.profile.days) && d.profile.days.length > 0 && d.profile.days.every(x => isObj(x) && typeof x.name === 'string' && Array.isArray(x.ex));
     if (!d || d.app !== 'rival' || !okDays || !Array.isArray(d.sessions)) { toast("That file isn't a Rival backup, or it has no plan in it"); return; }
-    pendingImport = d;
-    const when = d.exportedAt ? fmtDate(d.exportedAt, {day:'numeric', month:'long', year:'numeric'}) : 'an unknown date';
-    openSheet(`<h2 class="h2">Restore this backup?</h2><p class="sub">${pl(d.sessions.length, 'workout')} and your plan, exported ${esc(when)}. This replaces everything currently on this phone.</p>
+    const sessions = cleanSessions(d.sessions), skipped = d.sessions.length - sessions.length;
+    pendingImport = {profile:d.profile, sessions};
+    const t = d.exportedAt ? new Date(d.exportedAt) : null;
+    const when = t && !isNaN(t) ? fmtDate(t, {day:'numeric', month:'long', year:'numeric'}) : 'an unknown date';
+    openSheet(`<h2 class="h2">Restore this backup?</h2><p class="sub">${pl(sessions.length, 'workout')} and your plan, exported ${esc(when)}.${skipped > 0 ? ` ${pl(skipped, 'damaged workout')} will be left out.` : ''} This replaces everything currently on this phone.</p>
       <div class="sheet-actions" style="margin-top:16px"><button class="btn primary big press" data-act="restore">Replace with backup</button><button class="btn press" data-act="closesheet">Cancel</button></div>`, () => {});
   };
   fr.readAsText(file);
@@ -1249,11 +1335,13 @@ function openSheet(html, onClose) {
   document.body.appendChild(wrap);
   sheetEl = wrap; wrap._onClose = onClose;
   requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('open')));
-  dragToDismiss(wrap);
+  nameSheet(wrap); dragToDismiss(wrap);
   const f = wrap.querySelector('[autofocus]'); if (f) setTimeout(() => f.focus({preventScroll:true}), 460);
   return wrap;
 }
-function setSheet(html) { if (sheetEl) sheetEl.querySelector('.sheet-body').innerHTML = html; }
+// A dialog needs a name for screen readers: use its first heading.
+function nameSheet(w) { const h = w.querySelector('.sheet-body h2, .sheet-body h3'), d = w.querySelector('.sheet'); if (h && d) { h.id = 'sheet-h'; d.setAttribute('aria-labelledby', 'sheet-h'); } }
+function setSheet(html) { if (sheetEl) { sheetEl.querySelector('.sheet-body').innerHTML = html; nameSheet(sheetEl); } }
 function closeSheet(instant) {
   const w = sheetEl; if (!w) return; sheetEl = null;
   if (w._onClose) w._onClose();
@@ -1373,6 +1461,8 @@ function logSet(row) {
     const w = toKg(row.querySelector('.in-w').value), r = parseInt(row.querySelector('.in-r').value, 10);
     if (isNaN(r) || r <= 0) { toast('Enter the reps for this set first'); row.querySelector('.in-r').focus(); return; }
     if (w == null && !ex.bw) { toast('Enter the weight for this set first'); row.querySelector('.in-w').focus(); return; }
+    if (w != null && (w < 0 || w > MAX_KG)) { toast(w < 0 ? "A weight can't be negative" : 'That weight looks too high. Check it'); row.querySelector('.in-w').focus(); return; }
+    if (r > MAX_REPS) { toast('That many reps? Check the number'); row.querySelector('.in-r').focus(); return; }
     s.w = w == null ? 0 : w; s.r = r; s.done = true; s.res = cmpGhost(s, s.g);
     if (s.res === 'beat') buzz(18); else buzz(8);
     // carry a changed weight forward to the next untouched sets
@@ -1409,18 +1499,16 @@ function tickRest() {
   const rt = $('#rt'), bar = $('#rbar');
   if (left <= 0) {
     clearInterval(restTick);
-    restEl.classList.add('up');
     if (rt) rt.textContent = 'Rest is up';
     const rl = restEl.querySelector('.rl'); if (rl) rl.textContent = 'Next set';
-    buzz([30, 60, 30]);
-    restHideT = setTimeout(hideRest, 5000);
+    if (!restEl.classList.contains('up')) { restEl.classList.add('up'); buzz([30, 60, 30]); restHideT = setTimeout(hideRest, 5000); } // once per rest, not on every return to the app
     return;
   }
   if (rt) rt.textContent = fmtClock(Math.ceil(left));
   if (bar) bar.style.transform = `scaleX(${1 - left / restTotal})`;
 }
 function hideRest() {
-  clearInterval(restTick); clearTimeout(restHideT);
+  clearInterval(restTick); clearTimeout(restHideT); restEnd = 0;
   restEl.classList.add('hide'); restEl.classList.remove('show');
 }
 
@@ -1586,7 +1674,7 @@ function sessionSheet(id) {
     return `<div class="set-row" style="align-items:flex-start"><span class="h3" style="font-size:15px">${esc(ex.n)}</span><span class="num" style="text-align:right">${en.sets.map(x => `<span style="${x.res === 'beat' ? 'color:var(--win);font-weight:700' : ''}">${ex.bw && !x.w ? 'BW' : fmtW(x.w)}×${x.r}</span>`).join('<br>')}</span></div>`;
   }).join('');
   openSheet(`<h2 class="h2">${esc(s.dayName)}${s.sample ? '<span class="tag-sample">Sample</span>' : ''}</h2><p class="sub">${fmtDate(s.date)}, ${s.dur} min${s.readiness != null ? ', readiness ' + s.readiness : ''}. Sets that beat the ghost are highlighted.</p><div style="margin-top:6px">${body}</div>
-    <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="delsession" data-id="${s.id}">Delete this workout</button></div>`);
+    <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="delsession" data-id="${esc(s.id)}">Delete this workout</button></div>`);
 }
 
 /* ================= actions ================= */
@@ -1715,8 +1803,8 @@ const acts = {
   importpick() { $('#importfile').click(); },
   restore() {
     const d = pendingImport; if (!d) return;
-    S.profile = Object.assign(defaultProfile(), d.profile, {sampleCleared:true});
-    S.sessions = d.sessions; normalizeProfile(); pendingImport = null; touch(); closeSheet(); render(); toast('Backup restored');
+    S.profile = Object.assign({}, d.profile, {sampleCleared:true});
+    S.sessions = d.sessions; normalizeProfile(); pendingImport = null; selMuscle = null; touch(); closeSheet(); render(); toast('Backup restored');
   },
   install() { if (!installEvt) return; installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; render(); }); },
   noinstall() { try { localStorage.setItem('rival.noinstall', '1'); } catch (e) {} render(); },
@@ -1862,12 +1950,12 @@ const acts = {
     let si = en.sets.findIndex(x => !x.done); if (si < 0) si = en.sets.length - 1;
     const row = wo.querySelector(`.set[data-e="${ei}"][data-s="${si}"] .in-w`);
     const typed = row ? toKg(row.value) : null;
-    plateCtx = {ei, si, w: typed != null ? typed : (en.sets[si].w || S.profile.bars[barType(en.exId)])};
+    plateCtx = {ei, si, w: clamp(typed != null ? typed : (en.sets[si].w || S.profile.bars[barType(en.exId)]), 0, MAX_KG)};
     openSheet(plateHTML());
   },
   pcw(el) {
     const en = S.active.entries[plateCtx.ei], ex = EX[en.exId], stepKg = U() === 'lb' ? 5 / 2.20462 : (ex.inc || 2.5);
-    plateCtx.w = Math.max(0, +(plateCtx.w + +el.dataset.v * stepKg).toFixed(3)); if (U() === 'lb') plateCtx.w = toKg(Math.round(toUnit(plateCtx.w) / 5) * 5);
+    plateCtx.w = clamp(+(plateCtx.w + +el.dataset.v * stepKg).toFixed(3), 0, MAX_KG); if (U() === 'lb') plateCtx.w = toKg(Math.round(toUnit(plateCtx.w) / 5) * 5);
     setSheet(plateHTML());
   },
   pcbar(el) {
@@ -1972,7 +2060,7 @@ document.addEventListener('change', e => {
 document.addEventListener('focusin', e => { if (e.target.matches('.set input')) setTimeout(() => e.target.select && e.target.select(), 0); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && wo.classList.contains('open') && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {});
-  if (document.visibilityState === 'visible' && restEnd) tickRest();
+  if (document.visibilityState === 'visible' && restEnd && restEl.classList.contains('show')) tickRest();
 });
 setInterval(() => {
   if (!S.active) return;
