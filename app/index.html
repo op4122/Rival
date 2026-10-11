@@ -111,6 +111,23 @@ input{font:inherit;color:inherit}
 .hero{margin-top:22px}
 .hero .sub{margin-top:8px}
 .daypick{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.daypick .chip.other{background:none;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--tagc,var(--accent))}
+.daypick .chip.done:not([aria-pressed="true"]){color:var(--muted)}
+.chip .tk{width:14px;height:14px;margin:0 4px -2px -2px}
+.ovr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:10px 10px 10px 14px;border-radius:14px;background:var(--accent-soft);font-size:13.5px;line-height:1.35}
+.ovr b{font-weight:700}
+.ovr .acts{display:flex;gap:4px;flex:none}
+.ovr button{font-weight:650;color:var(--tagc,var(--accent));white-space:nowrap;padding:8px 6px;min-height:36px}
+.fx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:12px}
+.fx-grid .chip{height:44px}
+.wk-list{display:grid;gap:6px;margin-top:12px}
+.wk-row{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border-radius:14px;background:var(--surface-2)}
+.wk-row .n{flex:none;width:22px;font-weight:700;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.wk-row b{flex:1;min-width:0;font-weight:700}
+.wk-row .m{flex:none;font-size:13px;color:var(--muted)}
+.wk-row button{flex:none;width:40px;height:40px;border-radius:10px;font-size:22px;line-height:1;color:var(--muted)}
+.wk-empty{font-size:14px;color:var(--muted);padding:12px 14px;border-radius:14px;box-shadow:inset 0 0 0 1.5px var(--line)}
+@media (max-width:360px){.ovr{flex-direction:column;align-items:stretch}.ovr .acts{justify-content:flex-end}}
 .sample-note{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:10px 12px 10px 14px;border-radius:14px;background:var(--win-bg);font-size:13.5px}
 .sample-note button{font-weight:650;white-space:nowrap;padding:6px 4px}
 .sample-note.install{background:var(--accent-soft)}
@@ -717,6 +734,18 @@ function buildDays(focuses, names) {
 }
 function programDays(pr) { return pr.fixed ? clone(PROGRAM) : buildDays(pr.f); }
 
+/* One-off training: a single session for today, or a short plan for the next 7 days. Both sit on top of the
+   program without changing it, so the program picks up where it left off once they end. */
+const ONE_FOCUS = ['push', 'pull', 'legs', 'upper', 'lower', 'full', 'cb', 'sa', 'chest', 'back', 'shoulders', 'arms'];
+function overrideNow() {
+  const p = S.profile, now = Date.now();
+  if (p.today && p.today.date !== dkey(now)) delete p.today;
+  if (p.week && !(now < p.week.end)) delete p.week;
+  if (p.today) return {kind:'today', days:[p.today.day], idx:0};
+  if (p.week) return {kind:'week', days:p.week.days, idx:p.week.next % p.week.days.length, done:p.week.done};
+  return null;
+}
+
 const RQ = [
   {k:'sleep',  q:'Sleep',    o:['Rough','Short','Decent','Great']},
   {k:'sore',   q:'Soreness', o:['Very sore','Sore','A little','Fresh']},
@@ -813,6 +842,7 @@ function cleanActive(a) {
   if (!isObj(a) || !fin(a.startedAt) || !Array.isArray(a.entries)) return null;
   if (!a.entries.every(en => isObj(en) && typeof en.exId === 'string' && Array.isArray(en.sets) && en.sets.every(isObj))) return null;
   a.id = str(a.id, 60) || newId(); a.dayName = str(a.dayName, 40) || 'Workout';
+  a.mode = a.mode === 'today' || a.mode === 'week' ? a.mode : 'program';
   a.entries.forEach(en => { en.lo = fin(en.lo) ? en.lo : 8; en.hi = fin(en.hi) ? en.hi : en.lo; en.rest = fin(en.rest) ? en.rest : 90; en.note = str(en.note, 80); });
   return a;
 }
@@ -832,6 +862,15 @@ function cleanProfile(p0) {
   out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared;
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
+  // One-off sessions that sit on top of the program without changing it.
+  const t = out.today, td = isObj(t) && typeof t.date === 'string' ? cleanDay(t.day, 0) : null;
+  if (td) out.today = {date:t.date.slice(0, 10), f:str(t.f, 20), day:td}; else delete out.today;
+  const w = out.week, wd = isObj(w) && fin(w.end) && Array.isArray(w.days) ? w.days.map(cleanDay).filter(Boolean).slice(0, 7) : [];
+  if (wd.length) {
+    const end = Math.min(w.end, Date.now() + 7 * DAY); // a backup can't set a plan that never ends
+    out.week = {start:fin(w.start) ? Math.min(w.start, end) : end - 7 * DAY, end, f:(Array.isArray(w.f) ? w.f : []).filter(x => typeof x === 'string' && FOCUS[x]).slice(0, 7), days:wd,
+      next:Number.isInteger(w.next) && w.next >= 0 ? w.next % wd.length : 0, done:wd.map((_, i) => !!(Array.isArray(w.done) && w.done[i] === true))};
+  } else delete out.week;
   return out;
 }
 function load() {
@@ -909,6 +948,13 @@ function normalizeProfile() {
   // Drop plan slots that point at exercises this version doesn't know (a hand-edited or newer backup), and never leave the plan empty.
   S.profile.days.forEach(d => { d.ex = d.ex.filter(sl => EX[sl.id]); });
   if (!S.profile.days.length) S.profile.days = clone(PROGRAM);
+  if (S.profile.today) { S.profile.today.day.ex = S.profile.today.day.ex.filter(sl => EX[sl.id]); if (!S.profile.today.day.ex.length) delete S.profile.today; }
+  if (S.profile.week) {
+    const w = S.profile.week, keep = w.days.map((d, i) => { d.ex = d.ex.filter(sl => EX[sl.id]); return d.ex.length ? i : -1; }).filter(i => i >= 0);
+    if (!keep.length) delete S.profile.week;
+    else if (keep.length < w.days.length) { w.days = keep.map(i => w.days[i]); w.done = keep.map(i => w.done[i]); w.next = 0; }
+  }
+  overrideNow(); // drop one-offs that have run out
   S.profile.nextDay = Number.isInteger(S.profile.nextDay) && S.profile.nextDay >= 0 ? S.profile.nextDay % S.profile.days.length : 0;
   // Plans made before programs existed: the untouched 4-day plan is the original template, anything else is custom.
   if (!S.profile.program) {
@@ -972,7 +1018,8 @@ function touch() { S.profile.updatedAt = Date.now(); persist(); Sync.profile(); 
 const I = {
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></svg>',
-  chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6l6 6-6 6"/></svg>'
+  chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6l6 6-6 6"/></svg>',
+  tick:'<svg class="tk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
 };
 
 /* ================= today ================= */
@@ -1003,8 +1050,15 @@ function readinessCard() {
     <div class="rq">${RQ.map(q => `<div class="rq-row" role="group" aria-label="${q.q}"><label>${q.q}</label><div class="rq-opts">${q.o.map((o, i) => `<button class="chip press" data-act="rq" data-k="${q.k}" data-v="${i}" aria-pressed="${draftR[q.k] === i}">${o}</button>`).join('')}</div></div>`).join('')}</div>
     <div class="ready-foot"><span class="sub">${Object.keys(draftR).length} of 3</span><button class="link" data-act="skipr">Skip</button></div></section>`;
 }
+function overrideBanner(o) {
+  const p = S.profile, nxt = p.days[p.nextDay % p.days.length];
+  if (o.kind === 'today') return `<div class="ovr"><span><b>Just today.</b> Your program waits at ${esc(nxt.name)}.</span><span class="acts"><button data-act="other">Change</button><button data-act="endother">Back to program</button></span></div>`;
+  const left = o.done.filter(x => !x).length, until = fmtDate(p.week.end - DAY, {weekday:'short', day:'numeric', month:'short'});
+  const msg = left ? `<b>This week only</b>, until ${until}. Then back to ${esc(nxt.name)}.` : `<b>All ${pl(o.days.length, 'session')} done.</b> Your program waits at ${esc(nxt.name)}.`;
+  return `<div class="ovr"><span>${msg}</span><span class="acts"><button data-act="other">Edit</button><button data-act="endother">${left ? 'End now' : 'Back to program'}</button></span></div>`;
+}
 function vToday() {
-  const p = S.profile, n = p.days.length, idx = p.nextDay % n, day = p.days[idx], tier = curTier();
+  const p = S.profile, o = overrideNow(), list = o ? o.days : p.days, n = list.length, idx = o ? o.idx : p.nextDay % n, day = list[idx], tier = curTier();
   const plans = day.ex.map(sl => planSlot(sl, tier));
   const sets = plans.reduce((a, x) => a + x.length, 0);
   const mins = Math.round(day.ex.reduce((a, sl, i) => a + plans[i].length * (restFor(sl) + 45), 0) / 60);
@@ -1023,9 +1077,12 @@ function vToday() {
     ${installNote()}
     ${hasSamples() ? `<div class="sample-note"><span>You're looking at sample workouts.</span><button data-act="clearsample">Clear them</button></div>` : ''}
     <section class="hero"><h1 class="title${day.name.length > 12 ? ' long' : ''}">${esc(day.name)}</h1>
-      <p class="sub">Day ${idx + 1} of ${n}, about ${mins} minutes, ${pl(sets, 'set')}</p>
-      <div class="daypick" role="group" aria-label="Choose today's session">${p.days.map((d, i) => `<button class="chip press" data-act="day" data-i="${i}" aria-pressed="${i === idx}">${esc(d.name)}</button>`).join('')}</div>
-      ${p.programPicked ? '' : `<button class="link prog-hint" data-act="program">Training ${n === 4 ? 'more or less than 4' : 'a different number of'} days a week? Pick a program</button>`}
+      <p class="sub">${!o ? `Day ${idx + 1} of ${n}` : o.kind === 'today' ? 'One-off session' : `Session ${idx + 1} of ${n} this week`}, about ${mins} minutes, ${pl(sets, 'set')}</p>
+      ${o && o.kind === 'today' ? '' : `<div class="daypick" role="group" aria-label="Choose today's session">${list.map((d, i) => {
+        const done = o && o.done[i];
+        return `<button class="chip press${done ? ' done' : ''}" data-act="${o ? 'wday' : 'day'}" data-i="${i}" aria-pressed="${i === idx}"${done ? ` aria-label="${esc(d.name)}, done"` : ''}>${done ? I.tick : ''}${esc(d.name)}</button>`;
+      }).join('')}${o ? '' : '<button class="chip other press" data-act="other">Something else</button>'}</div>`}
+      ${o ? overrideBanner(o) : p.programPicked ? '' : `<button class="link prog-hint" data-act="program">Training ${n === 4 ? 'more or less than 4' : 'a different number of'} days a week? Pick a program</button>`}
     </section>
     ${readinessCard()}
     <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}${act}</section>`;
@@ -1209,6 +1266,29 @@ function builderHTML() {
     <p class="sub bd-sum" style="margin:14px 0 12px">${volSummary(auto)}</p>
     <div class="sheet-actions"><button class="btn primary big press" data-act="bdapply">Use this split</button></div>`;
 }
+let oth = {mode:'today', f:null, list:[]};
+function otherHTML() {
+  const p = S.profile, nxt = p.days[p.nextDay % p.days.length];
+  const seg = `<div class="seg" role="group" aria-label="How long for" style="margin-top:12px"><button data-act="othmode" data-m="today" aria-pressed="${oth.mode === 'today'}">Just today</button><button data-act="othmode" data-m="week" aria-pressed="${oth.mode === 'week'}">This week</button></div>`;
+  const grid = (act, sel) => `<div class="fx-grid" role="group" aria-label="${act === 'othf' ? 'Focus for today' : 'Add a session'}">${ONE_FOCUS.map(f => `<button class="chip press" data-act="${act}" data-f="${f}"${sel ? ` aria-pressed="${oth.f === f}"` : ''}>${act === 'othadd' ? '+ ' : ''}${FOCUS[f].label}</button>`).join('')}</div>`;
+  if (oth.mode === 'today') {
+    const d = oth.f && FOCUS[oth.f] ? buildDays([oth.f])[0] : null;
+    return `<h2 class="h2">Train something else</h2>${seg}
+      <p class="sub" style="margin-top:12px">Back after a break, or just not feeling ${esc(nxt.name)}? Pick a focus for today. Your program doesn't move, so ${esc(nxt.name)} is still next.</p>
+      ${grid('othf', true)}
+      ${d ? `<div class="pday" style="margin-top:12px"><b>${esc(d.name)}, about ${planStats([d]).mins} min</b><span>${d.ex.map(sl => `${esc(EX[sl.id].n)} ${sl.sets} × ${sl.lo}–${sl.hi}`).join(' · ')}</span><span>Your ghosts come along. Swap or add exercises once you start.</span></div>` : ''}
+      <div class="sheet-actions" style="margin-top:14px"><button class="btn primary big press" data-act="othtoday"${d ? '' : ' disabled'}>${d ? `Train ${esc(d.name)} today` : 'Pick a focus'}</button></div>`;
+  }
+  const days = oth.list.length ? buildDays(oth.list) : [];
+  const start = p.week ? p.week.start : sod(Date.now()), end = p.week ? p.week.end : start + 7 * DAY;
+  const until = fmtDate(end - DAY, {weekday:'long', day:'numeric', month:'short'});
+  return `<h2 class="h2">Train something else</h2>${seg}
+    <p class="sub" style="margin-top:12px">Plan a short week, like a push day and a pull day. It runs until ${until}, then your program picks up again at ${esc(nxt.name)}.</p>
+    <div class="wk-list">${days.length ? days.map((d, i) => `<div class="wk-row"><span class="n">${i + 1}</span><b>${esc(d.name)}</b><span class="m">${planStats([d]).mins} min</span><button data-act="othrm" data-i="${i}" aria-label="Remove ${esc(d.name)}">×</button></div>`).join('')
+      : '<p class="wk-empty">No sessions yet. Tap below to add them in the order you plan to do them.</p>'}</div>
+    ${grid('othadd', false)}
+    <div class="sheet-actions" style="margin-top:14px"><button class="btn primary big press" data-act="othweek"${days.length ? '' : ' disabled'}>${days.length ? (p.week ? 'Update this week' : `Use for this week, ${pl(days.length, 'session')}`) : 'Add at least one session'}</button></div>`;
+}
 function applyDays(days, program, msg) {
   const p = S.profile;
   prevPlan = {days: clone(p.days), program: clone(p.program), nextDay: p.nextDay};
@@ -1244,6 +1324,7 @@ function vPlan() {
     <section class="card prog-card" style="margin-top:16px"><p class="eyebrow">Your program</p><h2 class="h2">${esc(p.program.name)}</h2>
       <p class="sub" style="margin-top:4px">${p.days.length === 1 ? '1 day' : p.days.length + ' days'} a week, ${freqWord(st.freq)}, about ${st.mins} min a session.</p>
       <p class="sub vs">${volSummary(p.days)} <button class="link" data-act="planvol">See weekly sets</button></p>
+      ${(() => { const o = overrideNow(); return o ? `<div class="ovr"><span>${o.kind === 'today' ? `<b>Paused for today.</b> You're training ${esc(o.days[0].name)} instead.` : `<b>Paused this week</b> for ${o.days.map(d => esc(d.name)).join(', ')}.`}</span><span class="acts"><button data-act="endother">Back to program</button></span></div>` : ''; })()}
       <div class="acts"><button class="btn primary press" data-act="program">Change program</button><button class="btn press" data-act="build">Build your own</button></div></section>
     <div class="section" style="margin-top:4px">${days}</div>
     <button class="add-ex press" data-act="addday" style="width:100%;margin-top:12px"><span style="font-size:20px;line-height:1">+</span> Add a day</button>
@@ -1389,10 +1470,10 @@ function toast(msg, action) {
 /* ================= workout ================= */
 const wo = $('#wo');
 let wakeLock = null;
-function startWorkout(idx) {
-  const p = S.profile, day = p.days[idx], r = todayR(), tier = curTier();
+function startWorkout(idx, o) {
+  const p = S.profile, day = (o ? o.days : p.days)[idx], r = todayR(), tier = curTier();
   S.active = {
-    id:newId(), dayIdx:idx, dayName:day.name, startedAt:Date.now(),
+    id:newId(), dayIdx:idx, dayName:day.name, startedAt:Date.now(), mode:o ? o.kind : 'program',
     readiness: r && !r.skipped ? r.score : null, tierKey: tier.key,
     entries: day.ex.map(sl => ({exId:sl.id, lo:sl.lo, hi:sl.hi, rest:restFor(sl), note:sl.note || '',
       sets: planSlot(sl, tier).map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}))}))
@@ -1537,12 +1618,22 @@ function finishSheet() {
 }
 function saveWorkout() {
   const a = S.active, s = summary();
-  const sess = {id:a.id, dayIdx:a.dayIdx, dayName:a.dayName, date:a.startedAt, dur:s.mins, readiness:a.readiness,
+  const prog = !a.mode || a.mode === 'program';
+  const sess = {id:a.id, dayIdx:prog ? a.dayIdx : -1, dayName:a.dayName, date:a.startedAt, dur:s.mins, readiness:a.readiness,
     entries: a.entries.map(en => ({exId:en.exId, sets: en.sets.filter(x => x.done).map(x => ({w:x.w, r:x.r, res:x.res}))})).filter(en => en.sets.length),
     updatedAt: Date.now()};
   S.sessions.push(sess);
-  const at = S.profile.days[a.dayIdx] && S.profile.days[a.dayIdx].name === a.dayName ? a.dayIdx : S.profile.days.findIndex(d => d.name === a.dayName);
-  S.profile.nextDay = at >= 0 ? (at + 1) % S.profile.days.length : S.profile.nextDay % S.profile.days.length;
+  const p = S.profile;
+  if (prog) {
+    const at = p.days[a.dayIdx] && p.days[a.dayIdx].name === a.dayName ? a.dayIdx : p.days.findIndex(d => d.name === a.dayName);
+    p.nextDay = at >= 0 ? (at + 1) % p.days.length : p.nextDay % p.days.length;
+  } else if (a.mode === 'today') {
+    if (p.today && p.today.day.name === a.dayName) delete p.today; // done: back to the program, which never moved
+  } else if (a.mode === 'week' && p.week) {
+    // One-off sessions never move the program. Tick off this session and point at the next one not done yet.
+    const w = p.week, n = w.days.length, at = w.days[a.dayIdx] && w.days[a.dayIdx].name === a.dayName ? a.dayIdx : w.days.findIndex(d => d.name === a.dayName);
+    if (at >= 0) { w.done[at] = true; const nx = Array.from({length:n}, (_, k) => (at + 1 + k) % n).find(k => !w.done[k]); w.next = nx != null ? nx : (at + 1) % n; }
+  }
   S.active = null;
   touch(); Sync.session(sess);
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
@@ -1827,7 +1918,40 @@ const acts = {
   skipr() { S.profile.readiness = {date: dkey(Date.now()), skipped: true}; draftR = {}; touch(); render(); },
   redo() { S.profile.readiness = null; draftR = {}; touch(); render(); },
   day(el) { S.profile.nextDay = +el.dataset.i; touch(); render(); },
-  start() { if (S.active) return openWorkout(); startWorkout(S.profile.nextDay % S.profile.days.length); },
+  start() { if (S.active) return openWorkout(); const o = overrideNow(); if (o) startWorkout(o.idx, o); else startWorkout(S.profile.nextDay % S.profile.days.length); },
+  wday(el) { const w = S.profile.week; if (w && w.days[+el.dataset.i]) { w.next = +el.dataset.i; touch(); render(); } },
+  other() {
+    const p = S.profile;
+    oth = {mode:p.week && !p.today ? 'week' : 'today', f:p.today ? p.today.f : null, list:p.week ? [...p.week.f] : []};
+    openSheet(otherHTML());
+  },
+  othmode(el) { oth.mode = el.dataset.m; setSheet(otherHTML()); },
+  othf(el) { oth.f = el.dataset.f; keepScroll(() => setSheet(otherHTML())); },
+  othadd(el) { if (oth.list.length >= 7) return toast('Seven sessions is the most for one week'); oth.list.push(el.dataset.f); keepScroll(() => setSheet(otherHTML())); },
+  othrm(el) { oth.list.splice(+el.dataset.i, 1); keepScroll(() => setSheet(otherHTML())); },
+  othtoday() {
+    if (!oth.f || !FOCUS[oth.f]) return;
+    const d = buildDays([oth.f])[0];
+    S.profile.today = {date:dkey(Date.now()), f:oth.f, day:d};
+    touch(); closeSheet(); tab = 'today'; render(); window.scrollTo(0, 0);
+    toast(`${d.name} for today. Your program hasn't moved.`);
+  },
+  othweek() {
+    if (!oth.list.length) return;
+    const p = S.profile, old = p.week, days = buildDays(oth.list), start = old ? old.start : sod(Date.now());
+    // Editing a running week keeps its dates and the sessions already ticked off.
+    p.week = {start, end:old ? old.end : start + 7 * DAY, f:[...oth.list], days, next:0,
+      done:days.map((d, i) => !!(old && old.days[i] && old.days[i].name === d.name && old.done[i]))};
+    const nx = p.week.done.findIndex(x => !x); p.week.next = nx >= 0 ? nx : 0;
+    delete p.today;
+    touch(); closeSheet(); tab = 'today'; render(); window.scrollTo(0, 0);
+    toast(`This week: ${days.length <= 3 ? days.map(d => d.name).join(', ') : pl(days.length, 'session')}. Your program is paused.`);
+  },
+  endother() {
+    const p = S.profile, prev = {today:p.today, week:p.week};
+    delete p.today; delete p.week; touch(); render();
+    toast('Back to your program', {label:'Undo', fn:() => { if (prev.today) p.today = prev.today; if (prev.week) p.week = prev.week; touch(); render(); }});
+  },
   resume() { if (S.active) openWorkout(); },
   min() { minimizeWorkout(); },
   log(el) { logSet(el.closest('.set')); },

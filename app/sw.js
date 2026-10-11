@@ -1,7 +1,7 @@
 // Rival service worker: keeps a copy of the app on the phone so it opens with no signal.
 // HTML is fetched fresh when online (so updates arrive) and falls back to the saved copy offline.
 // Fonts and icons are served from the saved copy first.
-const CACHE = 'rival-v9';
+const CACHE = 'rival-v10';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png',
