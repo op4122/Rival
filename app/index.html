@@ -202,6 +202,37 @@ input{font:inherit;color:inherit}
 .slot .nm{font-weight:600;min-width:0}
 .slot .sr{color:var(--muted);font-size:13.5px;font-variant-numeric:tabular-nums}
 .slot svg{width:16px;height:16px;color:var(--faint)}
+.prog-card .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.prog-card .vs{margin-top:8px}
+.prog-card .vs .link{padding:0 2px;font-size:13.5px}
+.prog-card .acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.prog-card .acts .btn{flex:1;min-width:140px}
+.dh-r{display:flex;align-items:center;gap:10px}
+.prog-hint{display:block;margin-top:10px;text-align:left;font-size:14px}
+.dpw{margin-top:10px}
+.dpw button{font-family:var(--display);font-size:17px;font-weight:750}
+.progs{display:grid;gap:8px;margin:14px 0 10px}
+.prog{display:grid;gap:5px;width:100%;text-align:left;padding:14px 16px;border-radius:18px;background:var(--surface-2)}
+.prog[aria-current="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
+.prog-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.prog-top b{font-family:var(--display);font-stretch:112%;font-size:18px;font-weight:750;line-height:1.15}
+.tagc{flex:none;font-size:11.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 8px;border-radius:7px}
+.tagc.cur{color:var(--accent-ink);background:var(--accent)}
+.prog-blurb{font-size:14px;color:var(--muted);line-height:1.35}
+.prog-days{font-size:13.5px;font-weight:600;line-height:1.35}
+.prog-meta{font-size:13px;color:var(--muted)}
+.back{padding:2px 0 6px}
+.pdays{display:grid;gap:8px;margin-top:14px}
+.pday{padding:10px 12px;border-radius:14px;background:var(--surface-2);display:grid;gap:3px}
+.pday b{font-weight:700}
+.pday span{font-size:13.5px;color:var(--muted);line-height:1.4}
+.mlist.vol{margin-top:8px}
+.bd-list{margin-top:4px}
+.bd-day{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px 6px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.bd-day .n{font-weight:700;font-size:13px;color:var(--muted)}
+.bd-day .search{grid-column:2;margin:0;height:42px}
+.bd-sel{appearance:none;-webkit-appearance:none;width:100%;height:42px;border:0;border-radius:12px;padding:0 36px 0 12px;font:650 16px var(--text);color:var(--accent);background:var(--accent-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C8CD9' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center/18px}
+.bd-sel:focus{outline:2px solid var(--accent);outline-offset:0}
 .add{display:flex;align-items:center;gap:8px;color:var(--accent);font-weight:650;padding:12px 2px 2px}
 .set-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
 .set-row:last-child{border-bottom:0}
@@ -595,6 +626,78 @@ const PROGRAM = [
   {name:'Pull',  ex:[['bbrow',3,6,8],['pullup',3,6,10],['facepull',2,12,15],['hammer',3,10,12],['hipthrust',3,8,10],['legraise',2,10,15]]}
 ].map(d => ({name:d.name, ex:d.ex.map(([id,sets,lo,hi]) => ({id,sets,lo,hi}))}));
 
+/* ================= programs =================
+   Day blocks are reusable sessions. A focus (Upper, Push, Full Body...) has one or more variants,
+   so a program that trains the same focus twice gets two different days (Upper A, Upper B). */
+const BLOCKS = {
+  fullA:[['squat',4,5,7],['bench',4,6,8],['cablerow',3,8,10],['legcurl',2,10,12],['lat',2,12,15],['pushdown',2,10,12]],
+  fullB:[['rdl',3,6,8],['ohp',3,6,8],['pulldown',3,8,10],['legpress',3,10,12],['incdb',2,8,10],['ezcurl',2,10,12]],
+  fullC:[['hack',3,8,10],['dbbench',3,8,10],['bbrow',3,6,8],['hipthrust',2,8,10],['facepull',2,12,15],['calf',2,10,15],['crunch',2,10,15]],
+  upA:[['bench',4,6,8],['pulldown',3,8,10],['incdb',3,8,10],['cablerow',2,10,12],['lat',3,12,15],['pushdown',2,10,12],['ezcurl',2,10,12]],
+  upB:[['ohp',3,6,8],['bbrow',3,6,8],['dbbench',3,8,10],['pullup',3,6,10],['latmach',3,12,15],['ohext',2,10,12],['hammer',2,10,12]],
+  upC:[['incmach',3,8,10],['tbar',3,8,10],['ulpulldown',3,8,10],['pecdeck',2,12,15],['revpec',2,12,15],['bayescurl',2,10,12],['skull',2,10,12]],
+  loA:[['squat',3,5,7],['rdl',3,8,10],['legpress',3,10,12],['legcurl',3,10,12],['calf',3,10,15],['crunch',3,10,15]],
+  loB:[['deadlift',3,4,6],['hack',3,8,10],['bss',2,8,10],['lycurl',3,10,12],['legext',2,12,15],['seatcalfmach',3,12,15],['legraise',2,10,15]],
+  loC:[['hipthrust',3,8,10],['legpress',3,10,12],['dblunge',2,10,12],['legcurl',3,10,12],['legext',2,12,15],['calf',3,10,15],['woodchop',2,12,15]],
+  pushA:[['bench',3,6,8],['ohp',3,6,8],['incdb',3,8,10],['fly',2,12,15],['lat',3,12,15],['pushdown',2,10,12],['ohext',2,10,12]],
+  pushB:[['incmach',3,8,10],['dbshpress',3,8,10],['dipmach',2,8,12],['fly',2,12,15],['latmach',3,12,15],['skull',2,10,12]],
+  pullA:[['pullup',3,6,10],['bbrow',3,6,8],['cablerow',2,10,12],['facepull',2,12,15],['ezcurl',2,10,12],['hammer',2,10,12]],
+  pullB:[['pulldown',3,8,10],['tbar',3,8,10],['dbrow',2,8,12],['revpec',2,12,15],['shrug',2,10,15],['bayescurl',2,10,12]],
+  cbA:[['bench',3,6,8],['pullup',3,6,10],['incdb',3,8,10],['bbrow',3,6,8],['fly',2,12,15],['cablerow',2,10,12]],
+  cbB:[['incmach',3,8,10],['ulpulldown',3,8,10],['dbbench',3,8,10],['tbar',3,8,10],['pecdeck',2,12,15],['dbrow',2,8,12]],
+  saA:[['ohp',3,6,8],['lat',3,12,15],['revpec',2,12,15],['ezcurl',3,10,12],['pushdown',3,10,12],['hammer',2,10,12],['ohext',2,10,12]],
+  saB:[['dbshpress',3,8,10],['latmach',3,12,15],['facepull',2,12,15],['bayescurl',3,10,12],['skull',3,10,12],['ropehammer',2,10,12]],
+  chestA:[['bench',3,6,8],['incdb',3,8,10],['mchest',2,8,10],['fly',3,12,15],['dipmach',2,8,12]],
+  backA:[['pullup',3,6,10],['bbrow',3,6,8],['cablerow',3,10,12],['sapd',2,12,15],['shrug',2,10,15],['bext',2,10,15]],
+  shA:[['ohp',3,6,8],['lat',4,12,15],['revpec',3,12,15],['cableuprow',2,10,15],['facepull',2,12,15]],
+  armsA:[['ezcurl',3,10,12],['skull',3,10,12],['inccurl',2,10,12],['pushdown',3,10,12],['hammer',2,10,12],['ohext',2,10,12]]
+};
+const FOCUS = {
+  full:{label:'Full Body', v:['fullA','fullB','fullC']},
+  upper:{label:'Upper', v:['upA','upB','upC']},
+  lower:{label:'Lower', v:['loA','loB','loC']},
+  push:{label:'Push', v:['pushA','pushB']},
+  pull:{label:'Pull', v:['pullA','pullB']},
+  legs:{label:'Legs', v:['loA','loB','loC']},
+  cb:{label:'Chest & Back', v:['cbA','cbB']},
+  sa:{label:'Shoulders & Arms', v:['saA','saB']},
+  chest:{label:'Chest', v:['chestA']},
+  back:{label:'Back', v:['backA']},
+  shoulders:{label:'Shoulders', v:['shA']},
+  arms:{label:'Arms', v:['armsA']},
+  blank:{label:'Empty day', v:[]}
+};
+// Suggested programs by training days per week. The first for each day count is the recommended one.
+const PROGRAMS = [
+  {id:'fb2', n:2, name:'Full Body', f:['full','full'], blurb:'Every muscle twice a week in two longer sessions. The most from the least time.'},
+  {id:'ul2', n:2, name:'Upper / Lower', f:['upper','lower'], blurb:'One upper day, one lower day. Simple, but each muscle only gets one hit a week.'},
+  {id:'fb3', n:3, name:'Full Body', f:['full','full','full'], blurb:'The classic for three days: every muscle three times a week, with different lifts each day.'},
+  {id:'ulf3', n:3, name:'Upper / Lower / Full Body', f:['upper','lower','full'], blurb:'Two focused days and one full-body day. Each muscle twice a week.'},
+  {id:'ppl3', n:3, name:'Push / Pull / Legs', f:['push','pull','legs'], blurb:'One session per movement pattern. Each muscle once a week, with lots of sets per session.'},
+  {id:'ul4', n:4, name:'Upper / Lower', f:['upper','lower','upper','lower'], blurb:'Upper and lower twice each, with different lifts on the A and B days. Each muscle twice a week.'},
+  {id:'ulpp', n:4, name:'Upper / Lower / Push / Pull', fixed:true, blurb:'Rival\'s original plan. Upper and lower days, then push and pull days that also cover legs.'},
+  {id:'pplu4', n:4, name:'Push / Pull / Legs / Upper', f:['push','pull','legs','upper'], blurb:'Push, pull and legs, plus an upper day for extra chest, back and arms.'},
+  {id:'ulppl', n:5, name:'Upper / Lower / Push / Pull / Legs', f:['upper','lower','push','pull','legs'], blurb:'Upper and lower, then push, pull and legs. Each muscle twice a week.'},
+  {id:'bro5', n:5, name:'Body-part split', f:['chest','back','shoulders','arms','legs'], blurb:'One muscle group per day, bodybuilder style. High volume per session, each muscle once a week.'},
+  {id:'ppl6', n:6, name:'Push / Pull / Legs', f:['push','pull','legs','push','pull','legs'], blurb:'Push, pull and legs twice through, with A and B versions of each day. Each muscle twice a week.'},
+  {id:'arnold6', n:6, name:'Arnold split', f:['cb','sa','legs','cb','sa','legs'], blurb:'Chest and back together, shoulders and arms together, then legs, twice a week.'},
+  {id:'ul6', n:6, name:'Upper / Lower', f:['upper','lower','upper','lower','upper','lower'], blurb:'Upper and lower three times each, with A, B and C days. Lots of practice on every lift.'}
+];
+const slotsOf = key => (BLOCKS[key] || []).map(([id, sets, lo, hi]) => ({id, sets, lo, hi}));
+// Turn a list of focuses into days. A focus used more than once takes its next unused variant and gets an A/B/C name.
+function buildDays(focuses, names) {
+  const used = new Set(), seen = {}, count = {};
+  focuses.forEach(f => { const lab = FOCUS[f].label; count[lab] = (count[lab] || 0) + 1; });
+  return focuses.map((f, i) => {
+    const F = FOCUS[f], lab = F.label, k = seen[lab] = (seen[lab] || 0) + 1;
+    let key = F.v.find(v => !used.has(v)) || F.v[(k - 1) % (F.v.length || 1)];
+    if (key) used.add(key);
+    const auto = f === 'blank' ? 'Day ' + (i + 1) : lab + (count[lab] > 1 ? ' ' + 'ABCDEFG'[k - 1] : '');
+    return {name:(names && names[i] && names[i].trim()) || auto, ex:slotsOf(key)};
+  });
+}
+function programDays(pr) { return pr.fixed ? clone(PROGRAM) : buildDays(pr.f); }
+
 const RQ = [
   {k:'sleep',  q:'Sleep',    o:['Rough','Short','Decent','Great']},
   {k:'sore',   q:'Soreness', o:['Very sore','Sore','A little','Fresh']},
@@ -633,7 +736,7 @@ function restFor(slot) { const ex = EX[slot.id]; return slot.rest || (ex && ex.c
 
 /* ================= state ================= */
 function defaultProfile() {
-  return {v:1, units:'kg', restC:150, restI:90, days:clone(PROGRAM), nextDay:0, readiness:null, sampleCleared:false, updatedAt:0,
+  return {v:1, units:'kg', restC:150, restI:90, days:clone(PROGRAM), program:{id:'ulpp', name:'Upper / Lower / Push / Pull'}, programPicked:false, nextDay:0, readiness:null, sampleCleared:false, updatedAt:0,
     warmups:true, bars:{bar:20, ez:10, smith:15}, custom:[]};
 }
 function load() {
@@ -697,6 +800,13 @@ function normalizeProfile() {
   const dp = defaultProfile();
   for (const k of ['warmups', 'bars', 'custom']) if (S.profile[k] == null) S.profile[k] = dp[k];
   S.profile.custom.forEach(registerCustom);
+  // Plans made before programs existed: the untouched 4-day plan is the original template, anything else is custom.
+  if (!S.profile.program) {
+    const orig = S.profile.days.map(d => d.name).join('/') === 'Upper/Lower/Push/Pull';
+    S.profile.program = orig ? {id:'ulpp', name:'Upper / Lower / Push / Pull'} : {id:'custom', name:'Custom split'};
+    S.profile.programPicked = S.profile.programPicked || false;
+    persist();
+  }
   // Tour flags. Someone arriving with real workouts (an older install or a restored backup) has used the app already.
   if (!S.profile.tour) { const used = S.sessions.some(x => !x.sample); S.profile.tour = {done:used, wo:used}; }
 }
@@ -802,9 +912,10 @@ function vToday() {
     <section class="hero"><h1 class="title">${esc(day.name)}</h1>
       <p class="sub">Day ${idx + 1} of ${n}, about ${mins} minutes, ${pl(sets, 'set')}</p>
       <div class="daypick" role="group" aria-label="Choose today's session">${p.days.map((d, i) => `<button class="chip press" data-act="day" data-i="${i}" aria-pressed="${i === idx}">${esc(d.name)}</button>`).join('')}</div>
+      ${p.programPicked ? '' : `<button class="link prog-hint" data-act="program">Training ${n === 4 ? 'more or less than 4' : 'a different number of'} days a week? Pick a program</button>`}
     </section>
     ${readinessCard()}
-    <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows}${act}</section>`;
+    <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}${act}</section>`;
 }
 
 /* ================= progress ================= */
@@ -904,13 +1015,125 @@ function vProgress() {
 }
 
 /* ================= plan ================= */
+
+/* ================= program picker & split builder ================= */
+const MAIN_MUSCLES = ['chest','shoulders','lats','quads','hamstrings','glutes','biceps','triceps','calves'];
+function planVolume(days) {
+  const v = {}; Object.keys(MUSCLES).forEach(k => v[k] = 0);
+  days.forEach(d => d.ex.forEach(sl => { const ex = EX[sl.id]; if (ex) for (const [mu, f] of Object.entries(ex.m)) v[mu] += sl.sets * f; }));
+  return v;
+}
+function planStats(days) {
+  const freq = ['chest','lats','shoulders','quads','hamstrings','glutes'].map(mu => days.filter(d => d.ex.reduce((a, sl) => a + (EX[sl.id] && EX[sl.id].m[mu] || 0) * sl.sets, 0) >= 2).length).sort((a, b) => a - b);
+  const times = days.map(d => d.ex.reduce((a, sl) => a + sl.sets * (restFor(sl) + 45), 0) / 60);
+  const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length / 5) * 5 : 0;
+  return {freq: freq.length ? freq[Math.floor(freq.length / 2)] : 0, mins: avg};
+}
+const freqWord = n => n <= 0 ? 'some muscles skipped' : n === 1 ? 'each muscle once a week' : n === 2 ? 'each muscle twice a week' : 'each muscle ' + n + ' times a week';
+function volSummary(days) {
+  const v = planVolume(days), low = MAIN_MUSCLES.filter(m => v[m] < 10), high = MAIN_MUSCLES.filter(m => v[m] > 20);
+  const inZ = MAIN_MUSCLES.length - low.length - high.length;
+  let t = `${inZ} of ${MAIN_MUSCLES.length} main muscles in the 10–20 set zone.`;
+  if (low.length) t += ` Under: ${low.map(m => MUSCLES[m]).join(', ')}.`;
+  if (high.length) t += ` Over: ${high.map(m => MUSCLES[m]).join(', ')}.`;
+  return t;
+}
+function volBars(days) {
+  const v = planVolume(days);
+  return `<div class="mlist vol">${Object.keys(MUSCLES).sort((a, b) => v[b] - v[a]).map(mu => {
+    const x = v[mu], pct = Math.min(x / 25, 1) * 100;
+    return `<div class="mrow"><span>${MUSCLES[mu]}</span><span class="bar"><span class="zone"></span><span class="fill${x > 20 ? ' over' : x < 10 ? ' low' : ''}" style="width:${pct}%"></span></span><span class="v">${r1(x)}</span></div>`;
+  }).join('')}</div>`;
+}
+function progLine() {
+  const p = S.profile, n = p.days.length;
+  return `${esc(p.program.name)}, ${n === 1 ? '1 day' : n + ' days'} a week`;
+}
+let progN = 4, progSel = null, bd = null, prevPlan = null;
+function progListHTML() {
+  const cur = S.profile.program.id;
+  const cards = PROGRAMS.filter(pr => pr.n === progN).map((pr, i) => {
+    const days = programDays(pr), st = planStats(days);
+    return `<button class="prog press" data-act="progpick" data-id="${pr.id}"${cur === pr.id ? ' aria-current="true"' : ''}>
+      <span class="prog-top"><b>${esc(pr.name)}</b>${cur === pr.id ? '<span class="tagc cur">Current</span>' : i === 0 ? '<span class="tagc">Recommended</span>' : ''}</span>
+      <span class="prog-blurb">${esc(pr.blurb)}</span>
+      <span class="prog-days">${days.map(d => esc(d.name)).join(' · ')}</span>
+      <span class="prog-meta">${freqWord(st.freq).replace(/^e/, 'E')}, about ${st.mins} min a session</span></button>`;
+  }).join('');
+  return `<h2 class="h2">Choose a program</h2><p class="sub" style="margin-top:4px">How many days a week can you train?</p>
+    <div class="seg dpw" role="group" aria-label="Days a week">${[2,3,4,5,6].map(n => `<button data-act="progdays" data-n="${n}" aria-pressed="${n === progN}">${n}</button>`).join('')}</div>
+    <div class="progs">${cards}</div>
+    <button class="add-ex press" data-act="build" style="width:100%"><span style="font-size:20px;line-height:1">+</span> Build your own split</button>`;
+}
+function progDetailHTML(pr) {
+  const days = programDays(pr), st = planStats(days);
+  return `<button class="link back" data-act="progback">← All ${pr.n}-day programs</button>
+    <h2 class="h2" style="margin-top:4px">${esc(pr.name)}</h2><p class="sub" style="margin-top:4px">${pr.n} days a week, ${freqWord(st.freq)}, about ${st.mins} minutes a session.</p>
+    <div class="pdays">${days.map(d => `<div class="pday"><b>${esc(d.name)}</b><span>${d.ex.map(sl => esc(EX[sl.id].n)).join(', ')}</span></div>`).join('')}</div>
+    <h3 class="h3" style="margin-top:16px">Weekly sets per muscle</h3><p class="sub">Blue band is the 10–20 sets that builds muscle best. Secondary muscles count as half.</p>
+    ${volBars(days)}
+    <p class="sub" style="margin:12px 0">Your workout history and ghosts stay. You can change any exercise afterwards.</p>
+    <div class="sheet-actions"><button class="btn primary big press" data-act="progapply" data-id="${pr.id}">Use ${esc(pr.name)}</button></div>`;
+}
+function openPrograms() {
+  progN = Math.min(6, Math.max(2, S.profile.days.length));
+  openSheet(progListHTML());
+}
+function keepScroll(fn) { const b = sheetEl && sheetEl.querySelector('.sheet-body'), y = b ? b.scrollTop : 0; fn(); if (b) b.scrollTop = y; }
+const BD_DEFAULT = {1:['full'], 7:['push','pull','legs','upper','lower','full','blank']};
+function bdFocusFor(n) { if (BD_DEFAULT[n]) return [...BD_DEFAULT[n]]; const pr = PROGRAMS.find(x => x.n === n && !x.fixed); return [...pr.f]; }
+function bdDays() { return buildDays(bd.days.map(d => d.f), bd.days.map(d => d.name)); }
+function builderHTML() {
+  const auto = buildDays(bd.days.map(d => d.f));
+  const keys = Object.keys(FOCUS);
+  return `<button class="link back" data-act="progback">← Suggested programs</button>
+    <h2 class="h2" style="margin-top:4px">Build your own split</h2>
+    <p class="sub" style="margin-top:4px">Pick how many days you train and what each day focuses on. Each day starts with suggested exercises you can change on the Plan tab.</p>
+    <div class="set-row"><span>Days a week</span><div class="stepper"><button data-act="bdn" data-v="-1" aria-label="Fewer days" ${bd.days.length <= 1 ? 'disabled' : ''}>−</button><output>${bd.days.length}</output><button data-act="bdn" data-v="1" aria-label="More days" ${bd.days.length >= 7 ? 'disabled' : ''}>+</button></div></div>
+    <div class="bd-list">${bd.days.map((d, i) => `<div class="bd-day"><span class="n">Day ${i + 1}</span>
+      <select class="bd-sel" data-i="${i}" aria-label="Focus for day ${i + 1}">${keys.map(k => `<option value="${k}"${d.f === k ? ' selected' : ''}>${FOCUS[k].label}</option>`).join('')}</select>
+      <input class="search bd-name" data-i="${i}" type="text" maxlength="24" autocomplete="off" aria-label="Name for day ${i + 1}" placeholder="Name: ${esc(auto[i].name)}" value="${esc(d.name)}"></div>`).join('')}</div>
+    <p class="sub bd-sum" style="margin:14px 0 12px">${volSummary(auto)}</p>
+    <div class="sheet-actions"><button class="btn primary big press" data-act="bdapply">Use this split</button></div>`;
+}
+function applyDays(days, program, msg) {
+  const p = S.profile;
+  prevPlan = {days: clone(p.days), program: clone(p.program), nextDay: p.nextDay};
+  p.days = days; p.program = program; p.nextDay = 0; p.programPicked = true;
+  document.querySelectorAll('#toasts .toast').forEach(t => t.remove());
+  touch(); closeSheet(); tab = 'plan'; render(); window.scrollTo(0, 0);
+  toast(msg, {label:'Undo', fn: () => { if (!prevPlan) return; Object.assign(p, prevPlan); prevPlan = null; touch(); render(); }});
+}
+function markCustom() { const p = S.profile; if (p.program.id !== 'custom') p.program = {id:'custom', name:'Custom split'}; p.programPicked = true; }
+let dayCtx = null;
+function dayHTML(i) {
+  const d = S.profile.days[i], n = S.profile.days.length;
+  return `<h2 class="h2">Edit day</h2><p class="sub">Day ${i + 1} of ${n}, ${pl(d.ex.length, 'exercise')}</p>
+    <label class="note-l" for="dayname">Name</label>
+    <input class="search" id="dayname" type="text" maxlength="24" autocomplete="off" value="${esc(d.name)}">
+    <div class="set-row"><span>Order in the week</span><div class="stepper"><button data-act="daymove" data-v="-1" aria-label="Move earlier" ${i === 0 ? 'disabled' : ''}>↑</button><button data-act="daymove" data-v="1" aria-label="Move later" ${i === n - 1 ? 'disabled' : ''}>↓</button></div></div>
+    <div class="sheet-actions" style="margin-top:14px">
+      <button class="btn press" data-act="daydup" ${n >= 7 ? 'disabled' : ''}>Duplicate this day</button>
+      <button class="btn danger press" data-act="daydel" ${n <= 1 ? 'disabled' : ''}>Delete this day</button></div>`;
+}
+function addDayHTML() {
+  return `<h2 class="h2">Add a day</h2><p class="sub">What should it focus on? It starts with suggested exercises you can change.</p>
+    <div class="cx-chips" style="margin-top:12px">${Object.keys(FOCUS).map(k => `<button class="chip" data-act="adddayf" data-f="${k}">${FOCUS[k].label}</button>`).join('')}</div>`;
+}
+
 function vPlan() {
   const p = S.profile;
-  const days = p.days.map((d, di) => `<section class="card day"><div class="day-h"><h2 class="h2">${esc(d.name)}</h2><span class="sub">${pl(d.ex.length, 'exercise')}</span></div>
+  const days = p.days.map((d, di) => `<section class="card day"><div class="day-h"><h2 class="h2">${esc(d.name)}</h2><span class="dh-r"><span class="sub">${pl(d.ex.length, 'exercise')}</span><button class="link" data-act="dayedit" data-d="${di}" aria-label="Edit ${esc(d.name)}">Edit</button></span></div>
     ${d.ex.map((sl, si) => `<button class="slot" data-act="slot" data-d="${di}" data-s="${si}"><span style="min-width:0"><span class="nm">${esc(EX[sl.id] ? EX[sl.id].n : sl.id)}</span>${EX[sl.id] ? musclesLine(EX[sl.id]) : ''}</span><span class="sr">${sl.sets} × ${sl.lo}–${sl.hi}</span>${I.chev}</button>`).join('')}
     <button class="add" data-act="addex" data-d="${di}"><span style="font-size:20px;line-height:1">+</span> Add exercise</button></section>`).join('');
-  return `<header><p class="date">Upper / Lower / Push / Pull, 4 days a week</p><h1 class="title">Plan</h1></header>
-    <div class="section" style="margin-top:14px">${days}</div>
+  const st = planStats(p.days);
+  return `<header><p class="date">${progLine()}</p><h1 class="title">Plan</h1></header>
+    <section class="card prog-card" style="margin-top:16px"><p class="eyebrow">Your program</p><h2 class="h2">${esc(p.program.name)}</h2>
+      <p class="sub" style="margin-top:4px">${p.days.length === 1 ? '1 day' : p.days.length + ' days'} a week, ${freqWord(st.freq)}, about ${st.mins} min a session.</p>
+      <p class="sub vs">${volSummary(p.days)} <button class="link" data-act="planvol">See weekly sets</button></p>
+      <div class="acts"><button class="btn primary press" data-act="program">Change program</button><button class="btn press" data-act="build">Build your own</button></div></section>
+    <div class="section" style="margin-top:4px">${days}</div>
+    <button class="add-ex press" data-act="addday" style="width:100%;margin-top:12px"><span style="font-size:20px;line-height:1">+</span> Add a day</button>
     <section class="section"><div class="section-head"><h2 class="h2">Settings</h2></div><div class="card" style="padding:4px 16px">
       <div class="set-row"><span>App tour</span><button class="link" data-act="replaytour">Show again</button></div>
       <div class="set-row"><span>Warm-up sets</span><div class="seg" style="width:140px"><button data-act="warmset" data-v="1" aria-pressed="${p.warmups !== false}">On</button><button data-act="warmset" data-v="0" aria-pressed="${p.warmups === false}">Off</button></div></div>
@@ -1345,6 +1568,7 @@ const TOUR = [
   {tab:'today', sel:'.card.session .pv', h:'Meet your ghost', b:'Every lift shows today\'s target and your <b>ghost</b>: what you lifted last time. Beat it and you\'re getting stronger. Hit the top of the rep range on every set and the weight goes up next session.'},
   {tab:'today', sel:'.card.session .btn.primary', h:'Start when you\'re ready', b:'Opens the logger full screen. A few quick tips show up the first time.'},
   {tab:'progress', sel:'.map-card .bodies', h:'Your muscle heat map', b:'Hard sets per muscle over the last 7 days. <b>Blue</b> is the 10 to 20 sets that builds muscle best. Tap a muscle to see what trained it.'},
+  {tab:'plan', sel:'.prog-card', h:'Fits your week', b:'Tell Rival how many days you can train, from 2 to 6, and it suggests programs that fit. Or build your own split, day by day.'},
   {tab:'plan', sel:'.card.day .slot', h:'Make the plan yours', b:'Tap any exercise to change its sets, reps, rest or order, or switch between the free-weight and machine version.'},
   {tab:'plan', sel:'.card.day .add', h:'108 exercises, plus yours', b:'Each one lists the muscles it works. Can\'t find yours? Create it in a few taps.'},
   {center:'done', tab:'today'}
@@ -1616,6 +1840,52 @@ const acts = {
   coachback() { if (coach) goCoach(coach.i - 1, -1); },
   coachskip() { endCoach(); },
   coachclear() { endCoach(); acts.clearsample(); },
+  program() { openPrograms(); },
+  gotoplan() { tab = 'plan'; render(); window.scrollTo(0, 0); },
+  progdays(el) { progN = +el.dataset.n; setSheet(progListHTML()); },
+  progpick(el) { progSel = PROGRAMS.find(x => x.id === el.dataset.id); setSheet(progDetailHTML(progSel)); sheetEl.querySelector('.sheet-body').scrollTop = 0; },
+  progback() { setSheet(progListHTML()); sheetEl.querySelector('.sheet-body').scrollTop = 0; },
+  progapply(el) { const pr = PROGRAMS.find(x => x.id === el.dataset.id); applyDays(programDays(pr), {id:pr.id, name:pr.name}, `Switched to ${pr.name}, ${pr.n} days a week`); },
+  build() {
+    const p = S.profile, cur = PROGRAMS.find(x => x.id === p.program.id && !x.fixed), n = Math.max(1, Math.min(7, p.days.length));
+    bd = {days: (cur ? cur.f : bdFocusFor(n)).map(f => ({f, name:''}))};
+    if (sheetEl) { setSheet(builderHTML()); sheetEl.querySelector('.sheet-body').scrollTop = 0; } else openSheet(builderHTML());
+  },
+  bdn(el) {
+    const n = bd.days.length + +el.dataset.v; if (n < 1 || n > 7) return;
+    if (n > bd.days.length) bd.days.push({f: bdFocusFor(n)[n - 1], name:''}); else bd.days.pop();
+    keepScroll(() => setSheet(builderHTML()));
+  },
+  bdf(el) { bd.days[+el.dataset.i].f = el.dataset.f; keepScroll(() => setSheet(builderHTML())); },
+  bdapply() { const n = bd.days.length; applyDays(bdDays(), {id:'custom', name:'Custom split'}, `Your ${n}-day split is ready`); },
+  planvol() { const p = S.profile; openSheet(`<h2 class="h2">Weekly sets per muscle</h2><p class="sub">Doing every day of ${esc(p.program.name)} once a week. The blue band is the 10–20 sets that builds muscle best. Secondary muscles count as half.</p>${volBars(p.days)}`); },
+  dayedit(el) { dayCtx = +el.dataset.d; openSheet(dayHTML(dayCtx)); },
+  daymove(el) {
+    const d = S.profile.days, to = dayCtx + +el.dataset.v; if (to < 0 || to >= d.length) return;
+    [d[dayCtx], d[to]] = [d[to], d[dayCtx]]; dayCtx = to; S.profile.programPicked = true; touch(); setSheet(dayHTML(dayCtx)); render();
+  },
+  daydup() {
+    const d = S.profile.days; if (d.length >= 7) return;
+    const copy = clone(d[dayCtx]); copy.name = (copy.name + ' 2').slice(0, 24); d.splice(dayCtx + 1, 0, copy);
+    markCustom(); touch(); closeSheet(); render(); toast('Duplicated as ' + copy.name);
+  },
+  daydel(el) {
+    const p = S.profile; if (p.days.length <= 1) return;
+    if (!el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to delete'; return; }
+    const before = {days: clone(p.days), program: clone(p.program), nextDay: p.nextDay}, [gone] = p.days.splice(dayCtx, 1);
+    p.nextDay = p.nextDay % p.days.length; markCustom(); touch(); closeSheet(); render();
+    toast('Deleted ' + gone.name, {label:'Undo', fn: () => { Object.assign(p, before); touch(); render(); }});
+  },
+  addday() { if (S.profile.days.length >= 7) { toast('7 days is the most a week can hold'); return; } openSheet(addDayHTML()); },
+  adddayf(el) {
+    const p = S.profile, f = el.dataset.f, F = FOCUS[f];
+    const same = p.days.filter(d => d.name === F.label || d.name.startsWith(F.label + ' ')).length;
+    const key = F.v.length ? F.v[same % F.v.length] : null;
+    const name = f === 'blank' ? 'Day ' + (p.days.length + 1) : F.label + (same ? ' ' + 'ABCDEFG'[Math.min(same, 6)] : '');
+    p.days.push({name, ex: slotsOf(key)}); markCustom(); touch(); closeSheet(); render();
+    setTimeout(() => { const c = document.querySelectorAll('.card.day'); const last = c[c.length - 1]; if (last) last.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block:'center'}); }, 60);
+    toast('Added ' + name);
+  },
   replaytour() { S.profile.tour = {done:false, wo:false}; persist(); startCoach('tour'); }
 };
 
@@ -1640,6 +1910,8 @@ document.addEventListener('input', e => {
     if (b) b.disabled = !ok; return;
   }
   if (e.target.id === 'libq') { $('#liblist').innerHTML = libHTML(e.target.value); return; }
+  if (e.target.id === 'dayname' && dayCtx != null) { const v = e.target.value.trim(); if (v) { S.profile.days[dayCtx].name = v; clearTimeout(noteT); noteT = setTimeout(() => { touch(); render(); }, 400); } return; }
+  if (e.target.classList.contains('bd-name') && bd) { bd.days[+e.target.dataset.i].name = e.target.value; return; }
   if (e.target.id === 'slotnote' && slotCtx) { const sl = S.profile.days[slotCtx.d].ex[slotCtx.s]; sl.note = e.target.value.trim(); clearTimeout(noteT); noteT = setTimeout(() => { touch(); render(); }, 500); return; }
   const row = e.target.closest('.set'); if (!row || !S.active) return;
   const en = S.active.entries[+row.dataset.e], s = en.sets[+row.dataset.s];
@@ -1648,6 +1920,9 @@ document.addEventListener('input', e => {
       if (sec || wu.length) { const tmp = document.createElement('div'); tmp.innerHTML = exBlock(en, ei); const nw = tmp.querySelector('.wu'); if (sec && nw) sec.replaceWith(nw); else if (sec) sec.remove(); else if (nw) wo.querySelector(`.ex[data-e="${ei}"] .cols`).before(nw); } }, 600); } }
   if (e.target.classList.contains('in-r')) { const r = parseInt(e.target.value, 10); s.r = isNaN(r) ? null : r; }
   persist();
+});
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('bd-sel') && bd) { bd.days[+e.target.dataset.i].f = e.target.value; keepScroll(() => setSheet(builderHTML())); }
 });
 document.addEventListener('focusin', e => { if (e.target.matches('.set input')) setTimeout(() => e.target.select && e.target.select(), 0); });
 document.addEventListener('visibilitychange', () => {
