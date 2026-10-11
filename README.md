@@ -15,6 +15,8 @@ app/manifest.webmanifest  name, icons, colours for "Add to Home Screen"
 app/sw.js               service worker: saves the app on the phone for offline use
 app/icons/              home-screen and app icons
 assets/fonts/           Archivo and Instrument Sans (SIL Open Font License)
+assets/shots/           app screenshots used on the site (light and dark)
+assets/og.png           social share image (1200x630)
 ```
 
 ## Publish on GitHub Pages
