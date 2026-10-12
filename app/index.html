@@ -8,6 +8,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ECEEE9">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D0F13">
 <meta name="color-scheme" content="light dark">
+<script>try{var t=JSON.parse(localStorage.getItem("rival.v1")).profile.theme;if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Rival">
@@ -388,6 +389,7 @@ input{font:inherit;color:inherit}
 .opt.has i{font-size:15px}
 .mus{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;min-width:0}
 .mus b{font-weight:600;color:var(--ink)}
+.ea-tag{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--tagc);font-size:11.5px;font-weight:650}
 .note-l{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-top:14px}
 .ex-note{display:inline-block;margin:0 4px 8px;padding:4px 10px;border-radius:9px;background:var(--win-bg);font-size:13px}
 .swap{height:32px;padding:0 10px;border-radius:10px;background:var(--surface-2);font-size:12.5px;font-weight:650;color:var(--accent);white-space:nowrap;flex:none}
@@ -594,12 +596,14 @@ const LIB = [
 // Starting weights used only to generate the sample week
 const BASE = {bench:80,incdb:30,mchest:70,fly:15,ohp:50,lat:10,pulldown:65,pullup:10,cablerow:60,bbrow:75,csrow:30,facepull:25,shrug:34,pushdown:30,ohext:25,
   ezcurl:30,hammer:16,squat:110,hack:120,legpress:180,deadlift:140,rdl:100,legcurl:45,legext:55,hipthrust:120,calf:80,crunch:40,legraise:0};
+// Exercises where the weight you enter is for ONE dumbbell (or one side), not the total
+const EACH = new Set(['dbbench', 'incdb', 'dbfly', 'incfly', 'dbshpress', 'lat', 'dbrevfly', 'yraise', 'dbfront', 'csrow', 'dbrow', 'shrug', 'inccurl', 'hammer', 'kickback', 'dbwrist', 'bss', 'dblunge', 'dbstep', 'dbcalf']);
 const EX = {};
 const MOVES = LIB.map(([mid, name, group, prim, sec, free, mach]) => {
   const m = {};
   prim.forEach(x => { const g = MUSC[x]; if (g) m[g] = 1; });
   sec.forEach(x => { const g = MUSC[x]; if (g && !m[g]) m[g] = .5; });
-  const mk = (v, kind, alt) => { EX[v[0]] = {n:v[1], m, prim, sec, inc:v[2], c:v[3], bw:v[4] ? 1 : 0, base:BASE[v[0]] || 0, mv:mid, kind, alt}; };
+  const mk = (v, kind, alt) => { EX[v[0]] = {n:v[1], m, prim, sec, inc:v[2], c:v[3], bw:v[4] ? 1 : 0, base:BASE[v[0]] || 0, mv:mid, kind, alt, ea:EACH.has(v[0]) ? 1 : 0}; };
   mk(free, 'free', mach[0]); mk(mach, 'mach', free[0]);
   return {id:mid, name, group, prim, sec, free:free[0], mach:mach[0]};
 });
@@ -607,7 +611,7 @@ function registerCustom(c) {
   const m = {};
   c.prim.forEach(x => { const g = MUSC[x]; if (g) m[g] = 1; });
   c.sec.forEach(x => { const g = MUSC[x]; if (g && !m[g]) m[g] = .5; });
-  EX[c.id] = {n:c.n, m, prim:c.prim, sec:c.sec, inc:c.inc, c:c.c, bw:c.kind === 'bw' ? 1 : 0, base:0, mv:null, kind:c.kind, alt:null, custom:1, hidden:!!c.hidden};
+  EX[c.id] = {n:c.n, m, prim:c.prim, sec:c.sec, inc:c.inc, c:c.c, bw:c.kind === 'bw' ? 1 : 0, base:0, mv:null, kind:c.kind, alt:null, custom:1, hidden:!!c.hidden, ea:c.ea && c.kind !== 'bw' ? 1 : 0};
 }
 // Which bar an exercise is loaded on, for the plate calculator and warm-ups
 function barType(id) {
@@ -807,7 +811,7 @@ function restFor(slot) { const ex = EX[slot.id]; return slot.rest || (ex && ex.c
 /* ================= state ================= */
 function defaultProfile() {
   return {v:1, units:'kg', restC:150, restI:90, days:clone(PROGRAM), program:{id:'ulpp', name:'Upper / Lower / Push / Pull'}, programPicked:false, nextDay:0, readiness:null, sampleCleared:false, updatedAt:0,
-    warmups:true, bars:{bar:20, ez:10, smith:15}, custom:[]};
+    warmups:true, theme:'system', bars:{bar:20, ez:10, smith:15}, custom:[]};
 }
 /* ---- data safety: everything read from storage or a backup file is checked before the app uses it,
    so one bad value can never blank the screen. Out-of-range numbers are clamped, broken records dropped. ---- */
@@ -834,7 +838,7 @@ function cleanCustom(c) {
   const known = a => (Array.isArray(a) ? a : []).filter(m => typeof m === 'string' && Object.prototype.hasOwnProperty.call(MUSC, m));
   const prim = known(c.prim);
   return {id:c.id, n, kind:['free', 'mach', 'bw'].includes(c.kind) ? c.kind : 'free', c:c.c ? 1 : 0, prim, sec:known(c.sec).filter(m => !prim.includes(m)),
-    inc:fin(c.inc) && c.inc > 0 && c.inc <= 25 ? c.inc : 2.5, ...(c.hidden ? {hidden:true} : {})};
+    inc:fin(c.inc) && c.inc > 0 && c.inc <= 25 ? c.inc : 2.5, ...(c.ea && c.kind !== 'bw' ? {ea:1} : {}), ...(c.hidden ? {hidden:true} : {})};
 }
 function cleanSession(s) {
   if (!isObj(s) || !fin(s.date) || !Array.isArray(s.entries)) return null;
@@ -867,6 +871,7 @@ function cleanProfile(p0) {
   else out.program = {id:p.program.id.slice(0, 30), name:p.program.name.slice(0, 40)};
   out.v = 1;
   out.units = out.units === 'lb' ? 'lb' : 'kg';
+  out.theme = out.theme === 'light' || out.theme === 'dark' ? out.theme : 'system';
   { const m = isObj(p.exUnit) ? p.exUnit : {}, o = {};
     Object.keys(m).slice(0, 400).forEach(k => { if ((m[k] === 'kg' || m[k] === 'lb') && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
     out.exUnit = o; }
@@ -1085,7 +1090,7 @@ function vToday() {
   const rows = day.ex.map((sl, i) => {
     const ex = EX[sl.id], pp = plans[i];
     const eu = exU(sl.id), fw = kg => inU(sl.id, () => fmtW(kg));
-    const tw = pp[0] && pp[0].w != null ? (ex.bw && !pp[0].w ? 'BW' : fw(pp[0].w) + ' ' + eu) : 'Pick a weight';
+    const tw = pp[0] && pp[0].w != null ? (ex.bw && !pp[0].w ? 'BW' : fw(pp[0].w) + ' ' + eu + (ex.ea ? ' each' : '')) : 'Pick a weight';
     const g = pp.filter(x => x.g).map(x => x.g);
     return `<div class="pv"><span class="nm">${esc(ex.n)}</span><span class="sr num">${pp.length} × ${sl.lo}–${sl.hi}</span>
       <span class="ln"><span class="tg">${tw}${pp[0] && pp[0].w != null ? ' × ' + pp.map(x => x.r).join(', ') : ''}</span>${g.length ? `<span class="gh">Ghost ${ex.bw && !g[0].w ? 'BW' : fw(g[0].w)} × ${g.map(x => x.r).join(', ')}</span>` : ''}</span></div>`;
@@ -1341,6 +1346,7 @@ function vPlan() {
     <section class="section"><div class="section-head"><h2 class="h2">Settings</h2></div><div class="card" style="padding:4px 16px">
       <div class="set-row"><span>App tour</span><button class="link" data-act="replaytour">Show again</button></div>
       <div class="set-row"><span>Warm-up sets</span><div class="seg" style="width:140px"><button data-act="warmset" data-v="1" aria-pressed="${p.warmups !== false}">On</button><button data-act="warmset" data-v="0" aria-pressed="${p.warmups === false}">Off</button></div></div>
+      <div class="set-row"><span>Appearance</span><div class="seg" role="group" aria-label="Appearance" style="width:216px">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-act="theme" data-v="${v}" aria-pressed="${(p.theme || 'system') === v}">${l}</button>`).join('')}</div></div>
       <div class="set-row"><span>Default units</span><div class="seg" style="width:140px"><button data-act="units" data-u="kg" aria-pressed="${p.units === 'kg'}">kg</button><button data-act="units" data-u="lb" aria-pressed="${p.units === 'lb'}">lb</button></div></div>
       <div class="set-row"><span>Rest, big lifts</span><div class="stepper"><button data-act="rest" data-k="restC" data-d="-15" aria-label="Less rest">−</button><output>${fmtClock(p.restC)}</output><button data-act="rest" data-k="restC" data-d="15" aria-label="More rest">+</button></div></div>
       <div class="set-row"><span>Rest, smaller lifts</span><div class="stepper"><button data-act="rest" data-k="restI" data-d="-15" aria-label="Less rest">−</button><output>${fmtClock(p.restI)}</output><button data-act="rest" data-k="restI" data-d="15" aria-label="More rest">+</button></div></div>
@@ -1404,7 +1410,18 @@ function readBackup(file) {
 
 /* ================= render ================= */
 const view = $('#view');
+// Appearance: follow the phone, or force light or dark. The CSS already has both palettes behind [data-theme].
+const THEME_BAR = {light:'#ECEEE9', dark:'#0D0F13'};
+function applyTheme() {
+  const t = S.profile.theme, root = document.documentElement;
+  if (t === 'light' || t === 'dark') root.dataset.theme = t; else delete root.dataset.theme;
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    const own = /dark/.test(m.getAttribute('media') || '') ? 'dark' : 'light';
+    m.setAttribute('content', t === 'light' || t === 'dark' ? THEME_BAR[t] : THEME_BAR[own]);
+  });
+}
 function render() {
+  applyTheme();
   view.innerHTML = tab === 'today' ? vToday() : tab === 'progress' ? vProgress() : vPlan();
   document.querySelectorAll('.tab').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   updateResume();
@@ -1513,7 +1530,7 @@ function setRow0(en, s, ei, si) {
   return `<div class="set${s.done ? ' done' : ''}${s.done && s.res ? ' ' + s.res : ''}" data-e="${ei}" data-s="${si}">
     <span class="n">${si + 1}</span>
     <span class="ghost">${gtxt}<span class="g-win${s.res === 'match' ? ' match' : ''}">${esc(win)}</span></span>
-    <input class="in-w" id="w-${ei}-${si}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Set ${si + 1} weight in ${U()}" placeholder="${ex.bw ? 'BW' : U()}" value="${s.w == null || (ex.bw && !s.w) ? '' : fmtW(s.w)}">
+    <input class="in-w" id="w-${ei}-${si}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Set ${si + 1} weight in ${U()}${ex.ea ? ', for each side' : ''}" placeholder="${ex.bw ? 'BW' : U()}" value="${s.w == null || (ex.bw && !s.w) ? '' : fmtW(s.w)}">
     <input class="in-r" id="r-${ei}-${si}" inputmode="numeric" enterkeyhint="done" autocomplete="off" aria-label="Set ${si + 1} reps" placeholder="reps" value="${s.r == null ? '' : s.r}">
     <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button></div>`;
 }
@@ -1523,10 +1540,10 @@ function exBlock0(en, ei) {
   const alt = ex.alt && EX[ex.alt], canSwap = alt && !en.sets.some(x => x.done), bt = barType(en.exId);
   const wu = warmups(en, ei); en.wdone = en.wdone || [];
   const wuHTML = wu.length ? `<div class="wu" role="group" aria-label="Warm-up sets"><span class="wu-l">Warm-up</span>${wu.map((x, i) => `<button class="wu-c${en.wdone[i] ? ' done' : ''}" data-act="wlog" data-e="${ei}" data-i="${i}" aria-pressed="${!!en.wdone[i]}">${x.bar ? 'Bar' : fmtW(x.w)} × ${x.r}</button>`).join('')}</div>` : '';
-  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(ex.n)}</h3>${ex.prim ? musclesLine(ex) : ''}</div>
+  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(ex.n)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}</div>
     <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}${canSwap ? `<button class="swap press" data-act="swapex" data-e="${ei}" aria-label="Swap to ${esc(alt.n)}">${ex.kind === 'free' ? 'Use machine' : 'Use free weight'}</button>` : ''}</div></div>
     <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
-    <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}</span><span>Reps</span><span></span></div>
+    <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
     <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button>${en.sets.length > 1 ? `<button data-act="delset" data-e="${ei}">Remove last set</button>` : ''}<button class="rm" data-act="rmex" data-e="${ei}" aria-label="Remove ${esc(ex.n)} from this workout">Remove</button></div></section>`;
 }
@@ -1700,6 +1717,8 @@ function cxHTML() {
     <label class="note-l" for="cxname">Name</label>
     <input class="search" id="cxname" type="text" maxlength="40" placeholder="Landmine press" autocomplete="off" value="${esc(cx.n)}">
     <label class="note-l">Equipment</label>${seg('cxkind', cx.kind, [['free', 'Free weight'], ['mach', 'Machine'], ['bw', 'Bodyweight']])}
+    ${cx.kind === 'bw' ? '' : `<label class="note-l">Weight you enter</label>${seg('cxea', cx.ea ? 1 : 0, [[0, 'Total'], [1, 'Per side']])}
+    <p class="sub" style="font-size:12.5px;margin-top:6px">Pick Per side for dumbbells or anything loaded the same on each side, like 20 kg in each hand.</p>`}
     <label class="note-l">Type</label>${seg('cxtype', cx.c, [[1, 'Compound'], [0, 'Isolation']])}
     <p class="sub" style="font-size:12.5px;margin-top:6px">Compound lifts get longer rest, 6–10 reps and warm-up sets. Isolation lifts get 10–15 reps.</p>
     <label class="note-l">Primary muscles</label><div class="cx-chips">${chips('prim', 'sec')}</div>
@@ -1777,7 +1796,7 @@ function sessionSheet(id) {
   const s = S.sessions.find(x => x.id === id); if (!s) return;
   const body = s.entries.map(en => {
     const ex = EX[en.exId] || {n:en.exId};
-    return `<div class="set-row" style="align-items:flex-start"><span class="h3" style="font-size:15px">${esc(ex.n)}</span><span class="num" style="text-align:right">${en.sets.map(x => `<span style="${x.res === 'beat' ? 'color:var(--win);font-weight:700' : ''}">${ex.bw && !x.w ? 'BW' : inU(en.exId, () => fmtW(x.w))}×${x.r}</span>`).join('<br>')}</span></div>`;
+    return `<div class="set-row" style="align-items:flex-start"><span class="h3" style="font-size:15px">${esc(ex.n)}${ex.ea ? '<span class="sub" style="font-size:12px;font-weight:500"> (per side)</span>' : ''}</span><span class="num" style="text-align:right">${en.sets.map(x => `<span style="${x.res === 'beat' ? 'color:var(--win);font-weight:700' : ''}">${ex.bw && !x.w ? 'BW' : inU(en.exId, () => fmtW(x.w))}×${x.r}</span>`).join('<br>')}</span></div>`;
   }).join('');
   openSheet(`<h2 class="h2">${esc(s.dayName)}${s.sample ? '<span class="tag-sample">Sample</span>' : ''}</h2><p class="sub">${fmtDate(s.date)}, ${s.dur} min${s.readiness != null ? ', readiness ' + s.readiness : ''}. Sets that beat the ghost are highlighted.</p><div style="margin-top:6px">${body}</div>
     <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="delsession" data-id="${esc(s.id)}">Delete this workout</button></div>`);
@@ -2016,6 +2035,7 @@ const acts = {
     S.sessions.forEach(s => Sync.remove(s.id)); S.sessions = []; S.profile.sampleCleared = true; S.profile.nextDay = 0; touch(); render(); toast('All workouts deleted');
   },
   units(el) { S.profile.units = el.dataset.u; touch(); render(); },
+  theme(el) { const v = el.dataset.v; S.profile.theme = v === 'light' || v === 'dark' ? v : 'system'; touch(); render(); },
   exunit(el) {
     const ei = +el.dataset.e, u = el.dataset.u, en0 = S.active && S.active.entries[ei];
     if (!en0 || (u !== 'kg' && u !== 'lb') || u === exU(en0.exId)) return;
@@ -2067,9 +2087,10 @@ const acts = {
     if (el.getAttribute('aria-disabled') === 'true') { toast('Already added'); return; }
     addToCtx(el.dataset.id);
   },
-  cxnew(el) { cx = {id:null, n:(el && el.dataset.name) || '', kind:'free', c:1, prim:[], sec:[], inc:2.5}; openSheet(cxHTML()); },
+  cxnew(el) { cx = {id:null, n:(el && el.dataset.name) || '', kind:'free', c:1, ea:0, prim:[], sec:[], inc:2.5}; openSheet(cxHTML()); },
   cxedit(el) { const c = S.profile.custom.find(x => x.id === el.dataset.id); if (!c) return; cx = clone(c); openSheet(cxHTML()); },
-  cxkind(el) { cx.kind = el.dataset.v; if (cx.kind === 'bw' && cx.inc > 2.5) cx.inc = 2.5; setSheet(cxHTML()); },
+  cxkind(el) { cx.kind = el.dataset.v; if (cx.kind === 'bw') { cx.ea = 0; if (cx.inc > 2.5) cx.inc = 2.5; } setSheet(cxHTML()); },
+  cxea(el) { cx.ea = +el.dataset.v ? 1 : 0; setSheet(cxHTML()); },
   cxtype(el) { cx.c = +el.dataset.v; setSheet(cxHTML()); },
   cxm(el) {
     if (el.getAttribute('aria-disabled') === 'true') return;
