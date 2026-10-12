@@ -392,6 +392,15 @@ input{font:inherit;color:inherit}
 .ea-tag{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--tagc);font-size:11.5px;font-weight:650}
 .note-l{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-top:14px}
 .ex-note{display:inline-block;margin:0 4px 8px;padding:4px 10px;border-radius:9px;background:var(--win-bg);font-size:13px}
+.sw-h{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 2px 8px}
+.sw-list{display:grid;gap:8px}
+.swr{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:10px 12px;border-radius:14px;background:var(--surface-2);text-align:left;transition:transform 140ms var(--ease-out),background-color 160ms ease}
+.swr:active{transform:scale(.98)}
+.swr.best{background:var(--accent-soft)}
+.swr > span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.swr b{font-size:14.5px;font-weight:650;line-height:1.25}
+.swr small{font-size:12.5px;color:var(--muted);line-height:1.3}
+.swr em{flex:none;font-style:normal;font-size:11.5px;font-weight:650;color:var(--tagc);background:var(--surface);padding:2px 8px;border-radius:999px}
 .swap{height:32px;padding:0 10px;border-radius:10px;background:var(--surface-2);font-size:12.5px;font-weight:650;color:var(--accent);white-space:nowrap;flex:none}
 .add-ex{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:18px;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--accent);font-weight:650}
 .ex{scroll-margin-top:12px}
@@ -1537,11 +1546,11 @@ function setRow0(en, s, ei, si) {
 function exBlock(en, ei) { return inU(en.exId, () => exBlock0(en, ei)); }
 function exBlock0(en, ei) {
   const ex = EX[en.exId] || {n:en.exId};
-  const alt = ex.alt && EX[ex.alt], canSwap = alt && !en.sets.some(x => x.done), bt = barType(en.exId);
+  const bt = barType(en.exId);
   const wu = warmups(en, ei); en.wdone = en.wdone || [];
   const wuHTML = wu.length ? `<div class="wu" role="group" aria-label="Warm-up sets"><span class="wu-l">Warm-up</span>${wu.map((x, i) => `<button class="wu-c${en.wdone[i] ? ' done' : ''}" data-act="wlog" data-e="${ei}" data-i="${i}" aria-pressed="${!!en.wdone[i]}">${x.bar ? 'Bar' : fmtW(x.w)} × ${x.r}</button>`).join('')}</div>` : '';
   return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(ex.n)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}</div>
-    <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}${canSwap ? `<button class="swap press" data-act="swapex" data-e="${ei}" aria-label="Swap to ${esc(alt.n)}">${ex.kind === 'free' ? 'Use machine' : 'Use free weight'}</button>` : ''}</div></div>
+    <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button></div></div>
     <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
@@ -1744,6 +1753,46 @@ function plateHTML0() {
     ${sp.short && side.length ? `<p class="sub" style="text-align:center">Closest you can load with standard plates: ${sp.loaded} ${U()}</p>` : ''}
     <div class="set-row" style="margin-top:6px"><span>${BAR_NAMES[bt]} weighs</span><div class="stepper"><button data-act="pcbar" data-v="-1" aria-label="Lighter bar">−</button><output>${barUnit(barKg)} ${U()}</output><button data-act="pcbar" data-v="1" aria-label="Heavier bar">+</button></div></div>
     <div class="sheet-actions" style="margin-top:12px"><button class="btn primary big press" data-act="pcuse">Use ${fmtW(w)} ${U()} for set ${plateCtx.si + 1}</button></div>`;
+}
+/* ---- swap an exercise mid-workout ---- */
+let swapCtx = null;
+// Rank every exercise by how closely it trains the same muscles (cosine of the muscle maps).
+// The free-weight / machine twin of the same movement always comes first.
+function swapCands(fromId) {
+  const a = EX[fromId] || {m:{}}, inWo = new Set(S.active ? S.active.entries.map(e => e.exId) : []);
+  const ids = MOVES.flatMap(mv => [mv.free, mv.mach]).concat((S.profile.custom || []).filter(c => !c.hidden).map(c => c.id));
+  const norm = m => Math.sqrt(Object.values(m || {}).reduce((t, v) => t + v * v, 0)) || 1, na = norm(a.m);
+  const used = new Set(); S.sessions.forEach(x => x.entries.forEach(e => used.add(e.exId)));
+  return ids.filter(id => id !== fromId && EX[id] && !inWo.has(id)).map(id => {
+    const b = EX[id]; let dot = 0, prim = false;
+    for (const g in a.m) if (b.m[g]) { dot += a.m[g] * b.m[g]; if (a.m[g] === 1 && b.m[g] === 1) prim = true; }
+    const same = !!(a.mv && b.mv === a.mv);
+    return {id, prim, same, score: dot / (na * norm(b.m)) + (same ? 1 : 0) + (used.has(id) ? .04 : 0) + (b.kind === a.kind ? .02 : 0)};
+  }).sort((x, y) => y.score - x.score);
+}
+function lastTop() { const m = {}; sorted().forEach(x => x.entries.forEach(e => { if (!m[e.exId] && e.sets.length) m[e.exId] = e.sets[0]; })); return m; }
+function swapRow(c, last, best) {
+  const ex = EX[c.id], KIND = {free:'Free weight', mach:'Machine', bw:'Bodyweight'}, l = last[c.id];
+  const lt = l ? inU(c.id, () => ex.bw && !l.w ? 'BW' : fmtW(l.w) + ' ' + U() + (ex.ea ? ' each' : '')) + ' × ' + l.r : '';
+  return `<button class="swr press${best ? ' best' : ''}" data-act="swpick" data-id="${esc(c.id)}"><span><b>${esc(ex.n)}</b>
+    <small>${KIND[ex.kind] || 'Exercise'}, ${esc(ex.prim.join(', ').toLowerCase())}${ex.sec.length ? ' + ' + esc(ex.sec.join(', ').toLowerCase()) : ''}</small>${lt ? `<small>Last time ${lt}</small>` : ''}</span>${c.same ? '<em>Same movement</em>' : ''}</button>`;
+}
+function swapListHTML(q) {
+  const all = swapCands(swapCtx.from), last = lastTop(), ql = (q || '').trim().toLowerCase();
+  if (ql) {
+    const hit = all.filter(c => { const e = EX[c.id]; return [e.n, ...e.prim, ...e.sec].some(x => String(x).toLowerCase().includes(ql)); });
+    return hit.length ? `<p class="sw-h">Results</p><div class="sw-list">${hit.map(c => swapRow(c, last, false)).join('')}</div>` : `<div class="empty">Nothing matches "${esc(q.trim())}".</div>`;
+  }
+  const best = all.filter(c => c.same || (c.prim && c.score >= .6)).slice(0, 6), bs = new Set(best.map(c => c.id));
+  return `<p class="sw-h">Same muscles</p>${best.length ? `<div class="sw-list">${best.map(c => swapRow(c, last, true)).join('')}</div>` : '<p class="sub">No close match. Pick from the list below.</p>'}
+    <p class="sw-h">Other options</p><div class="sw-list">${all.filter(c => !bs.has(c.id)).map(c => swapRow(c, last, false)).join('')}</div>`;
+}
+function swapHTML() {
+  const en = S.active.entries[swapCtx.ei], ex = EX[en.exId] || {n:en.exId, prim:[], sec:[]}, done = en.sets.filter(x => x.done).length, left = en.sets.length - done;
+  const note = done ? `Your ${done} logged ${done === 1 ? 'set stays' : 'sets stay'} with ${esc(ex.n)}. The ${Math.max(1, left)} ${Math.max(1, left) === 1 ? 'set' : 'sets'} left move to the new exercise.` : `Keeps your ${en.sets.length} sets and ${en.lo}–${en.hi} reps. Weights come from the last time you did the new one.`;
+  return `<h2 class="h2">Swap ${esc(ex.n)}</h2><p class="sub">${note}</p>
+    <input class="search" id="swq" type="search" placeholder="Search exercises or muscles" autocomplete="off" enterkeyhint="search" aria-label="Search exercises or muscles">
+    <div id="swlist">${swapListHTML('')}</div>`;
 }
 function addToCtx(id) {
   const ex = EX[id];
@@ -2073,11 +2122,22 @@ const acts = {
     const sl = S.profile.days[slotCtx.d].ex[slotCtx.s], alt = EX[sl.id].alt; if (!alt) return;
     sl.id = alt; touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); toast('Switched to ' + EX[alt].n);
   },
-  swapex(el) {
-    const ei = +el.dataset.e, en = S.active.entries[ei], alt = EX[en.exId].alt; if (!alt || en.sets.some(x => x.done)) return;
-    const plan = planSlot({id:alt, sets:en.sets.length, lo:en.lo, hi:en.hi}, tierOf(S.active.readiness));
-    en.exId = alt; en.sets = plan.map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}));
-    persist(); refreshEx(ei); toast('Using ' + EX[alt].n + ' for today');
+  swap(el) { if (!S.active) return; const ei = +el.dataset.e, en = S.active.entries[ei]; if (!en) return; swapCtx = {ei, from:en.exId}; openSheet(swapHTML()); },
+  swpick(el) {
+    const id = el.dataset.id, ctx = swapCtx; if (!S.active || !ctx || !EX[id]) return;
+    const ei = ctx.ei, en = S.active.entries[ei]; if (!en || en.exId !== ctx.from) { closeSheet(); return; }
+    const before = clone(S.active.entries), done = en.sets.filter(x => x.done), tier = Object.assign({}, tierOf(S.active.readiness), {drop:false});
+    const mk = n => planSlot({id, sets:n, lo:en.lo, hi:en.hi}, tier).map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}));
+    let ni = ei;
+    if (!done.length) Object.assign(en, {exId:id, note:'', wdone:[], rest:restFor({id}), sets:mk(en.sets.length)});
+    else { const n = Math.max(1, en.sets.length - done.length); en.sets = done;
+      S.active.entries.splice(ei + 1, 0, {exId:id, lo:en.lo, hi:en.hi, rest:restFor({id}), note:'', sets:mk(n)}); ni = ei + 1; }
+    persist(); swapCtx = null; closeSheet();
+    const body = wo.querySelector('.wo-body'), y = body ? body.scrollTop : 0; renderWorkout();
+    const b2 = wo.querySelector('.wo-body'); if (b2) b2.scrollTop = y;
+    const card = wo.querySelector(`.ex[data-e="${ni}"]`); if (card && ni !== ei) setTimeout(() => card.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block:'start'}), 200);
+    buzz(8);
+    toast('Swapped to ' + EX[id].n, {label:'Undo', fn: () => { if (!S.active) return; S.active.entries = before; persist(); renderWorkout(); }});
   },
   woadd() { openLibrary({workout:true}); },
   libgroup(el) { libGroup = el.dataset.g; refreshLib(); const l = $('#liblist'); if (l) l.scrollIntoView({block:'nearest'}); },
@@ -2220,6 +2280,7 @@ document.addEventListener('input', e => {
     cx.n = e.target.value; const b = sheetEl && sheetEl.querySelector('[data-act=cxsave]'); const ok = cx.n.trim() && cx.prim.length;
     if (b) b.disabled = !ok; return;
   }
+  if (e.target.id === 'swq' && swapCtx) { $('#swlist').innerHTML = swapListHTML(e.target.value); return; }
   if (e.target.id === 'libq') { $('#liblist').innerHTML = libHTML(e.target.value); return; }
   if (e.target.id === 'dayname' && dayCtx != null) { const v = e.target.value.trim(); if (v) { S.profile.days[dayCtx].name = v; clearTimeout(noteT); noteT = setTimeout(() => { touch(); render(); }, 400); } return; }
   if (e.target.classList.contains('bd-name') && bd) { bd.days[+e.target.dataset.i].name = e.target.value; return; }

@@ -7,7 +7,7 @@ Train against last week's you. Rival is a workout logger that runs in the browse
 - **Muscle heat map:** an anatomical front and back body map of weekly sets per muscle against a 10–20 set target.
 - **Programs:** suggested splits for 2 to 6 days a week, or build your own for 1 to 7 days.
 - **Something else:** train a single focus today, or a short plan for the next 7 days, without moving your program.
-- **Tools:** 108 exercises (free-weight and machine options), plate calculator, auto warm-ups, custom exercises, kg or lb per exercise, per-side weights for dumbbell lifts, light or dark mode, backup and restore.
+- **Tools:** 108 exercises (free-weight and machine options), plate calculator, auto warm-ups, custom exercises, swap any exercise mid-workout (same-muscle matches first), kg or lb per exercise, per-side weights for dumbbell lifts, light or dark mode, backup and restore.
 
 ## Structure
 
