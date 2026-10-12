@@ -300,6 +300,11 @@ input{font:inherit;color:inherit}
 .wo-head .ic{width:44px;height:44px;display:grid;place-items:center;border-radius:12px}
 .wo-head .ic svg{width:24px;height:24px}
 .wo-t{font-family:var(--display);font-stretch:115%;font-weight:800;font-size:20px;line-height:1.1}
+.useg{display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--surface-2);flex:none}
+.useg button{min-width:44px;height:34px;padding:0 8px;border-radius:9px;font-weight:700;font-size:13.5px;color:var(--muted);
+  transition:background-color 160ms var(--ease-out),color 160ms var(--ease-out),transform 140ms var(--ease-out)}
+.useg button:active{transform:scale(.96)}
+.useg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .wo-s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wo-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 12px calc(120px + env(safe-area-inset-bottom,0px))}
 .wo-in{max-width:520px;margin:0 auto;display:grid;gap:12px}
@@ -309,6 +314,8 @@ input{font:inherit;color:inherit}
 .ex-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:0 4px}
 .ex-h .h3{font-size:17px}
 .ex-meta{font-size:13px;color:var(--muted);padding:2px 4px 10px}
+.ex-mrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 8px}
+.ex-mrow .ex-meta{padding:0;min-width:0}
 .cols,.set{display:grid;grid-template-columns:24px minmax(0,1fr) 78px 58px 44px;gap:8px;align-items:center}
 .cols{font-size:11.5px;font-weight:650;color:var(--muted);padding:0 4px 6px}
 .cols span:nth-child(3),.cols span:nth-child(4){text-align:center}
@@ -641,7 +648,8 @@ function plateSVG(plates) {
     <rect x="44" y="44" width="${Math.min(end, 292) - 44}" height="12" rx="3" class="pc-sleeve"/>${g}</svg>`;
 }
 // Warm-up ramp for the first compound lift that trains a muscle in this session
-function warmups(en, ei) {
+function warmups(en, ei) { return inU(en.exId, () => warmups0(en, ei)); }
+function warmups0(en, ei) {
   const ex = EX[en.exId]; if (!S.profile.warmups || !ex || !ex.c || !S.active) return [];
   const w = en.sets[0] && en.sets[0].w; if (!w || w <= 0) return [];
   const prim = Object.keys(ex.m).filter(k => ex.m[k] === 1);
@@ -769,7 +777,11 @@ const nf = new Intl.NumberFormat(undefined, {maximumFractionDigits: 0});
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
 
-function U() { return S.profile.units; }
+let UX = null; // unit in force while one exercise is being drawn or edited
+function U() { return UX || S.profile.units; }
+// Each exercise can have its own unit (dumbbells in lb, plates in kg). Falls back to the app-wide unit.
+function exU(id) { const m = S.profile.exUnit, u = m && m[id]; return u === 'kg' || u === 'lb' ? u : S.profile.units; }
+function inU(id, fn) { const prev = UX; UX = exU(id); try { return fn(); } finally { UX = prev; } }
 // Weight steps people can actually load. In lb, plates and dumbbells go up in 2.5, 5 or 10 lb, not in converted kg.
 const lbStep = incKg => incKg <= 1.25 ? 2.5 : incKg <= 2.5 ? 5 : 10;
 function stepKg(incKg) { return U() === 'lb' ? lbStep(incKg) / 2.20462 : incKg; }
@@ -855,6 +867,9 @@ function cleanProfile(p0) {
   else out.program = {id:p.program.id.slice(0, 30), name:p.program.name.slice(0, 40)};
   out.v = 1;
   out.units = out.units === 'lb' ? 'lb' : 'kg';
+  { const m = isObj(p.exUnit) ? p.exUnit : {}, o = {};
+    Object.keys(m).slice(0, 400).forEach(k => { if ((m[k] === 'kg' || m[k] === 'lb') && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
+    out.exUnit = o; }
   out.restC = fin(out.restC) ? clamp(Math.round(out.restC), 30, 600) : 150;
   out.restI = fin(out.restI) ? clamp(Math.round(out.restI), 30, 600) : 90;
   out.warmups = out.warmups !== false;
@@ -991,7 +1006,8 @@ function tierOf(score) {
 }
 function curTier() { const r = todayR(); return tierOf(r && !r.skipped ? r.score : null); }
 
-function planSlot(slot, tier) {
+function planSlot(slot, tier) { return inU(slot.id, () => planSlot0(slot, tier)); }
+function planSlot0(slot, tier) {
   const ex = EX[slot.id] || {inc:2.5};
   const last = lastWith(slot.id), g = last ? last.sets : [];
   let n = slot.sets; if (tier.drop && n >= 3) n -= 1;
@@ -1068,10 +1084,11 @@ function vToday() {
   const adj = tier.factor < 1 ? `<span class="adj">${tier.label}</span>` : '';
   const rows = day.ex.map((sl, i) => {
     const ex = EX[sl.id], pp = plans[i];
-    const tw = pp[0] && pp[0].w != null ? (ex.bw && !pp[0].w ? 'BW' : fmtW(pp[0].w) + ' ' + U()) : 'Pick a weight';
+    const eu = exU(sl.id), fw = kg => inU(sl.id, () => fmtW(kg));
+    const tw = pp[0] && pp[0].w != null ? (ex.bw && !pp[0].w ? 'BW' : fw(pp[0].w) + ' ' + eu) : 'Pick a weight';
     const g = pp.filter(x => x.g).map(x => x.g);
     return `<div class="pv"><span class="nm">${esc(ex.n)}</span><span class="sr num">${pp.length} × ${sl.lo}–${sl.hi}</span>
-      <span class="ln"><span class="tg">${tw}${pp[0] && pp[0].w != null ? ' × ' + pp.map(x => x.r).join(', ') : ''}</span>${g.length ? `<span class="gh">Ghost ${ex.bw && !g[0].w ? 'BW' : fmtW(g[0].w)} × ${g.map(x => x.r).join(', ')}</span>` : ''}</span></div>`;
+      <span class="ln"><span class="tg">${tw}${pp[0] && pp[0].w != null ? ' × ' + pp.map(x => x.r).join(', ') : ''}</span>${g.length ? `<span class="gh">Ghost ${ex.bw && !g[0].w ? 'BW' : fw(g[0].w)} × ${g.map(x => x.r).join(', ')}</span>` : ''}</span></div>`;
   }).join('');
   const act = S.active
     ? `<button class="btn primary big press" data-act="resume">Resume ${S.active.dayName.length > 16 ? 'workout' : esc(S.active.dayName)}</button>`
@@ -1161,7 +1178,7 @@ function vProgress() {
   const liftIds = [...new Set(sorted().flatMap(s => s.entries.map(e => e.exId)))].filter(id => EX[id] && EX[id].c && !EX[id].bw);
   const lifts = liftIds.map(id => ({id, pts: liftSeries(id)})).filter(l => l.pts.length >= 2).slice(0, 8).map(l => {
     const a = l.pts[0].v, b = l.pts[l.pts.length - 1].v, d = b - a;
-    return `<button class="lift" data-act="lift" data-id="${l.id}"><span><span class="nm">${esc(EX[l.id].n)}</span><br><span class="e">Est. 1-rep max ${fmtW(roundTo(b, .5))} ${U()}</span></span>${spark(l.pts)}<span class="d${d > 0.4 ? ' up' : ''}">${d > 0.4 ? '+' : ''}${fmtW(roundTo(d, .5))} ${U()}</span></button>`;
+    return `<button class="lift" data-act="lift" data-id="${l.id}"><span><span class="nm">${esc(EX[l.id].n)}</span><br><span class="e">Est. 1-rep max ${inU(l.id, () => fmtW(roundTo(b, .5)) + ' ' + U())}</span></span>${spark(l.pts)}<span class="d${d > 0.4 ? ' up' : ''}">${d > 0.4 ? '+' : ''}${inU(l.id, () => fmtW(roundTo(d, .5)) + ' ' + U())}</span></button>`;
   }).join('');
   const hist = sorted().slice(0, 12).map(s => {
     const n = s.entries.reduce((a, e) => a + e.sets.length, 0), b = s.entries.reduce((a, e) => a + e.sets.filter(x => x.res === 'beat').length, 0);
@@ -1324,7 +1341,7 @@ function vPlan() {
     <section class="section"><div class="section-head"><h2 class="h2">Settings</h2></div><div class="card" style="padding:4px 16px">
       <div class="set-row"><span>App tour</span><button class="link" data-act="replaytour">Show again</button></div>
       <div class="set-row"><span>Warm-up sets</span><div class="seg" style="width:140px"><button data-act="warmset" data-v="1" aria-pressed="${p.warmups !== false}">On</button><button data-act="warmset" data-v="0" aria-pressed="${p.warmups === false}">Off</button></div></div>
-      <div class="set-row"><span>Units</span><div class="seg" style="width:140px"><button data-act="units" data-u="kg" aria-pressed="${p.units === 'kg'}">kg</button><button data-act="units" data-u="lb" aria-pressed="${p.units === 'lb'}">lb</button></div></div>
+      <div class="set-row"><span>Default units</span><div class="seg" style="width:140px"><button data-act="units" data-u="kg" aria-pressed="${p.units === 'kg'}">kg</button><button data-act="units" data-u="lb" aria-pressed="${p.units === 'lb'}">lb</button></div></div>
       <div class="set-row"><span>Rest, big lifts</span><div class="stepper"><button data-act="rest" data-k="restC" data-d="-15" aria-label="Less rest">−</button><output>${fmtClock(p.restC)}</output><button data-act="rest" data-k="restC" data-d="15" aria-label="More rest">+</button></div></div>
       <div class="set-row"><span>Rest, smaller lifts</span><div class="stepper"><button data-act="rest" data-k="restI" data-d="-15" aria-label="Less rest">−</button><output>${fmtClock(p.restI)}</output><button data-act="rest" data-k="restI" data-d="15" aria-label="More rest">+</button></div></div>
     </div></section>
@@ -1488,7 +1505,8 @@ function minimizeWorkout() {
   render();
   try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null;
 }
-function setRow(en, s, ei, si) {
+function setRow(en, s, ei, si) { return inU(en.exId, () => setRow0(en, s, ei, si)); }
+function setRow0(en, s, ei, si) {
   const ex = EX[en.exId] || {}, g = s.g;
   const gtxt = g ? `<span class="g-txt">${ex.bw && !g.w ? 'BW' : fmtW(g.w)} × ${g.r}</span>` : `<span class="g-txt none">New</span>`;
   const win = s.done && s.res === 'beat' && g ? beatLabel(s, g) : s.done && s.res === 'match' ? 'Matched' : '';
@@ -1499,14 +1517,15 @@ function setRow(en, s, ei, si) {
     <input class="in-r" id="r-${ei}-${si}" inputmode="numeric" enterkeyhint="done" autocomplete="off" aria-label="Set ${si + 1} reps" placeholder="reps" value="${s.r == null ? '' : s.r}">
     <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button></div>`;
 }
-function exBlock(en, ei) {
+function exBlock(en, ei) { return inU(en.exId, () => exBlock0(en, ei)); }
+function exBlock0(en, ei) {
   const ex = EX[en.exId] || {n:en.exId};
   const alt = ex.alt && EX[ex.alt], canSwap = alt && !en.sets.some(x => x.done), bt = barType(en.exId);
   const wu = warmups(en, ei); en.wdone = en.wdone || [];
   const wuHTML = wu.length ? `<div class="wu" role="group" aria-label="Warm-up sets"><span class="wu-l">Warm-up</span>${wu.map((x, i) => `<button class="wu-c${en.wdone[i] ? ' done' : ''}" data-act="wlog" data-e="${ei}" data-i="${i}" aria-pressed="${!!en.wdone[i]}">${x.bar ? 'Bar' : fmtW(x.w)} × ${x.r}</button>`).join('')}</div>` : '';
   return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(ex.n)}</h3>${ex.prim ? musclesLine(ex) : ''}</div>
     <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}${canSwap ? `<button class="swap press" data-act="swapex" data-e="${ei}" aria-label="Swap to ${esc(alt.n)}">${ex.kind === 'free' ? 'Use machine' : 'Use free weight'}</button>` : ''}</div></div>
-    <p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p>${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
+    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
     <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button>${en.sets.length > 1 ? `<button data-act="delset" data-e="${ei}">Remove last set</button>` : ''}<button class="rm" data-act="rmex" data-e="${ei}" aria-label="Remove ${esc(ex.n)} from this workout">Remove</button></div></section>`;
@@ -1528,7 +1547,8 @@ function refreshEx(ei) {
   const tmp = document.createElement('div'); tmp.innerHTML = exBlock(S.active.entries[ei], ei);
   sec.replaceWith(tmp.firstElementChild);
 }
-function logSet(row) {
+function logSet(row) { const en0 = S.active && S.active.entries[+row.dataset.e]; return en0 ? inU(en0.exId, () => logSet0(row)) : undefined; }
+function logSet0(row) {
   const ei = +row.dataset.e, si = +row.dataset.s, en = S.active.entries[ei], s = en.sets[si], ex = EX[en.exId] || {};
   if (s.done) { s.done = false; s.res = null; }
   else {
@@ -1692,7 +1712,8 @@ function cxHTML() {
 }
 const INC_STEPS = [0.5, 1, 1.25, 2, 2.5, 5, 10];
 let plateCtx = null;
-function plateHTML() {
+function plateHTML() { return inU(S.active.entries[plateCtx.ei].exId, plateHTML0); }
+function plateHTML0() {
   const {ei, w} = plateCtx, en = S.active.entries[ei], bt = barType(en.exId), barKg = S.profile.bars[bt];
   const sp = plateSplit(w, barKg), side = sp.plates;
   const tally = {}; side.forEach(p => tally[p] = (tally[p] || 0) + 1);
@@ -1742,7 +1763,8 @@ let slotCtx = null, noteT = 0, wuT = 0;
 
 
 /* ================= lift & session detail ================= */
-function liftSheet(id) {
+function liftSheet(id) { return inU(id, () => liftSheet0(id)); }
+function liftSheet0(id) {
   const ex = EX[id], pts = liftSeries(id);
   const rows = sorted().filter(s => s.entries.some(e => e.exId === id)).slice(0, 10).map(s => {
     const en = s.entries.find(e => e.exId === id);
@@ -1755,7 +1777,7 @@ function sessionSheet(id) {
   const s = S.sessions.find(x => x.id === id); if (!s) return;
   const body = s.entries.map(en => {
     const ex = EX[en.exId] || {n:en.exId};
-    return `<div class="set-row" style="align-items:flex-start"><span class="h3" style="font-size:15px">${esc(ex.n)}</span><span class="num" style="text-align:right">${en.sets.map(x => `<span style="${x.res === 'beat' ? 'color:var(--win);font-weight:700' : ''}">${ex.bw && !x.w ? 'BW' : fmtW(x.w)}×${x.r}</span>`).join('<br>')}</span></div>`;
+    return `<div class="set-row" style="align-items:flex-start"><span class="h3" style="font-size:15px">${esc(ex.n)}</span><span class="num" style="text-align:right">${en.sets.map(x => `<span style="${x.res === 'beat' ? 'color:var(--win);font-weight:700' : ''}">${ex.bw && !x.w ? 'BW' : inU(en.exId, () => fmtW(x.w))}×${x.r}</span>`).join('<br>')}</span></div>`;
   }).join('');
   openSheet(`<h2 class="h2">${esc(s.dayName)}${s.sample ? '<span class="tag-sample">Sample</span>' : ''}</h2><p class="sub">${fmtDate(s.date)}, ${s.dur} min${s.readiness != null ? ', readiness ' + s.readiness : ''}. Sets that beat the ghost are highlighted.</p><div style="margin-top:6px">${body}</div>
     <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="delsession" data-id="${esc(s.id)}">Delete this workout</button></div>`);
@@ -1994,6 +2016,20 @@ const acts = {
     S.sessions.forEach(s => Sync.remove(s.id)); S.sessions = []; S.profile.sampleCleared = true; S.profile.nextDay = 0; touch(); render(); toast('All workouts deleted');
   },
   units(el) { S.profile.units = el.dataset.u; touch(); render(); },
+  exunit(el) {
+    const ei = +el.dataset.e, u = el.dataset.u, en0 = S.active && S.active.entries[ei];
+    if (!en0 || (u !== 'kg' && u !== 'lb') || u === exU(en0.exId)) return;
+    const id = en0.exId, ex = EX[id] || {};
+    S.profile.exUnit = isObj(S.profile.exUnit) ? S.profile.exUnit : {};
+    S.profile.exUnit[id] = u; // remembered for this exercise, other exercises are untouched
+    // Sets not logged yet move to the nearest weight you can load in the new unit; logged sets keep what was lifted.
+    inU(id, () => S.active.entries.forEach(en => { if (en.exId !== id) return;
+      en.sets.forEach(s => { if (!s.done && fin(s.w) && s.w > 0) s.w = clamp(roundW(s.w, ex.inc || 2.5), 0, MAX_KG); }); }));
+    touch();
+    S.active.entries.forEach((en, i) => { if (en.exId === id) refreshEx(i); });
+    const f = wo.querySelector(`.ex[data-e="${ei}"] .useg [data-u="${u}"]`); if (f) f.focus({preventScroll:true});
+    toast(`${ex.n || 'Exercise'} now in ${u}`);
+  },
   rest(el) { const k = el.dataset.k; S.profile[k] = Math.max(30, Math.min(600, S.profile[k] + +el.dataset.d)); touch(); render(); },
   slot(el) { slotCtx = {d:+el.dataset.d, s:+el.dataset.s}; openSheet(slotHTML(slotCtx.d, slotCtx.s)); },
   slotstep(el) {
@@ -2138,6 +2174,10 @@ const acts = {
   },
   replaytour() { S.profile.tour = {done:false, wo:false}; persist(); startCoach('tour'); }
 };
+// Plate calculator acts run in the unit of the exercise they belong to
+['plates', 'pcw', 'pcbar', 'pcuse'].forEach(k => { const f = acts[k];
+  acts[k] = function (el) { const ei = k === 'plates' ? +el.dataset.e : plateCtx && plateCtx.ei, en = S.active && S.active.entries[ei];
+    return en ? inU(en.exId, () => f.call(acts, el)) : f.call(acts, el); }; });
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
@@ -2165,7 +2205,7 @@ document.addEventListener('input', e => {
   if (e.target.id === 'slotnote' && slotCtx) { const sl = S.profile.days[slotCtx.d].ex[slotCtx.s]; sl.note = e.target.value.trim(); clearTimeout(noteT); noteT = setTimeout(() => { touch(); render(); }, 500); return; }
   const row = e.target.closest('.set'); if (!row || !S.active) return;
   const en = S.active.entries[+row.dataset.e], s = en.sets[+row.dataset.s];
-  if (e.target.classList.contains('in-w')) { s.w = toKg(e.target.value); s._auto = false;
+  if (e.target.classList.contains('in-w')) { s.w = inU(en.exId, () => toKg(e.target.value)); s._auto = false;
     if (+row.dataset.s === 0) { clearTimeout(wuT); const ei = +row.dataset.e; wuT = setTimeout(() => { const sec = wo.querySelector(`.ex[data-e="${ei}"] .wu`); const wu = warmups(en, ei);
       if (sec || wu.length) { const tmp = document.createElement('div'); tmp.innerHTML = exBlock(en, ei); const nw = tmp.querySelector('.wu'); if (sec && nw) sec.replaceWith(nw); else if (sec) sec.remove(); else if (nw) wo.querySelector(`.ex[data-e="${ei}"] .cols`).before(nw); } }, 600); } }
   if (e.target.classList.contains('in-r')) { const r = parseInt(e.target.value, 10); s.r = isNaN(r) ? null : r; }
