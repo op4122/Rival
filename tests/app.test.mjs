@@ -157,6 +157,46 @@ console.log('Existing user');
   await p.context().close();
 }
 
+// ---------- rest timer sound ----------
+console.log('Rest sound');
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const p = await ctx.newPage(); p.errors = [];
+  p.on('pageerror', e => p.errors.push(String(e)));
+  await p.addInitScript(() => {
+    window.__beeps = 0;
+    window.AudioContext = class { constructor() { this.state = 'suspended'; this.currentTime = 0; this.destination = {}; }
+      resume() { this.state = 'running'; return Promise.resolve(); }
+      createOscillator() { window.__beeps++; return { frequency: {}, connect() {}, start() {}, stop() {} }; }
+      createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; } };
+  });
+  await p.clock.install();
+  await p.goto(URL); await p.clock.runFor(600);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; });
+  await p.clock.runFor(600);
+  await p.locator('.card.session [data-act=start]').click(); await p.clock.runFor(900);
+  const logFirst = async () => { await p.fill('#w-0-0', '60'); await p.fill('#r-0-0', '8'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); };
+  await logFirst();
+  const rest = await p.evaluate(() => document.querySelector('#rest .rt').textContent);
+  ok(/\d:\d\d/.test(rest), 'rest timer started: ' + rest);
+  await p.clock.runFor(60000);
+  ok(await p.evaluate(() => window.__beeps) === 0, 'quiet while resting');
+  await p.clock.runFor(100000);
+  ok(await p.evaluate(() => window.__beeps) === 3, 'three-tone chime when rest ends (' + await p.evaluate(() => window.__beeps) + ')');
+  ok(/Rest is up/.test(await p.locator('#rest').textContent()), 'banner says rest is up');
+  // sound off
+  await p.locator('[data-tab=progress]').count(); await p.locator('[data-act=min]').click(); await p.clock.runFor(700);
+  await p.locator('[data-tab=plan]').click();
+  await p.locator('[data-act=restsnd][data-v="0"]').click();
+  ok((await state(p)).profile.restSound === false, 'sound can be turned off');
+  await p.locator('.resume').click(); await p.clock.runFor(700);
+  await p.fill('#w-0-1', '60'); await p.fill('#r-0-1', '8'); await p.locator('.set[data-e="0"][data-s="1"] [data-act=log]').click();
+  await p.clock.runFor(200000);
+  ok(await p.evaluate(() => window.__beeps) === 3, 'no chime with sound off');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nAll passed');
 process.exit(failed ? 1 : 0);
