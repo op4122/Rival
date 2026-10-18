@@ -23,7 +23,7 @@
 <link rel="apple-touch-icon" href="app/icons/apple-touch-icon.png">
 <link rel="preload" href="assets/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
 <script>document.documentElement.classList.add('js')</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Rival Workouts","url":"https://op4122.github.io/Rival/app/","description":"A workout tracker that shows last session's numbers beside every set, adjusts targets to how you feel, and plans your week.","applicationCategory":"HealthApplication","operatingSystem":"Any modern browser","browserRequirements":"Requires JavaScript","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Ahmed Al Mahrouqi"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Rival Workouts","url":"https://op4122.github.io/Rival/app/","description":"A workout tracker that shows last session's numbers beside every set, adjusts targets to how you feel, and plans your week.","featureList":["Last session beside every set","Readiness check-in","Weekly sets per muscle body map","Programs for 2 to 6 days or your own split","Import a plan","Swap exercises mid-workout","kg or lb per exercise","Per-side dumbbell weights","Cable attachments","Plate calculator","Light and dark mode","Works offline"],"applicationCategory":"HealthApplication","operatingSystem":"Any modern browser","browserRequirements":"Requires JavaScript","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Ahmed Al Mahrouqi"}}</script>
 <style>
 @font-face{font-family:"Archivo";font-style:normal;font-display:swap;font-weight:100 900;font-stretch:62% 125%;src:url(assets/fonts/archivo.woff2) format("woff2-variations"),url(assets/fonts/archivo.woff2) format("woff2")}
 @font-face{font-family:"Instrument Sans";font-style:normal;font-display:swap;font-weight:400 700;src:url(assets/fonts/instrument-sans.woff2) format("woff2-variations"),url(assets/fonts/instrument-sans.woff2) format("woff2")}
@@ -120,9 +120,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 @supports (width:1cqw){.shot.duo .phone{--pw:min(calc((100cqw - 14px) / 2),232px)}}
 .shot.duo .phone + .phone{margin-top:44px}
 /* gallery of smaller screens */
-.gal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:24px;margin-top:36px}
+.gal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:44px 24px;margin-top:36px}
 .gal figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:16px}
-.gal .phone{--pw:180px}
+.gal .phone{--pw:200px}
 .gal figcaption{text-align:center;font-size:14.5px;color:var(--muted);max-width:24ch}
 .gal figcaption b{display:block;color:var(--ink);font-weight:650;font-size:15.5px;margin-bottom:2px}
 
@@ -345,7 +345,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
         <p>Say how many days a week you can train, from two to six, and pick a ready-made program. Each one shows how many sets every muscle gets in a week, so you can check it reaches the 10 to 20 target before you commit.</p>
         <p><strong>Nothing fits? Build your own.</strong> Choose one to seven days, give each a focus from thirteen options (Push, Pull, Legs, Chest &amp; Back, Arms, even an empty day), rename them, and reorder or duplicate any day later.</p>
         <p>Switching keeps your history and ghosts, and an Undo is one tap away.</p>
-        <p><strong>Back after a break?</strong> Tap Something else on Today to train just a push day, or plan a short week like push and pull. Your program pauses, then picks up exactly where it left off.</p>
+        <p><strong>Already have a plan?</strong> Paste it from Notes, a spreadsheet or a chat, or pick a text file. Rival matches each line, such as “Bench press 3x6-8”, to its library, and you check every match before anything changes.</p>
+        <p><strong>Back after a break?</strong> Tap Train something else on Today to do just a push day, or plan a short week like push and pull. Your program pauses, then picks up exactly where it left off.</p>
       </div>
       <div class="shot duo rv">
         <figure class="phone"><picture><source srcset="assets/shots/programs-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/shots/programs-light.webp" alt="Program picker set to 3 days a week: Full Body marked Recommended, then Upper / Lower / Full Body and Push / Pull / Legs" width="780" height="1688" loading="lazy" decoding="async"></picture></figure>
@@ -380,6 +381,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   <section class="sec" id="tools">
     <h2 class="h2" style="max-width:18ch">Everything else, one tap away</h2>
     <div class="gal" tabindex="0" aria-label="More screens from the app">
+      <figure><div class="phone"><picture><source srcset="assets/shots/swap-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/shots/swap-light.webp" alt="Swap sheet for Barbell Bench Press: Machine Chest Press marked Same movement at the top, then other chest exercises, then every other option" width="780" height="1688" loading="lazy" decoding="async"></picture></div><figcaption><b>Swap mid-workout</b>Machine taken? The closest match for the same muscles comes first.</figcaption></figure>
+      <figure><div class="phone"><picture><source srcset="assets/shots/attach-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/shots/attach-light.webp" alt="Workout cards: Lat Pulldown with attachment chips for Wide bar and Close-grip V-bar, and Incline Dumbbell Press tagged Weight per side with a kg each column" width="780" height="1688" loading="lazy" decoding="async"></picture></div><figcaption><b>Attachments and per-side weights</b>Rope or V-bar each keep their own numbers. Dumbbells log per hand.</figcaption></figure>
+      <figure><div class="phone"><picture><source srcset="assets/shots/import-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/shots/import-light.webp" alt="Check your plan screen: lines like Bench press 3x6-8 matched to Barbell Bench Press, grouped into Push, Pull and Legs days" width="780" height="1688" loading="lazy" decoding="async"></picture></div><figcaption><b>Import your plan</b>Paste the plan you already follow. Rival matches every line.</figcaption></figure>
       <figure><div class="phone"><picture><source srcset="assets/shots/plates-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/shots/plates-light.webp" alt="Plate calculator showing 82.5 kg as a 20, a 10 and a 1.25 per side on a 20 kg bar" width="780" height="1688" loading="lazy" decoding="async"></picture></div><figcaption><b>Plate calculator</b>Exactly what goes on each side of the bar. The biggest plate is 20 kg.</figcaption></figure>
       <figure><div class="phone"><picture><source srcset="assets/shots/library-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/shots/library-light.webp" alt="Exercise library with search and muscle filters; each movement offers a free-weight and a machine option" width="780" height="1688" loading="lazy" decoding="async"></picture></div><figcaption><b>108 exercises</b>Each with a free-weight and a machine option.</figcaption></figure>
       <figure><div class="phone"><picture><source srcset="assets/shots/custom-dark.webp" media="(prefers-color-scheme: dark)"><img src="assets/shots/custom-light.webp" alt="Create exercise form: Landmine Press with upper chest as the primary muscle" width="780" height="1688" loading="lazy" decoding="async"></picture></div><figcaption><b>Your own exercises</b>Name it, pick its muscles, done.</figcaption></figure>
@@ -394,7 +398,10 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
       <div><h3>Warm-ups built in</h3><p>The first heavy lift for each muscle gets ramp-up sets. From 60 kg up that's the empty bar, then around 50%, 70% and 85% of your working weight. Lighter lifts get one or two shorter ramps.</p></div>
       <div><h3>Big targets where it counts</h3><p>The set inputs and the log button are 44 points tall, sized for chalky thumbs between sets.</p></div>
       <div><h3>Estimated 1-rep max</h3><p>Each main lift gets a trend line, using <span class="math"><var>e</var><sub>1RM</sub> = <var>w</var> × (1 + <span class="frac"><span><var>r</var></span><span>30</span></span>)</span>, so a heavy triple and a long set compare fairly.</p></div>
-      <div><h3>kg or lb</h3><p>Switch any time, even per exercise: dumbbells in lb, plates in kg.</p></div>
+      <div><h3>kg or lb, per exercise</h3><p>Each lift has its own kg | lb switch, so dumbbells can be in lb while the barbell stays in kg.</p></div>
+      <div><h3>Per-side weights</h3><p>Dumbbell lifts log the weight in each hand, marked “kg each”, so 2 × 32 kg is entered as 32.</p></div>
+      <div><h3>Attachments that don't mix</h3><p>A rope pushdown and a straight-bar pushdown keep separate weights and ghosts. Rival remembers which one you used.</p></div>
+      <div><h3>Light or dark</h3><p>Follow your phone, or pick Light or Dark in Settings.</p></div>
       <div><h3>Works offline</h3><p>Install it to your home screen and it opens with no signal, in the basement gym or anywhere else.</p></div>
       <div><h3>Yours to keep</h3><p>No account, and nothing is uploaded. Your workouts live on your phone, and Export backup saves them to a file whenever you like.</p></div>
     </div>
@@ -429,7 +436,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
       <details><summary>Is Rival really free?</summary><p>Yes. There is no account, no ads and nothing to buy today.</p></details>
       <details><summary>Where are my workouts stored?</summary><p>On your phone only, in the browser's storage. Rival has no server for your workouts, so nobody else can see them.</p><p>The flip side is that clearing your browser data or losing the phone clears them too, so tap Export backup on the Plan tab now and then. On iPhone, installing Rival to your Home Screen also keeps Safari from tidying away storage for sites you haven't opened in a while.</p></details>
       <details><summary>How do I move to a new phone?</summary><p>On the old phone, open the Plan tab and tap Export backup to save a file. On the new phone, open Rival, go to Plan, tap Import backup and choose that file. Your history, ghosts and plan come across.</p></details>
-      <details><summary>Can I skip my program for a day or a week?</summary><p>Yes. On Today, tap Something else. Pick a focus such as Push, Pull or Legs for just today, or line up a few sessions for the next seven days. Your program doesn't move while you do, so the day you were due is still next when you come back.</p></details>
+      <details><summary>Can I skip my program for a day or a week?</summary><p>Yes. On Today, tap Train something else. Pick a focus such as Push, Pull or Legs for just today, or line up a few sessions for the next seven days. Your program doesn't move while you do, so the day you were due is still next when you come back.</p></details>
+      <details><summary>Can I use the plan I already follow?</summary><p>Yes. On the Plan tab, tap Import a plan and paste it, or pick a .txt or .csv file. Lines like “Lat pulldown 3x8-10” are matched to Rival's exercises, and you can fix or leave out anything it didn't recognise. Your history stays, and you can undo right after.</p></details>
+      <details><summary>What if the machine I need is taken?</summary><p>Tap Swap on that exercise. Rival lists exercises for the same muscles first, starting with the free-weight or machine version of the same movement, then everything else. Sets you already logged stay where they are.</p></details>
       <details><summary>Do I have to do the readiness check-in?</summary><p>No. Skip it and targets stay as planned. Answering takes three taps, and Rival shows exactly how each target changed.</p></details>
       <details><summary>Does it work without signal?</summary><p>Yes. After the first time you open it, Rival saves itself on your phone, so a basement gym with no reception is fine.</p></details>
       <details><summary>What are the sample workouts I see at first?</summary><p>A first run shows a week of sample sessions so every screen has something in it. Clear them with one tap before your first real workout, or keep them while you explore.</p></details>
