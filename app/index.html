@@ -903,7 +903,7 @@ function restFor(slot) { const ex = EX[slot.id]; return slot.rest || (ex && ex.c
 /* ================= state ================= */
 function defaultProfile() {
   return {v:1, units:'kg', restC:150, restI:90, days:clone(PROGRAM), program:{id:'ulpp', name:'Upper / Lower / Push / Pull'}, programPicked:false, nextDay:0, readiness:null, sampleCleared:false, updatedAt:0,
-    warmups:true, theme:'system', bars:{bar:20, ez:10, smith:15}, custom:[]};
+    warmups:true, restSound:true, theme:'system', bars:{bar:20, ez:10, smith:15}, custom:[]};
 }
 /* ---- data safety: everything read from storage or a backup file is checked before the app uses it,
    so one bad value can never blank the screen. Out-of-range numbers are clamped, broken records dropped. ---- */
@@ -975,6 +975,7 @@ function cleanProfile(p0) {
   out.restC = fin(out.restC) ? clamp(Math.round(out.restC), 30, 600) : 150;
   out.restI = fin(out.restI) ? clamp(Math.round(out.restI), 30, 600) : 90;
   out.warmups = out.warmups !== false;
+  out.restSound = out.restSound !== false;
   const b = isObj(out.bars) ? out.bars : {};
   out.bars = {bar:fin(b.bar) ? clamp(b.bar, 0, 40) : 20, ez:fin(b.ez) ? clamp(b.ez, 0, 40) : 10, smith:fin(b.smith) ? clamp(b.smith, 0, 40) : 15};
   out.custom = (Array.isArray(out.custom) ? out.custom : []).map(cleanCustom).filter(Boolean);
@@ -1609,6 +1610,7 @@ function vPlan() {
     <button class="add-ex press" data-act="addday" style="width:100%;margin-top:12px"><span style="font-size:20px;line-height:1">+</span> Add a day</button>
     <section class="section"><div class="section-head"><h2 class="h2">Settings</h2></div><div class="card" style="padding:4px 16px">
       <div class="set-row"><span>App tour</span><button class="link" data-act="replaytour">Show again</button></div>
+      <div class="set-row"><span>Rest timer sound</span><div class="seg" style="width:140px"><button data-act="restsnd" data-v="1" aria-pressed="${p.restSound !== false}">On</button><button data-act="restsnd" data-v="0" aria-pressed="${p.restSound === false}">Off</button></div></div>
       <div class="set-row"><span>Warm-up sets</span><div class="seg" style="width:140px"><button data-act="warmset" data-v="1" aria-pressed="${p.warmups !== false}">On</button><button data-act="warmset" data-v="0" aria-pressed="${p.warmups === false}">Off</button></div></div>
       <div class="set-row"><span>Appearance</span><div class="seg" role="group" aria-label="Appearance" style="width:216px">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-act="theme" data-v="${v}" aria-pressed="${(p.theme || 'system') === v}">${l}</button>`).join('')}</div></div>
       <div class="set-row"><span>Default units</span><div class="seg" style="width:140px"><button data-act="units" data-u="kg" aria-pressed="${p.units === 'kg'}">kg</button><button data-act="units" data-u="lb" aria-pressed="${p.units === 'lb'}">lb</button></div></div>
@@ -1863,7 +1865,34 @@ function logSet0(row) {
 /* rest timer */
 const restEl = $('#rest');
 let restEnd = 0, restTotal = 0, restTick = 0, restHideT = 0;
+/* Rest-over chime. A phone web app can't vibrate (iPhone Safari has no vibration), so a short sound is the alert.
+   The 'ambient' audio session lets it play over music without pausing it, and it follows the silent switch. */
+let actx = null;
+function unlockAudio() {
+  try {
+    if (!S.profile.restSound) return;
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      actx = new AC();
+      try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (e) {}
+    }
+    if (actx.state === 'suspended') actx.resume();
+  } catch (e) {}
+}
+function chime() {
+  try {
+    if (!S.profile.restSound || !actx || actx.state !== 'running') return;
+    const t0 = actx.currentTime + .02;
+    [[988, 0], [1319, .17], [1319, .4]].forEach(([f, d]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(.35, t0 + d + .015); g.gain.exponentialRampToValueAtTime(.0001, t0 + d + .16);
+      o.start(t0 + d); o.stop(t0 + d + .18);
+    });
+  } catch (e) {}
+}
 function startRest(sec) {
+  unlockAudio(); // runs inside the tap that logged the set, which is what lets iPhone play sound later
   clearTimeout(restHideT);
   restTotal = sec; restEnd = Date.now() + sec * 1000;
   restEl.className = 'rest';
@@ -1878,7 +1907,7 @@ function tickRest() {
     clearInterval(restTick);
     if (rt) rt.textContent = 'Rest is up';
     const rl = restEl.querySelector('.rl'); if (rl) rl.textContent = 'Next set';
-    if (!restEl.classList.contains('up')) { restEl.classList.add('up'); buzz([30, 60, 30]); restHideT = setTimeout(hideRest, 5000); } // once per rest, not on every return to the app
+    if (!restEl.classList.contains('up')) { restEl.classList.add('up'); buzz([30, 60, 30]); if (Date.now() - restEnd < 3000) chime(); restHideT = setTimeout(hideRest, 5000); } // once per rest, not on every return to the app. No chime if you return minutes later
     return;
   }
   if (rt) rt.textContent = fmtClock(Math.ceil(left));
@@ -2550,6 +2579,7 @@ const acts = {
     s.w = w; s._auto = false; for (let j = si + 1; j < en.sets.length; j++) if (!en.sets[j].done && en.sets[j]._auto !== false) en.sets[j].w = w;
     persist(); closeSheet(); refreshEx(ei);
   },
+  restsnd(el) { S.profile.restSound = el.dataset.v === '1'; touch(); render(); if (S.profile.restSound) { unlockAudio(); chime(); } },
   warmset(el) { S.profile.warmups = el.dataset.v === '1'; touch(); render(); },
   coachnext() { if (coach) goCoach(coach.i + 1, 1); },
   coachback() { if (coach) goCoach(coach.i - 1, -1); },
