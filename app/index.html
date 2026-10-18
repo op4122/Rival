@@ -119,6 +119,40 @@ input{font:inherit;color:inherit}
 .ovr b{font-weight:700}
 .ovr .acts{display:flex;gap:4px;flex:none}
 .ovr button{font-weight:650;color:var(--tagc,var(--accent));white-space:nowrap;padding:8px 6px;min-height:36px}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-height:84px;padding:12px 14px;border-radius:18px;background:var(--surface);text-align:left}
+.tile b{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14.5px;line-height:1.2;color:var(--tagc,var(--accent))}
+.tile b svg{flex:none;width:18px;height:18px}
+.tile span{font-size:12.5px;color:var(--muted);line-height:1.35}
+@media (max-width:340px){.tiles{grid-template-columns:1fr}.tile{min-height:0}}
+.starter{position:relative;margin-top:14px;padding:14px 14px 12px;border-radius:18px;background:var(--accent-soft);font-size:14px;line-height:1.4}
+.starter-t{padding-right:28px}
+.starter-t b{font-weight:700}
+.starter-a{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.starter-a .btn{flex:1;min-width:130px;height:42px;font-size:14.5px}
+.starter-a .btn:not(.primary){background:var(--surface)}
+.starter-x{position:absolute;top:4px;right:4px;width:40px;height:40px;border-radius:12px;font-size:22px;line-height:1;color:var(--muted)}
+.plan-tip{margin:14px 4px 0;font-size:13.5px;color:var(--muted);line-height:1.4}
+.plan-tip b{color:var(--ink);font-weight:650}
+.ta{display:block;height:auto;min-height:210px;padding:12px 14px;line-height:1.45;resize:vertical;font-family:var(--text)}
+.imp-day{margin-top:14px}
+.imp-day > b{display:block;font-family:var(--display);font-stretch:112%;font-weight:750;font-size:17px;margin:0 2px 6px}
+.imp-rows{display:grid;gap:6px}
+.imp-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;min-height:54px;padding:9px 12px;border-radius:14px;background:var(--surface-2);text-align:left}
+.imp-row > span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.imp-row b{font-weight:650;font-size:14px;line-height:1.25}
+.imp-row small{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-row .sr{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.imp-row.miss{background:var(--win-bg)}
+.imp-row.miss b{color:var(--win)}
+.imp-row.off{opacity:.55}
+.imp-row.off b{text-decoration:line-through}
+.imp-sum{margin-top:6px}
+.news{display:grid;gap:12px;margin:14px 0 16px;padding:0;list-style:none}
+.news li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;font-size:14px;line-height:1.4}
+.news li > span:first-child{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--tagc,var(--accent))}
+.news svg{width:18px;height:18px}
+.news b{font-weight:700}
 .fx-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:12px}
 .fx-grid .chip{height:44px}
 .wk-list{display:grid;gap:6px;margin-top:12px}
@@ -389,6 +423,13 @@ input{font:inherit;color:inherit}
 .opt.has i{font-size:15px}
 .mus{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;min-width:0}
 .mus b{font-weight:600;color:var(--ink)}
+.att{display:flex;align-items:center;gap:8px;margin:0 -12px 10px 0;padding:0 0 0 4px;min-width:0}
+.att-l{flex:none;font-size:12px;font-weight:650;color:var(--muted)}
+.att-o{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;padding-right:12px;min-width:0}
+.att-o::-webkit-scrollbar{display:none}
+.att-o .chip{flex:none;height:36px;font-size:13.5px;padding:0 11px}
+.att.inplan{margin:12px 0 0;padding:0;flex-wrap:wrap}
+.att.inplan .att-o{flex-wrap:wrap;overflow:visible;padding:0}
 .ea-tag{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--tagc);font-size:11.5px;font-weight:650}
 .note-l{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-top:14px}
 .ex-note{display:inline-block;margin:0 4px 8px;padding:4px 10px;border-radius:9px;background:var(--win-bg);font-size:13px}
@@ -523,6 +564,7 @@ input{font:inherit;color:inherit}
   <div class="rest" id="rest" role="timer" aria-live="off"></div>
   <div class="toasts" id="toasts" aria-live="polite"></div>
   <input type="file" id="importfile" accept="application/json,.json" hidden>
+  <input type="file" id="planfile" accept=".txt,.csv,.tsv,.md,text/plain,text/csv,text/tab-separated-values" hidden>
 </div>
 
 <script>
@@ -531,6 +573,7 @@ input{font:inherit;color:inherit}
 
 /* ================= data ================= */
 const KEY = 'rival.v1';
+const NEWS_V = 1; // bump when there's a new "What's new" note for existing users
 const DAY = 86400000;
 const MUSCLES = {
   chest:'Chest', shoulders:'Shoulders', triceps:'Triceps', biceps:'Biceps', forearms:'Forearms', abs:'Abs',
@@ -616,11 +659,51 @@ const MOVES = LIB.map(([mid, name, group, prim, sec, free, mach]) => {
   mk(free, 'free', mach[0]); mk(mach, 'mach', free[0]);
   return {id:mid, name, group, prim, sec, free:free[0], mach:mach[0]};
 });
+/* Attachments. A cable lift can be done with a rope, a straight bar, a V-bar and so on, and the weight differs.
+   Each attachment is tracked as its own exercise ("pushdown__rope"), so weights, ghosts and progress never mix.
+   The plain id ("pushdown") is the lift with no attachment picked, which keeps history logged before this existed. */
+const ATT = {
+  pushdown:['Rope', 'Straight bar', 'V-bar', 'Single handle'],
+  ohext:['Rope', 'Straight bar', 'Single handle'],
+  pulldown:['Wide bar', 'Close-grip V-bar', 'Neutral-grip bar', 'Single handle'],
+  ulpulldown:['Straight bar', 'Close-grip bar'],
+  cablerow:['V-grip', 'Wide bar', 'Single handle', 'Rope'],
+  sapd:['Straight bar', 'Rope'],
+  facepull:['Rope', 'Two handles'],
+  cableuprow:['Straight bar', 'EZ bar', 'Rope'],
+  cablefront:['Single handle', 'Straight bar', 'Rope'],
+  cablerev:['Straight bar', 'EZ bar'],
+  cablewrist:['Straight bar', 'Single handle'],
+  crunch:['Rope', 'Straight bar']
+};
+const VSEP = '__';
+const attSlug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20) || 'x';
+const baseOf = id => { const i = String(id).indexOf(VSEP); return i > 0 ? id.slice(0, i) : id; };
+const attId = (base, name) => base + VSEP + attSlug(name);
+function regVariant(base, name) {
+  const b = EX[base]; if (!b) return null;
+  const id = attId(base, name);
+  EX[id] = Object.assign({}, b, {n:b.n + ' (' + name + ')', bn:b.n, att:name, vbase:base});
+  return id;
+}
+function regAtts(base, list) { const b = EX[base]; if (!b) return; b.atts = list.slice(); list.forEach(n => regVariant(base, n)); }
+// The attachments offered for an exercise (or for the lift a variant belongs to): [{n, id}]
+function attsOf(id) { const ex = EX[baseOf(id)]; return ex && ex.atts ? ex.atts.map(n => ({n, id:attId(baseOf(id), n)})) : []; }
+// A variant id found in saved data that this version doesn't list (a removed custom attachment): keep it readable.
+function ensureEx(id) {
+  if (typeof id !== 'string' || EX[id]) return;
+  const b = baseOf(id); if (b === id || !EX[b]) return;
+  const nm = id.slice(b.length + VSEP.length).replace(/-/g, ' ');
+  regVariant(b, nm.charAt(0).toUpperCase() + nm.slice(1));
+  EX[id].orphan = 1;
+}
+Object.keys(ATT).forEach(b => regAtts(b, ATT[b]));
 function registerCustom(c) {
   const m = {};
   c.prim.forEach(x => { const g = MUSC[x]; if (g) m[g] = 1; });
   c.sec.forEach(x => { const g = MUSC[x]; if (g && !m[g]) m[g] = .5; });
   EX[c.id] = {n:c.n, m, prim:c.prim, sec:c.sec, inc:c.inc, c:c.c, bw:c.kind === 'bw' ? 1 : 0, base:0, mv:null, kind:c.kind, alt:null, custom:1, hidden:!!c.hidden, ea:c.ea && c.kind !== 'bw' ? 1 : 0};
+  regAtts(c.id, c.kind === 'bw' ? [] : c.att || []);
 }
 // Which bar an exercise is loaded on, for the plate calculator and warm-ups
 function barType(id) {
@@ -793,7 +876,7 @@ const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e)
 let UX = null; // unit in force while one exercise is being drawn or edited
 function U() { return UX || S.profile.units; }
 // Each exercise can have its own unit (dumbbells in lb, plates in kg). Falls back to the app-wide unit.
-function exU(id) { const m = S.profile.exUnit, u = m && m[id]; return u === 'kg' || u === 'lb' ? u : S.profile.units; }
+function exU(id) { const m = S.profile.exUnit, u = m && (m[id] || m[baseOf(id)]); return u === 'kg' || u === 'lb' ? u : S.profile.units; }
 function inU(id, fn) { const prev = UX; UX = exU(id); try { return fn(); } finally { UX = prev; } }
 // Weight steps people can actually load. In lb, plates and dumbbells go up in 2.5, 5 or 10 lb, not in converted kg.
 const lbStep = incKg => incKg <= 1.25 ? 2.5 : incKg <= 2.5 ? 5 : 10;
@@ -847,7 +930,12 @@ function cleanCustom(c) {
   const known = a => (Array.isArray(a) ? a : []).filter(m => typeof m === 'string' && Object.prototype.hasOwnProperty.call(MUSC, m));
   const prim = known(c.prim);
   return {id:c.id, n, kind:['free', 'mach', 'bw'].includes(c.kind) ? c.kind : 'free', c:c.c ? 1 : 0, prim, sec:known(c.sec).filter(m => !prim.includes(m)),
-    inc:fin(c.inc) && c.inc > 0 && c.inc <= 25 ? c.inc : 2.5, ...(c.ea && c.kind !== 'bw' ? {ea:1} : {}), ...(c.hidden ? {hidden:true} : {})};
+    inc:fin(c.inc) && c.inc > 0 && c.inc <= 25 ? c.inc : 2.5, ...(c.ea && c.kind !== 'bw' ? {ea:1} : {}), ...(c.hidden ? {hidden:true} : {}), att:cleanAtts(c.att)};
+}
+// Attachment names for a custom exercise: short, distinct after slugging, at most 8.
+function cleanAtts(a) {
+  const seen = new Set();
+  return (Array.isArray(a) ? a : []).map(x => str(x, 20).trim()).filter(x => { const k = attSlug(x); if (!x || seen.has(k)) return false; seen.add(k); return true; }).slice(0, 8);
 }
 function cleanSession(s) {
   if (!isObj(s) || !fin(s.date) || !Array.isArray(s.entries)) return null;
@@ -891,7 +979,7 @@ function cleanProfile(p0) {
   out.bars = {bar:fin(b.bar) ? clamp(b.bar, 0, 40) : 20, ez:fin(b.ez) ? clamp(b.ez, 0, 40) : 10, smith:fin(b.smith) ? clamp(b.smith, 0, 40) : 15};
   out.custom = (Array.isArray(out.custom) ? out.custom : []).map(cleanCustom).filter(Boolean);
   out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
-  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared;
+  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen;
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
   // One-off sessions that sit on top of the program without changing it.
@@ -977,6 +1065,11 @@ function normalizeProfile() {
   // A custom exercise can never replace a built-in one.
   S.profile.custom = S.profile.custom.filter(c => !EX[c.id] || EX[c.id].custom);
   S.profile.custom.forEach(registerCustom);
+  // Attachment variants named in saved data must exist before the checks below, or their slots would be dropped.
+  const seeIds = list => list.forEach(d => d && d.ex && d.ex.forEach(sl => ensureEx(sl.id)));
+  seeIds(S.profile.days); if (S.profile.today) seeIds([S.profile.today.day]); if (S.profile.week) seeIds(S.profile.week.days);
+  S.sessions.forEach(x => x.entries.forEach(e => ensureEx(e.exId)));
+  if (S.active) S.active.entries.forEach(e => ensureEx(e.exId));
   // Drop plan slots that point at exercises this version doesn't know (a hand-edited or newer backup), and never leave the plan empty.
   S.profile.days.forEach(d => { d.ex = d.ex.filter(sl => EX[sl.id]); });
   if (!S.profile.days.length) S.profile.days = clone(PROGRAM);
@@ -995,8 +1088,9 @@ function normalizeProfile() {
   }
   // Tour flags. Someone arriving with real workouts (an older install or a restored backup) has used the app already.
   const t = S.profile.tour;
-  if (isObj(t)) S.profile.tour = {done:!!t.done, wo:!!t.wo};
-  else { const used = S.sessions.some(x => !x.sample); S.profile.tour = {done:used, wo:used}; }
+  // n is the newest "What's new" note this person has seen; a fresh install starts current, so it only reaches existing users.
+  if (isObj(t)) S.profile.tour = {done:!!t.done, wo:!!t.wo, n:Number.isInteger(t.n) ? clamp(t.n, 0, NEWS_V) : t.done ? 0 : NEWS_V};
+  else { const used = S.sessions.some(x => !x.sample); S.profile.tour = {done:used, wo:used, n:used ? 0 : NEWS_V}; }
 }
 normalizeProfile();
 if (loaded) persist();
@@ -1090,6 +1184,13 @@ function overrideBanner(o) {
   const msg = left ? `<b>This week only</b>, until ${until}. Then back to ${esc(nxt.name)}.` : `<b>All ${pl(o.days.length, 'session')} done.</b> Your program waits at ${esc(nxt.name)}.`;
   return `<div class="ovr"><span>${msg}</span><span class="acts"><button data-act="other">Edit</button><button data-act="endother">${left ? 'End now' : 'Back to program'}</button></span></div>`;
 }
+// New people start on a template. Say so plainly, and show the three ways to make it theirs.
+function starterCard() {
+  const p = S.profile; if (p.programPicked || p.starterSeen) return '';
+  return `<div class="starter"><div class="starter-t"><b>This is a starter plan.</b> It's ${esc(p.program.name)}, ${p.days.length} days a week. Nothing is fixed: pick a program that fits your week, or bring the plan you already follow.</div>
+    <div class="starter-a"><button class="btn primary press" data-act="program">Pick a program</button><button class="btn press" data-act="importplan">Import my plan</button></div>
+    <button class="starter-x" data-act="starterok" aria-label="Hide this note">×</button></div>`;
+}
 function vToday() {
   const p = S.profile, o = overrideNow(), list = o ? o.days : p.days, n = list.length, idx = o ? o.idx : p.nextDay % n, day = list[idx], tier = curTier();
   const plans = day.ex.map(sl => planSlot(sl, tier));
@@ -1115,8 +1216,12 @@ function vToday() {
       ${o && o.kind === 'today' ? '' : `<div class="daypick" role="group" aria-label="Choose today's session">${list.map((d, i) => {
         const done = o && o.done[i];
         return `<button class="chip press${done ? ' done' : ''}" data-act="${o ? 'wday' : 'day'}" data-i="${i}" aria-pressed="${i === idx}"${done ? ` aria-label="${esc(d.name)}, done"` : ''}>${done ? I.tick : ''}${esc(d.name)}</button>`;
-      }).join('')}${o ? '' : '<button class="chip other press" data-act="other">Something else</button>'}</div>`}
-      ${o ? overrideBanner(o) : p.programPicked ? '' : `<button class="link prog-hint" data-act="program">Training ${n === 4 ? 'more or less than 4' : 'a different number of'} days a week? Pick a program</button>`}
+      }).join('')}</div>`}
+      ${o ? overrideBanner(o) : ''}
+      ${starterCard()}
+      ${o ? '' : `<div class="tiles" role="group" aria-label="Change what you train">
+        <button class="tile press" data-act="other"><b>${ICO.shuffle}Train something else</b><span>Swap today's session, or plan a different week. Your program waits.</span></button>
+        <button class="tile press" data-act="gotoplan"><b>${ICO.edit}Edit your plan</b><span>Change the program, exercises, sets and reps, or import your own.</span></button></div>`}
     </section>
     ${readinessCard()}
     <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}${act}</section>`;
@@ -1257,7 +1362,8 @@ function progListHTML() {
   return `<h2 class="h2">Choose a program</h2><p class="sub" style="margin-top:4px">How many days a week can you train?</p>
     <div class="seg dpw" role="group" aria-label="Days a week">${[2,3,4,5,6].map(n => `<button data-act="progdays" data-n="${n}" aria-pressed="${n === progN}">${n}</button>`).join('')}</div>
     <div class="progs">${cards}</div>
-    <button class="add-ex press" data-act="build" style="width:100%"><span style="font-size:20px;line-height:1">+</span> Build your own split</button>`;
+    <button class="add-ex press" data-act="build" style="width:100%"><span style="font-size:20px;line-height:1">+</span> Build your own split</button>
+    <button class="add-ex press" data-act="importplan" style="width:100%;margin-top:8px">Import a plan you already follow</button>`;
 }
 function progDetailHTML(pr) {
   const days = programDays(pr), st = planStats(days);
@@ -1338,6 +1444,154 @@ function addDayHTML() {
     <div class="cx-chips" style="margin-top:12px">${Object.keys(FOCUS).map(k => `<button class="chip" data-act="adddayf" data-f="${k}">${FOCUS[k].label}</button>`).join('')}</div>`;
 }
 
+/* ================= import a plan =================
+   People paste plans from Notes, spreadsheets, coaches or chat apps. The parser is forgiving: a line with sets and reps
+   ("Bench press 3x8-10", "Rows - 3 sets of 12", "Squat, 4, 6-8") is an exercise, anything else short is a day name.
+   Names are matched to the library by shared words, so "DB incline press" finds Incline Dumbbell Press. */
+const IMP_SYN = {db:'dumbbell', dbs:'dumbbell', dumbell:'dumbbell', bb:'barbell', kb:'kettlebell', ohp:'overhead press', rdl:'romanian deadlift', sldl:'romanian deadlift',
+  tricep:'triceps', bicep:'biceps', tri:'triceps', bi:'biceps', pulldown:'pulldown', pushdown:'pushdown', pullup:'pull-up', chinup:'chin-up', flye:'fly', flys:'fly', flyes:'fly',
+  bss:'bulgarian split squat', ghr:'nordic', skullcrusher:'skull crusher', lats:'lat', delt:'delt', delts:'delt', ez:'ez', ezbar:'ez bar', cgbp:'close grip bench press',
+  military:'overhead', pec:'pec', dec:'deck', rope:'rope', legs:'leg', calves:'calf', hammy:'hamstring', hamstrings:'hamstring', glute:'glute', glutes:'glute', abs:'ab', side:'lateral'};
+const IMP_EQUIP = new Set(['barbell', 'dumbbell', 'machine', 'cable', 'smith', 'ez', 'bar', 'weighted', 'seated', 'standing', 'single', 'arm']);
+const IMP_STOP = new Set(['the', 'a', 'an', 'with', 'on', 'and', 'or', 'of', 'to', 'for', 'each', 'per', 'my']);
+// Extra names people use for library lifts, so a bare "Squat" means a back squat, not a hack squat.
+const IMP_ALIAS = {squat:['squat', 'back squat'], bench:['bench press', 'flat bench', 'bench'], deadlift:['deadlift', 'conventional deadlift'], ohp:['overhead press', 'military press', 'standing press'],
+  pullup:['pull-up', 'pull up', 'weighted pull-up'], chinup:['chin-up', 'chin up'], wdip:['dip', 'chest dip'], legpress:['leg press'], lat:['lateral raise', 'side raise', 'side lateral raise'],
+  pulldown:['lat pulldown', 'pulldown'], cablerow:['cable row', 'seated row'], bbrow:['barbell row', 'bent over row', 'bent-over row'], rdl:['romanian deadlift', 'rdl'], hipthrust:['hip thrust', 'glute bridge'],
+  legcurl:['leg curl', 'hamstring curl'], legext:['leg extension', 'quad extension'], calf:['calf raise', 'standing calf raise'], facepull:['face pull'], pushdown:['triceps pushdown', 'pushdown'],
+  skull:['skull crusher', 'lying triceps extension'], ezcurl:['curl', 'barbell curl', 'biceps curl'], hammer:['hammer curl'], shrug:['shrug'], crunch:['cable crunch', 'crunch'], legraise:['leg raise', 'hanging leg raise'],
+  pecdeck:['pec deck', 'machine fly'], fly:['cable fly', 'cable crossover'], dbbench:['dumbbell press', 'dumbbell bench'], incdb:['incline press', 'incline dumbbell press'], dbshpress:['shoulder press', 'dumbbell shoulder press'],
+  hack:['hack squat'], bss:['bulgarian split squat', 'split squat'], dblunge:['lunge', 'walking lunge'], tbar:['t-bar row', 'tbar row'], revpec:['reverse fly', 'reverse pec deck', 'rear delt fly']};
+function impWords(t) {
+  const out = [];
+  String(t).toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9-]+/g, ' ').split(/\s+/).forEach(w0 => {
+    if (!w0) return;
+    let w = w0.replace(/^-+|-+$/g, ''); if (!w) return;
+    if (w === 'pull-up' || w === 'chin-up' || w === 't-bar') { out.push(w); return; }
+    w.split('-').forEach(p => {
+      if (!p || IMP_STOP.has(p)) return;
+      let x = IMP_SYN[p] || p;
+      if (x === p && x.length > 4 && /(ss|sh|ch|x)es$/.test(x)) x = x.slice(0, -2);
+      else if (x === p && x.length > 3 && /s$/.test(x) && !/(ss|us|is)$/.test(x)) x = x.slice(0, -1);
+      x.split(' ').forEach(y => y && out.push(y));
+    });
+  });
+  return out;
+}
+let impIdx = null;
+function impIndex() {
+  if (impIdx) return impIdx;
+  impIdx = [];
+  Object.keys(EX).forEach(id => {
+    const ex = EX[id]; if (ex.hidden || ex.orphan) return;
+    impIdx.push({id, w:impWords(ex.n)});
+    if (IMP_ALIAS[id]) IMP_ALIAS[id].forEach(a => impIdx.push({id, w:impWords(a)}));
+  });
+  return impIdx;
+}
+// Best library match for a name: shared words over all words, where unmatched equipment words in the library name count less.
+function impMatch(name) {
+  const q = impWords(name); if (!q.length) return {id:null, score:0};
+  const qs = new Set(q);
+  let best = {id:null, score:0};
+  for (const c of impIndex()) {
+    let hit = 0, cw = 0;
+    const cs = new Set(c.w);
+    cs.forEach(w => { if (qs.has(w)) { hit++; cw++; } else cw += IMP_EQUIP.has(w) ? .35 : 1; });
+    let qw = 0; qs.forEach(w => { qw += cs.has(w) ? 1 : IMP_EQUIP.has(w) ? .6 : 1; });
+    const sc = hit ? 2 * hit / (qw + cw) : 0;
+    if (sc > best.score + 1e-9) best = {id:c.id, score:sc};
+  }
+  return best.score >= .6 ? best : {id:null, score:best.score};
+}
+const IMP_SR = /(\d{1,2})\s*(?:sets?)?\s*(?:x|×|\*|sets? of|sets?|of)\s*(\d{1,3})(?:\s*(?:-|–|—|to)\s*(\d{1,3}))?(?:\s*(?:reps?|r)\b)?/i;
+const IMP_DAYWORD = /^(day|week|session|workout|w\d|d\d)\b|^(mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i;
+function impLine(raw) {
+  let t = raw.replace(/ /g, ' ').trim();
+  if (!t) return null;
+  if (/^(exercise|name|movement)\s*[,;\t|]/i.test(t)) return null; // a spreadsheet's header row
+  const head = /^#+\s*/.test(t) || /:\s*$/.test(t);
+  t = t.replace(/^#+\s*/, '').replace(/^\s*(?:[-*•·▪◦>]+|\d{1,2}[.)]|[a-z][.)])\s+/i, '');
+  let rest = null;
+  const rm = t.match(/(\d{2,3})\s*(s|sec|secs|seconds)\b|(\d(?:\.\d)?)\s*(m|min|mins|minutes)\b/i);
+  if (rm && /rest/i.test(t)) rest = rm[1] ? +rm[1] : Math.round(parseFloat(rm[3]) * 60);
+  // Spreadsheet cells and tabs become spaces; "Squat, 4, 6-8" reads as "Squat 4x6-8".
+  let u = t.replace(/\t/g, ' , ').replace(/\s+/g, ' ');
+  const cells = u.split(/\s*[,;|]\s*/).filter(Boolean);
+  if (cells.length >= 3 && /^\d{1,2}$/.test(cells[1]) && /^\d{1,3}(\s*[-–]\s*\d{1,3})?$/.test(cells[2])) u = cells[0] + ' ' + cells[1] + 'x' + cells[2];
+  const m = u.match(IMP_SR);
+  if (m && !head) {
+    let name = (u.slice(0, m.index).trim() || u.slice(m.index + m[0].length).trim());
+    name = name.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(/@.*$|\brpe\b.*$|\brest\b.*$/i, '').replace(/[-–—:,;|]+\s*$|^\s*[-–—:,;|]+/g, '').trim();
+    if (!name) return null;
+    const sets = +m[1], lo = +m[2], hi = m[3] ? +m[3] : lo;
+    return {kind:'ex', raw:t, name, sets, lo:Math.min(lo, hi), hi:Math.max(lo, hi), rest};
+  }
+  const plain = t.replace(/\([^)]*\)/g, '').replace(/[:\-–—]+\s*$/, '').trim();
+  if (!head && !IMP_DAYWORD.test(plain) && impMatch(plain).score >= .75) return {kind:'ex', raw:t, name:plain, sets:3, lo:8, hi:12, rest, guess:true};
+  if (plain.length > 40) return null;
+  // "Day 1 - Push" or "Monday: Upper" keeps the part that says what the day is.
+  const dm = plain.match(/^(?:day\s*\d+|d\d+|(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*)\s*[-–—:.)]\s*(.+)$/i);
+  return {kind:'day', name:(dm ? dm[1] : plain).trim()};
+}
+function parsePlan(text) {
+  impIdx = null; // rebuilt per read, so custom exercises made since are included
+  const days = []; let cur = null, dropped = 0;
+  String(text).split(/\r?\n/).slice(0, 400).forEach(line => {
+    const r = impLine(line); if (!r) return;
+    if (r.kind === 'day') { cur = {name:r.name.slice(0, 24), ex:[]}; days.push(cur); return; }
+    if (!cur) { cur = {name:'', ex:[]}; days.push(cur); }
+    if (cur.ex.length >= 15) { dropped++; return; }
+    const mt = impMatch(r.name);
+    cur.ex.push({raw:r.raw, q:r.name, id:mt.id, sets:clamp(r.sets, 1, 8), lo:clamp(r.lo, 1, 30), hi:clamp(r.hi, 1, 40), rest:r.rest ? clamp(r.rest, 30, 600) : null, guess:!!r.guess});
+  });
+  const out = days.filter(d => d.ex.length);
+  out.forEach((d, i) => { if (!d.name) d.name = 'Day ' + (i + 1); });
+  return {days:out.slice(0, 7), extraDays:Math.max(0, out.length - 7), dropped};
+}
+let imp = null;
+const IMP_EXAMPLE = 'Push\nBench press 3x6-8\nIncline DB press 3x8-10\nLateral raises 3x12-15\nRope tricep pushdown 3x10-12\n\nPull\nLat pulldown 3x8-10\nSeated cable row 3x10-12\nStraight bar pushdown 2x12\n\nLegs\nSquat 4x5-7\nRDL 3x8-10\nLeg curl 3x10-12';
+function impStartHTML() {
+  return `<h2 class="h2">Import your plan</h2>
+    <p class="sub">Paste it from Notes, a spreadsheet, your coach or a chat app. Put each day's name on its own line, then one exercise per line with sets and reps.</p>
+    <label class="note-l" for="impq">Your plan</label>
+    <textarea class="search ta" id="impq" rows="10" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="${esc(IMP_EXAMPLE)}">${esc(imp.text)}</textarea>
+    <p class="sub" style="font-size:12.5px">Works with "3x8-10", "3 sets of 10" or spreadsheet columns (exercise, sets, reps). You'll check every match before anything changes.</p>
+    <div class="sheet-actions" style="margin-top:12px">
+      <button class="btn primary big press" data-act="impparse"${imp.text.trim() ? '' : ' disabled'}>Read my plan</button>
+      <button class="btn press" data-act="impfile">Choose a text or CSV file</button>
+      <button class="link" data-act="impexample">Fill in an example</button></div>`;
+}
+function impReviewHTML() {
+  const all = imp.days.flatMap(d => d.ex), ok = all.filter(r => r.id && !r.off).length, miss = all.filter(r => !r.id && !r.off).length;
+  const rows = imp.days.map((d, di) => `<div class="imp-day"><b>${esc(d.name)}</b><div class="imp-rows">${d.ex.map((r, i) => {
+    const ex = r.id && EX[r.id];
+    const cls = r.off ? ' off' : ex ? '' : ' miss';
+    const top = r.off ? esc(r.q) : ex ? esc(ex.n) : `Not found: ${esc(r.q)}`;
+    const bot = r.off ? 'Left out. Tap to bring it back' : ex ? `From "${esc(r.raw)}"${r.guess ? ', sets and reps guessed' : ''}` : 'Tap to pick it from the library or create it';
+    return `<button class="imp-row press${cls}" data-act="improw" data-d="${di}" data-i="${i}"><span><b>${top}</b><small>${bot}</small></span><span class="sr">${r.sets} × ${r.lo === r.hi ? r.lo : r.lo + '–' + r.hi}</span></button>`;
+  }).join('')}</div></div>`).join('');
+  const notes = [imp.extraDays ? `Only the first 7 days fit in a week, so ${pl(imp.extraDays, 'day')} ${imp.extraDays === 1 ? 'was' : 'were'} left out.` : '', imp.dropped ? `${pl(imp.dropped, 'line')} past 15 exercises in a day ${imp.dropped === 1 ? 'was' : 'were'} left out.` : ''].filter(Boolean).join(' ');
+  return `<button class="link back" data-act="impback">← Edit the text</button>
+    <h2 class="h2" style="margin-top:4px">Check your plan</h2>
+    <p class="sub imp-sum">${pl(imp.days.length, 'day')}, ${pl(ok, 'exercise')} matched.${miss ? ` <b style="color:var(--win)">${miss} not found</b>: tap ${miss === 1 ? 'it' : 'each one'} to pick or create it, or ${miss === 1 ? 'it' : 'they'}'ll be left out.` : ' Tap any exercise to change the match.'}${notes ? ' ' + notes : ''}</p>
+    ${rows}
+    <p class="sub" style="margin:16px 0 10px">This replaces your current plan. Your workout history and ghosts stay, and you can undo right after.</p>
+    <div class="sheet-actions"><button class="btn primary big press" data-act="impapply"${ok ? '' : ' disabled'}>${ok ? `Use this plan, ${pl(imp.days.filter(d => d.ex.some(r => r.id && !r.off)).length, 'day')}` : 'Match at least one exercise'}</button></div>`;
+}
+function impShowReview() {
+  const parsed = parsePlan(imp.text);
+  if (!parsed.days.length) { toast("Couldn't find any exercises. Put each one on its own line, like Bench press 3x8"); return; }
+  Object.assign(imp, parsed, {stage:'review'});
+  if (sheetEl) { setSheet(impReviewHTML()); sheetEl.querySelector('.sheet-body').scrollTop = 0; } else openSheet(impReviewHTML());
+}
+function readPlanFile(file) {
+  if (file.size > 200000) { toast('That file is too big for a workout plan'); return; }
+  const fr = new FileReader();
+  fr.onload = () => { if (!imp) imp = {text:''}; imp.text = String(fr.result || '').slice(0, 20000); impShowReview(); };
+  fr.readAsText(file);
+}
+
 function vPlan() {
   const p = S.profile;
   const days = p.days.map((d, di) => `<section class="card day"><div class="day-h"><h2 class="h2">${esc(d.name)}</h2><span class="dh-r"><span class="sub">${pl(d.ex.length, 'exercise')}</span><button class="link" data-act="dayedit" data-d="${di}" aria-label="Edit ${esc(d.name)}">Edit</button></span></div>
@@ -1349,7 +1603,8 @@ function vPlan() {
       <p class="sub" style="margin-top:4px">${p.days.length === 1 ? '1 day' : p.days.length + ' days'} a week, ${freqWord(st.freq)}, about ${st.mins} min a session.</p>
       <p class="sub vs">${volSummary(p.days)} <button class="link" data-act="planvol">See weekly sets</button></p>
       ${(() => { const o = overrideNow(); return o ? `<div class="ovr"><span>${o.kind === 'today' ? `<b>Paused for today.</b> You're training ${esc(o.days[0].name)} instead.` : `<b>Paused this week</b> for ${o.days.map(d => esc(d.name)).join(', ')}.`}</span><span class="acts"><button data-act="endother">Back to program</button></span></div>` : ''; })()}
-      <div class="acts"><button class="btn primary press" data-act="program">Change program</button><button class="btn press" data-act="build">Build your own</button></div></section>
+      <div class="acts"><button class="btn primary press" data-act="program">Change program</button><button class="btn press" data-act="build">Build your own</button><button class="btn press imp-btn" data-act="importplan">Import a plan</button></div></section>
+    <p class="plan-tip">Everything below is yours to change. Tap an exercise for sets, reps, rest and attachments, or <b>Edit</b> to rename, reorder or delete a day.</p>
     <div class="section" style="margin-top:4px">${days}</div>
     <button class="add-ex press" data-act="addday" style="width:100%;margin-top:12px"><span style="font-size:20px;line-height:1">+</span> Add a day</button>
     <section class="section"><div class="section-head"><h2 class="h2">Settings</h2></div><div class="card" style="padding:4px 16px">
@@ -1549,9 +1804,11 @@ function exBlock0(en, ei) {
   const bt = barType(en.exId);
   const wu = warmups(en, ei); en.wdone = en.wdone || [];
   const wuHTML = wu.length ? `<div class="wu" role="group" aria-label="Warm-up sets"><span class="wu-l">Warm-up</span>${wu.map((x, i) => `<button class="wu-c${en.wdone[i] ? ' done' : ''}" data-act="wlog" data-e="${ei}" data-i="${i}" aria-pressed="${!!en.wdone[i]}">${x.bar ? 'Bar' : fmtW(x.w)} × ${x.r}</button>`).join('')}</div>` : '';
-  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(ex.n)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}</div>
+  const atts = attsOf(en.exId), title = atts.length && ex.bn ? ex.bn : ex.n;
+  const attHTML = atts.length ? `<div class="att" role="group" aria-label="Attachment for ${esc(ex.bn || ex.n)}"><span class="att-l">Attachment</span><div class="att-o">${atts.map(a => `<button class="chip press" data-act="att" data-e="${ei}" data-id="${esc(a.id)}" aria-pressed="${a.id === en.exId}">${esc(a.n)}</button>`).join('')}</div></div>` : '';
+  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}</div>
     <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button></div></div>
-    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
+    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
     <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button>${en.sets.length > 1 ? `<button data-act="delset" data-e="${ei}">Remove last set</button>` : ''}<button class="rm" data-act="rmex" data-e="${ei}" aria-label="Remove ${esc(ex.n)} from this workout">Remove</button></div></section>`;
@@ -1684,7 +1941,7 @@ function saveWorkout() {
 let libCtx = null, libGroup = 'All';
 function libHTML(q) {
   const ql = q.trim().toLowerCase();
-  const inDay = libCtx && libCtx.d != null ? new Set(S.profile.days[libCtx.d].ex.map(s => s.id)) : libCtx && libCtx.workout && S.active ? new Set(S.active.entries.map(e => e.exId)) : new Set();
+  const inDay = new Set((libCtx && libCtx.d != null ? S.profile.days[libCtx.d].ex.map(s => s.id) : libCtx && libCtx.workout && S.active ? S.active.entries.map(e => e.exId) : []).map(baseOf));
   const opt = (id, label) => {
     const has = inDay.has(id);
     return `<button class="opt${has ? ' has' : ''}" data-act="pick" data-id="${id}" ${has ? 'aria-disabled="true"' : ''}><small>${label}</small><b>${esc(EX[id].n)}</b><i aria-hidden="true">${has ? '✓' : '+'}</i></button>`;
@@ -1707,12 +1964,13 @@ function libGroupsHTML() {
 }
 function openLibrary(ctx) {
   libCtx = ctx; libGroup = 'All';
-  const title = ctx.workout ? 'Add to this workout' : ctx.replace != null ? 'Replace exercise' : 'Add to ' + esc(S.profile.days[ctx.d].name);
+  const title = ctx.imp ? 'Pick ' + esc(imp.days[ctx.imp.d].ex[ctx.imp.i].q) : ctx.workout ? 'Add to this workout' : ctx.replace != null ? 'Replace exercise' : 'Add to ' + esc(S.profile.days[ctx.d].name);
   const n = MOVES.length * 2 + (S.profile.custom || []).filter(c => !c.hidden).length;
   openSheet(`<h2 class="h2">${title}</h2><p class="sub">${n} exercises. Each movement has a free-weight option and a machine equivalent.</p>
     <input class="search" id="libq" type="search" placeholder="Search by exercise or muscle" autocomplete="off" enterkeyhint="search">
     <div class="groups" id="libgroups">${libGroupsHTML()}</div>
-    <button class="add-ex press" style="height:46px;margin:4px 0 2px" data-act="cxnew">+ Create your own exercise</button>
+    <button class="add-ex press" style="height:46px;margin:4px 0 2px" data-act="cxnew"${ctx.imp ? ` data-name="${esc(imp.days[ctx.imp.d].ex[ctx.imp.i].q.slice(0, 40))}"` : ''}>+ Create your own exercise</button>
+    ${ctx.imp ? '<button class="btn press" style="width:100%;margin:6px 0 2px" data-act="impdrop">Leave this one out</button>' : ''}
     <div id="liblist">${libHTML('')}</div>`);
 }
 function refreshLib() { const q = $('#libq'); $('#liblist').innerHTML = libHTML(q ? q.value : ''); $('#libgroups').innerHTML = libGroupsHTML(); }
@@ -1727,7 +1985,10 @@ function cxHTML() {
     <input class="search" id="cxname" type="text" maxlength="40" placeholder="Landmine press" autocomplete="off" value="${esc(cx.n)}">
     <label class="note-l">Equipment</label>${seg('cxkind', cx.kind, [['free', 'Free weight'], ['mach', 'Machine'], ['bw', 'Bodyweight']])}
     ${cx.kind === 'bw' ? '' : `<label class="note-l">Weight you enter</label>${seg('cxea', cx.ea ? 1 : 0, [[0, 'Total'], [1, 'Per side']])}
-    <p class="sub" style="font-size:12.5px;margin-top:6px">Pick Per side for dumbbells or anything loaded the same on each side, like 20 kg in each hand.</p>`}
+    <p class="sub" style="font-size:12.5px;margin-top:6px">Pick Per side for dumbbells or anything loaded the same on each side, like 20 kg in each hand.</p>
+    <label class="note-l" for="cxatt">Attachments or grips <span style="font-weight:500">(optional)</span></label>
+    <input class="search" id="cxatt" type="text" maxlength="160" placeholder="Rope, Straight bar" autocomplete="off" value="${esc(cx.attText != null ? cx.attText : (cx.att || []).join(', '))}">
+    <p class="sub" style="font-size:12.5px;margin-top:2px">Separate with commas. You pick one during the workout, and each keeps its own weights.</p>`}
     <label class="note-l">Type</label>${seg('cxtype', cx.c, [[1, 'Compound'], [0, 'Isolation']])}
     <p class="sub" style="font-size:12.5px;margin-top:6px">Compound lifts get longer rest, 6–10 reps and warm-up sets. Isolation lifts get 10–15 reps.</p>
     <label class="note-l">Primary muscles</label><div class="cx-chips">${chips('prim', 'sec')}</div>
@@ -1754,6 +2015,14 @@ function plateHTML0() {
     <div class="set-row" style="margin-top:6px"><span>${BAR_NAMES[bt]} weighs</span><div class="stepper"><button data-act="pcbar" data-v="-1" aria-label="Lighter bar">−</button><output>${barUnit(barKg)} ${U()}</output><button data-act="pcbar" data-v="1" aria-label="Heavier bar">+</button></div></div>
     <div class="sheet-actions" style="margin-top:12px"><button class="btn primary big press" data-act="pcuse">Use ${fmtW(w)} ${U()} for set ${plateCtx.si + 1}</button></div>`;
 }
+// Picking an attachment mid-workout updates the day this workout came from, so next time it starts on the same one.
+function rememberAtt(from, to) {
+  const a = S.active, p = S.profile; if (!a) return;
+  const list = a.mode === 'today' ? (p.today ? [p.today.day] : []) : a.mode === 'week' ? (p.week ? p.week.days : []) : p.days;
+  const day = list[a.dayIdx] && list[a.dayIdx].name === a.dayName ? list[a.dayIdx] : list.find(d => d.name === a.dayName);
+  const sl = day && (day.ex.find(x => x.id === from) || day.ex.find(x => baseOf(x.id) === baseOf(from)));
+  if (sl && baseOf(sl.id) === baseOf(to)) { sl.id = to; S.profile.updatedAt = Date.now(); }
+}
 /* ---- swap an exercise mid-workout ---- */
 let swapCtx = null;
 // Rank every exercise by how closely it trains the same muscles (cosine of the muscle maps).
@@ -1763,7 +2032,7 @@ function swapCands(fromId) {
   const ids = MOVES.flatMap(mv => [mv.free, mv.mach]).concat((S.profile.custom || []).filter(c => !c.hidden).map(c => c.id));
   const norm = m => Math.sqrt(Object.values(m || {}).reduce((t, v) => t + v * v, 0)) || 1, na = norm(a.m);
   const used = new Set(); S.sessions.forEach(x => x.entries.forEach(e => used.add(e.exId)));
-  return ids.filter(id => id !== fromId && EX[id] && !inWo.has(id)).map(id => {
+  return ids.filter(id => id !== fromId && id !== baseOf(fromId) && EX[id] && !inWo.has(id)).map(id => {
     const b = EX[id]; let dot = 0, prim = false;
     for (const g in a.m) if (b.m[g]) { dot += a.m[g] * b.m[g]; if (a.m[g] === 1 && b.m[g] === 1) prim = true; }
     const same = !!(a.mv && b.mv === a.mv);
@@ -1796,6 +2065,7 @@ function swapHTML() {
 }
 function addToCtx(id) {
   const ex = EX[id];
+  if (libCtx && libCtx.imp && imp) { const r = imp.days[libCtx.imp.d].ex[libCtx.imp.i]; r.id = id; r.off = false; libCtx = null; openSheet(impReviewHTML()); return; }
   if (libCtx && libCtx.workout && S.active) {
     const lo = ex.c ? 6 : 10, hi = ex.c ? 10 : 15, slot = {id, sets:3, lo, hi};
     const plan = planSlot(slot, tierOf(S.active.readiness));
@@ -1820,6 +2090,8 @@ function slotHTML(d, s) {
     <div class="mv-box"><p class="mv-m"><span>Primary</span> ${ex.prim.join(', ')}</p>${ex.sec.length ? `<p class="mv-m sec"><span>Secondary</span> ${ex.sec.join(', ')}</p>` : ''}</div>
     <div>${st('sets', sl.sets, 'Sets')}${st('lo', sl.lo, 'Reps, low end')}${st('hi', sl.hi, 'Reps, high end')}${st('rest', fmtClock(restFor(sl)), 'Rest')}
       <div class="set-row"><span>Order</span><div class="stepper"><button data-act="slotmove" data-v="-1" aria-label="Move up" ${s === 0 ? 'disabled' : ''}>↑</button><button data-act="slotmove" data-v="1" aria-label="Move down" ${s === day.ex.length - 1 ? 'disabled' : ''}>↓</button></div></div></div>
+    ${attsOf(sl.id).length ? `<div class="att inplan" role="group" aria-label="Attachment"><span class="att-l">Attachment</span><div class="att-o">${attsOf(sl.id).map(a => `<button class="chip press" data-act="slotatt" data-id="${esc(a.id)}" aria-pressed="${a.id === sl.id}">${esc(a.n)}</button>`).join('')}</div></div>
+    <p class="sub" style="font-size:12.5px;margin-top:6px">Each attachment keeps its own weights and ghost. You can also switch during a workout.</p>` : ''}
     <label class="note-l" for="slotnote">Note for the gym floor</label>
     <input class="search" id="slotnote" type="text" maxlength="80" placeholder="Seat 4, wide grip" autocomplete="off" value="${esc(sl.note || '')}">
     <div class="sheet-actions" style="margin-top:14px">
@@ -1861,9 +2133,11 @@ const TOUR = [
   {tab:'today', sel:'.card.ready', h:'Check in before you train', b:'Three taps: sleep, soreness, energy. On a rough day Rival trims today\'s weights by 5 to 10%, so you still train without grinding.'},
   {tab:'today', sel:'.card.session .pv', h:'Meet your ghost', b:'Every lift shows today\'s target and your <b>ghost</b>: what you lifted last time. Beat it and you\'re getting stronger. Hit the top of the rep range on every set and the weight goes up next session.'},
   {tab:'today', sel:'.card.session .btn.primary', h:'Start when you\'re ready', b:'Opens the logger full screen. A few quick tips show up the first time.'},
+  {tab:'today', sel:'.daypick', h:'Train any day, in any order', b:'Tap a day to do it next. Rival keeps your place in the program either way.'},
+  {tab:'today', sel:'.tiles', h:'Your plan bends', b:'Not feeling it, or short on time this week? <b>Train something else</b> for just today, or plan a different week. Your program waits where you left it.'},
   {tab:'progress', sel:'.map-card .bodies', h:'Your muscle heat map', b:'Hard sets per muscle over the last 7 days. <b>Blue</b> is the 10 to 20 sets that builds muscle best. Tap a muscle to see what trained it.'},
-  {tab:'plan', sel:'.prog-card', h:'Fits your week', b:'Tell Rival how many days you can train, from 2 to 6, and it suggests programs that fit. Or build your own split, day by day.'},
-  {tab:'plan', sel:'.card.day .slot', h:'Make the plan yours', b:'Tap any exercise to change its sets, reps, rest or order, or switch between the free-weight and machine version.'},
+  {tab:'plan', sel:'.prog-card', h:'A starting point, not a rulebook', b:'The plan you start with is only a template. <b>Change program</b> to fit 2 to 6 days a week, build your own split, or <b>import a plan</b> you already follow.'},
+  {tab:'plan', sel:'.card.day .slot', h:'Make every day yours', b:'Tap any exercise to change its sets, reps, rest, order or attachment, or switch between the free-weight and machine version.'},
   {tab:'plan', sel:'.card.day .add', h:'108 exercises, plus yours', b:'Each one lists the muscles it works. Can\'t find yours? Create it in a few taps.'},
   {center:'done', tab:'today'}
 ];
@@ -1873,12 +2147,17 @@ const WO_TIPS = [
   {sel:'.set .check', h:'Log each set', b:'Tap the tick when you finish a set. The rest timer starts by itself and you\'ll see if you beat the ghost.'},
   {sel:'.ex .wu', h:'Warm-up sets', b:'Lighter ramp-up sets before your first heavy lift. Tap each one as you go. They don\'t count as work sets.'},
   {sel:'.ex [data-act=plates]', h:'Plate math, done', b:'Shows exactly which plates go on each side of the bar.'},
+  {sel:'.ex .att', h:'Pick your attachment', b:'Rope, straight bar, V-bar: each one keeps its own weights and ghost, so a rope pushdown never sets the target for a bar pushdown.'},
+  {sel:'.ex [data-act=swap]', h:'Machine taken?', b:'Swap any exercise for one that trains the same muscles. Your logged sets stay put.'},
   {sel:'.wo-head .finish', h:'Finish and save', b:'Save the workout when you\'re done. The arrow on the left tucks the logger away so you can check other tabs mid-session.'}
 ];
 let coach = null, kbNav = false; // move focus into the tour only for keyboard users, so taps don't flash a focus ring
 addEventListener('keydown', e => { if (e.key === 'Tab' || e.key.startsWith('Arrow') || e.key === 'Enter') kbNav = true; }, true);
 addEventListener('pointerdown', () => { kbNav = false; }, true);
 const ICO = {
+  shuffle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h4v4M4 18l16-14M20 16v4h-4M14.5 14.5L20 20M4 6l5 5"/></svg>',
+  att:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v6M8 9h8l-1 4H9zM10 13l-3 8M14 13l3 8"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>',
   ring:'<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="13" cy="13" r="9.5" opacity=".22"/><path d="M13 3.5a9.5 9.5 0 1 1-8.6 5.4"/></svg>',
   heat:'<svg viewBox="0 0 26 26"><rect x="3" y="3" width="9" height="9" rx="2.5" fill="currentColor"/><rect x="14" y="3" width="9" height="9" rx="2.5" fill="currentColor" opacity=".45"/><rect x="3" y="14" width="9" height="9" rx="2.5" fill="currentColor" opacity=".2"/><rect x="14" y="14" width="9" height="9" rx="2.5" fill="currentColor" opacity=".75"/></svg>'
 };
@@ -1938,6 +2217,16 @@ function goCoach(i, dir) {
   c.el.classList.toggle('center', !st.sel);
   placeCoach();
   const f = pop.querySelector('[data-act=coachnext]') || pop.querySelector('.btn.primary'); if (f && kbNav) f.focus({preventScroll:true}); else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+// Once, for people who used Rival before these features: what changed and where to find it.
+function newsSheet() {
+  openSheet(`<h2 class="h2">New in Rival</h2><p class="sub">A few things people asked for.</p>
+    <ul class="news">
+      <li><span>${ICO.shuffle}</span><span><b>Your plan bends.</b> On Today, tap <b>Train something else</b> to swap just today's session or plan a different week. Your program waits.</span></li>
+      <li><span>${ICO.edit}</span><span><b>Import your own plan.</b> Paste it from Notes or a spreadsheet on the Plan tab and Rival matches every exercise.</span></li>
+      <li><span>${ICO.att}</span><span><b>Attachments.</b> Rope, straight bar or V-bar on cable lifts. Each keeps its own weights.</span></li>
+    </ul>
+    <div class="sheet-actions"><button class="btn primary big press" data-act="newsok">Got it</button></div>`, () => { S.profile.tour.n = NEWS_V; persist(); });
 }
 function placeCoach(instant) {
   const c = coach; if (!c) return;
@@ -2139,6 +2428,63 @@ const acts = {
     buzz(8);
     toast('Swapped to ' + EX[id].n, {label:'Undo', fn: () => { if (!S.active) return; S.active.entries = before; persist(); renderWorkout(); }});
   },
+  att(el) {
+    const a = S.active, ei = +el.dataset.e, en = a && a.entries[ei], picked = el.dataset.id; if (!en || !EX[picked]) return;
+    const from = en.exId, to = from === picked ? baseOf(picked) : picked; // tap the chosen one again to clear it
+    if (!EX[to] || to === from) return;
+    const before = clone(a.entries), tier = Object.assign({}, tierOf(a.readiness), {drop:false});
+    const known = !!lastWith(to);
+    // Weights come from the last time you used this attachment. Never used it? Keep what's on the card as a starting point.
+    const mk = old => planSlot({id:to, sets:Math.max(1, old.length), lo:en.lo, hi:en.hi}, tier).map((x, i) => {
+      const o = old[i] || old[old.length - 1] || {};
+      return {w:known ? x.w : (o.w != null ? o.w : x.w), r:known ? x.r : (o.r != null ? o.r : x.r), g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null};
+    });
+    const done = en.sets.filter(x => x.done), left = en.sets.filter(x => !x.done);
+    let ni = ei;
+    if (!done.length) Object.assign(en, {exId:to, wdone:[], sets:mk(en.sets)});
+    else { // logged sets stay with the attachment they were done with
+      en.sets = done;
+      a.entries.splice(ei + 1, 0, {exId:to, lo:en.lo, hi:en.hi, rest:en.rest, note:en.note, sets:mk(left.length ? left : [done[done.length - 1]])}); ni = ei + 1;
+    }
+    rememberAtt(from, to);
+    persist();
+    const body = wo.querySelector('.wo-body'), y = body ? body.scrollTop : 0; renderWorkout();
+    const b2 = wo.querySelector('.wo-body'); if (b2) b2.scrollTop = y;
+    const f = wo.querySelector(`.ex[data-e="${ni}"] [data-act=att][data-id="${to}"]`) || wo.querySelector(`.ex[data-e="${ni}"] .att-o .chip`); if (f && kbNav) f.focus({preventScroll:true});
+    buzz(6);
+    const ex = EX[to];
+    toast(ex.att ? `${ex.att}: ${known ? 'weights from last time' : 'first time, so weights are tracked from today'}` : 'No attachment picked', {label:'Undo', fn: () => { if (!S.active) return; S.active.entries = before; rememberAtt(to, from); persist(); renderWorkout(); }});
+  },
+  slotatt(el) {
+    const sl = S.profile.days[slotCtx.d].ex[slotCtx.s], id = el.dataset.id; if (!EX[id]) return;
+    sl.id = sl.id === id ? baseOf(id) : id;
+    touch(); keepScroll(() => setSheet(slotHTML(slotCtx.d, slotCtx.s))); render();
+  },
+  importplan() {
+    if (imp && imp.stage === 'review' && imp.days && imp.days.length) { openSheet(impReviewHTML()); return; } // pick up where they left off
+    imp = {text:imp && imp.stage !== 'done' ? imp.text : '', stage:'start'}; openSheet(impStartHTML());
+  },
+  impexample() { imp.text = IMP_EXAMPLE; setSheet(impStartHTML()); },
+  impfile() { $('#planfile').click(); },
+  impparse() { const t = $('#impq'); if (t) imp.text = t.value; if (!imp.text.trim()) return; impShowReview(); },
+  impback() { imp.stage = 'start'; setSheet(impStartHTML()); },
+  improw(el) {
+    const r = imp.days[+el.dataset.d].ex[+el.dataset.i];
+    if (r.off) { r.off = false; keepScroll(() => setSheet(impReviewHTML())); return; }
+    openLibrary({imp:{d:+el.dataset.d, i:+el.dataset.i}});
+    const q = $('#libq'); if (q) { q.value = r.q; $('#liblist').innerHTML = libHTML(r.q); }
+  },
+  impdrop() { const c = libCtx && libCtx.imp; if (!c) return; imp.days[c.d].ex[c.i].off = true; libCtx = null; openSheet(impReviewHTML()); },
+  impapply() {
+    const days = imp.days.map(d => ({name:d.name.slice(0, 24) || 'Day', ex:d.ex.filter(r => r.id && !r.off && EX[r.id]).map(r => cleanSlot({id:r.id, sets:r.sets, lo:r.lo, hi:r.hi, ...(r.rest ? {rest:r.rest} : {})}))}))
+      .filter(d => d.ex.length).slice(0, 7);
+    if (!days.length) return;
+    imp.stage = 'done';
+    S.profile.starterSeen = true;
+    applyDays(days, {id:'custom', name:'Imported plan'}, `Imported ${pl(days.length, 'day')}. Tap any exercise to fine-tune it`);
+  },
+  starterok() { S.profile.starterSeen = true; touch(); render(); },
+  newsok() { S.profile.tour.n = NEWS_V; persist(); closeSheet(); },
   woadd() { openLibrary({workout:true}); },
   libgroup(el) { libGroup = el.dataset.g; refreshLib(); const l = $('#liblist'); if (l) l.scrollIntoView({block:'nearest'}); },
   replace() { openLibrary({d:slotCtx.d, replace:slotCtx.s}); },
@@ -2147,7 +2493,7 @@ const acts = {
     if (el.getAttribute('aria-disabled') === 'true') { toast('Already added'); return; }
     addToCtx(el.dataset.id);
   },
-  cxnew(el) { cx = {id:null, n:(el && el.dataset.name) || '', kind:'free', c:1, ea:0, prim:[], sec:[], inc:2.5}; openSheet(cxHTML()); },
+  cxnew(el) { cx = {id:null, n:(el && el.dataset.name) || '', kind:'free', c:1, ea:0, prim:[], sec:[], inc:2.5, att:[]}; openSheet(cxHTML()); },
   cxedit(el) { const c = S.profile.custom.find(x => x.id === el.dataset.id); if (!c) return; cx = clone(c); openSheet(cxHTML()); },
   cxkind(el) { cx.kind = el.dataset.v; if (cx.kind === 'bw') { cx.ea = 0; if (cx.inc > 2.5) cx.inc = 2.5; } setSheet(cxHTML()); },
   cxea(el) { cx.ea = +el.dataset.v ? 1 : 0; setSheet(cxHTML()); },
@@ -2161,6 +2507,8 @@ const acts = {
   cxinc(el) { const i = Math.max(0, INC_STEPS.indexOf(cx.inc)); cx.inc = INC_STEPS[Math.max(0, Math.min(INC_STEPS.length - 1, i + +el.dataset.v))]; const y = sheetEl.querySelector('.sheet-body').scrollTop; setSheet(cxHTML()); sheetEl.querySelector('.sheet-body').scrollTop = y; },
   cxsave() {
     cx.n = cx.n.trim(); if (!cx.n || !cx.prim.length) return;
+    if (cx.attText != null) cx.att = cleanAtts(cx.attText.split(/[,\n]/)); delete cx.attText;
+    if (cx.kind === 'bw') cx.att = [];
     let isNew = false;
     if (cx.id) { const i = S.profile.custom.findIndex(x => x.id === cx.id); S.profile.custom[i] = clone(cx); }
     else { cx.id = 'c' + newId(); S.profile.custom.push(clone(cx)); isNew = true; }
@@ -2172,7 +2520,7 @@ const acts = {
     if (!el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to delete'; return; }
     const c = S.profile.custom.find(x => x.id === cx.id); if (!c) return;
     c.hidden = true; registerCustom(c);
-    S.profile.days.forEach(d => { d.ex = d.ex.filter(sl => sl.id !== c.id); });
+    S.profile.days.forEach(d => { d.ex = d.ex.filter(sl => baseOf(sl.id) !== c.id); });
     touch(); closeSheet(); render(); toast('Deleted ' + c.n + '. Past workouts keep it.');
   },
   wlog(el) {
@@ -2253,7 +2601,7 @@ const acts = {
     setTimeout(() => { const c = document.querySelectorAll('.card.day'); const last = c[c.length - 1]; if (last) last.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block:'center'}); }, 60);
     toast('Added ' + name);
   },
-  replaytour() { S.profile.tour = {done:false, wo:false}; persist(); startCoach('tour'); }
+  replaytour() { S.profile.tour = {done:false, wo:false, n:NEWS_V}; persist(); startCoach('tour'); }
 };
 // Plate calculator acts run in the unit of the exercise they belong to
 ['plates', 'pcw', 'pcbar', 'pcuse'].forEach(k => { const f = acts[k];
@@ -2280,6 +2628,8 @@ document.addEventListener('input', e => {
     cx.n = e.target.value; const b = sheetEl && sheetEl.querySelector('[data-act=cxsave]'); const ok = cx.n.trim() && cx.prim.length;
     if (b) b.disabled = !ok; return;
   }
+  if (e.target.id === 'cxatt' && cx) { cx.attText = e.target.value; return; }
+  if (e.target.id === 'impq' && imp) { imp.text = e.target.value; const b = sheetEl && sheetEl.querySelector('[data-act=impparse]'); if (b) b.disabled = !imp.text.trim(); return; }
   if (e.target.id === 'swq' && swapCtx) { $('#swlist').innerHTML = swapListHTML(e.target.value); return; }
   if (e.target.id === 'libq') { $('#liblist').innerHTML = libHTML(e.target.value); return; }
   if (e.target.id === 'dayname' && dayCtx != null) { const v = e.target.value.trim(); if (v) { S.profile.days[dayCtx].name = v; clearTimeout(noteT); noteT = setTimeout(() => { touch(); render(); }, 400); } return; }
@@ -2309,9 +2659,11 @@ setInterval(() => {
 
 /* ================= boot ================= */
 $('#importfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readBackup(f); e.target.value = ''; });
+$('#planfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readPlanFile(f); e.target.value = ''; });
 render();
 if (S.active) updateResume();
 if (!S.profile.tour.done && !S.active) setTimeout(() => { if (!coach && !sheetEl) startCoach('tour'); }, 300);
+else if (S.profile.tour.n < NEWS_V && !S.active) setTimeout(() => { if (!coach && !sheetEl) newsSheet(); }, 500);
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
 })();
 </script>
