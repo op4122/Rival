@@ -186,7 +186,7 @@ console.log('Rest sound');
   ok(/Rest is up/.test(await p.locator('#rest').textContent()), 'banner says rest is up');
   // sound off
   await p.locator('[data-tab=progress]').count(); await p.locator('[data-act=min]').click(); await p.clock.runFor(700);
-  await p.locator('[data-tab=plan]').click();
+  await p.locator('[data-tab=settings]').click();
   await p.locator('[data-act=restsnd][data-v="0"]').click();
   ok((await state(p)).profile.restSound === false, 'sound can be turned off');
   await p.locator('.resume').click(); await p.clock.runFor(700);
@@ -195,6 +195,39 @@ console.log('Rest sound');
   ok(await p.evaluate(() => window.__beeps) === 3, 'no chime with sound off');
   ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
   await ctx.close();
+}
+
+// ---------- settings tab: appearance, help, feedback ----------
+console.log('Settings');
+for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
+  const p = await page(opt);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; });
+  ok(await p.locator('.tab').count() === 4, `four tabs (${opt.w} px)`);
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(200);
+  ok(/Settings/.test(await p.locator('.title').textContent()), 'Settings page opens');
+  ok(await noHScroll(p), `no sideways scroll at ${opt.w} px`);
+  const tabsFit = await p.evaluate(() => { const r = [...document.querySelectorAll('.tab')].map(t => t.getBoundingClientRect()); return r.every(x => x.left >= 0 && x.right <= innerWidth) && r.every((x, i) => !i || x.left >= r[i - 1].right - 1); });
+  ok(tabsFit, 'tab bar fits without overlap');
+  await p.locator('[data-act=theme][data-v=dark]').click();
+  ok(await p.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'dark mode switch works from Settings');
+  await p.locator('[data-act=theme][data-v=system]').click();
+  const href = await p.locator('.fb a.btn').getAttribute('href');
+  ok(href.startsWith('mailto:almahrouqiahmed6@gmail.com?subject=Rival%20feedback'), 'Email feedback opens a mail to the right address');
+  ok(await p.locator('.help details').count() >= 6, 'help questions listed');
+  await p.locator('.help summary').first().click();
+  ok(await p.locator('.help details[open]').count() === 1, 'a help question opens');
+  ok(await p.locator('[data-act=export]').count() === 1 && await p.locator('[data-act=units]').count() === 2, 'backup and units moved here');
+  await p.locator('[data-tab=plan]').click(); await p.waitForTimeout(200);
+  ok(await p.locator('[data-act=export]').count() === 0, 'Plan tab no longer holds settings');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+{
+  const p = await (await browser.newContext({ serviceWorkers: 'block' })).newPage();
+  await p.goto(URL.replace(/app\/$/, ''));
+  ok(await p.locator('footer a[href^="mailto:almahrouqiahmed6@gmail.com"]').count() === 1, 'marketing page footer shows the email');
+  ok(await p.locator('.faq a[href^="mailto:almahrouqiahmed6@gmail.com"]').count() === 1, 'marketing FAQ shows the email');
+  await p.context().close();
 }
 
 await browser.close();

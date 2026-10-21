@@ -216,6 +216,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .close .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-block:28px 40px;font-size:14px;color:var(--muted)}
 .foot a{text-underline-offset:3px}
+.foot-r{display:flex;flex-wrap:wrap;gap:8px 20px}
+.faq details p a{color:var(--accent);text-underline-offset:3px;overflow-wrap:anywhere}
 
 /* scroll reveal: only when JS is on, and never for reduced motion */
 .js .rv{opacity:0;transform:translateY(18px);transition:opacity 520ms var(--ease-out),transform 520ms var(--ease-out)}
@@ -434,14 +436,15 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
     <h2 class="h2" style="max-width:18ch">Questions, answered</h2>
     <div class="faq">
       <details><summary>Is Rival really free?</summary><p>Yes. There is no account, no ads and nothing to buy today.</p></details>
-      <details><summary>Where are my workouts stored?</summary><p>On your phone only, in the browser's storage. Rival has no server for your workouts, so nobody else can see them.</p><p>The flip side is that clearing your browser data or losing the phone clears them too, so tap Export backup on the Plan tab now and then. On iPhone, installing Rival to your Home Screen also keeps Safari from tidying away storage for sites you haven't opened in a while.</p></details>
-      <details><summary>How do I move to a new phone?</summary><p>On the old phone, open the Plan tab and tap Export backup to save a file. On the new phone, open Rival, go to Plan, tap Import backup and choose that file. Your history, ghosts and plan come across.</p></details>
+      <details><summary>Where are my workouts stored?</summary><p>On your phone only, in the browser's storage. Rival has no server for your workouts, so nobody else can see them.</p><p>The flip side is that clearing your browser data or losing the phone clears them too, so tap Export backup on the Settings tab now and then. On iPhone, installing Rival to your Home Screen also keeps Safari from tidying away storage for sites you haven't opened in a while.</p></details>
+      <details><summary>How do I move to a new phone?</summary><p>On the old phone, open the Settings tab and tap Export backup to save a file. On the new phone, open Rival, go to Settings, tap Import backup and choose that file. Your history, ghosts and plan come across.</p></details>
       <details><summary>Can I skip my program for a day or a week?</summary><p>Yes. On Today, tap Train something else. Pick a focus such as Push, Pull or Legs for just today, or line up a few sessions for the next seven days. Your program doesn't move while you do, so the day you were due is still next when you come back.</p></details>
       <details><summary>Can I use the plan I already follow?</summary><p>Yes. On the Plan tab, tap Import a plan and paste it, or pick a .txt or .csv file. Lines like “Lat pulldown 3x8-10” are matched to Rival's exercises, and you can fix or leave out anything it didn't recognise. Your history stays, and you can undo right after.</p></details>
       <details><summary>What if the machine I need is taken?</summary><p>Tap Swap on that exercise. Rival lists exercises for the same muscles first, starting with the free-weight or machine version of the same movement, then everything else. Sets you already logged stay where they are.</p></details>
       <details><summary>Do I have to do the readiness check-in?</summary><p>No. Skip it and targets stay as planned. Answering takes three taps, and Rival shows exactly how each target changed.</p></details>
       <details><summary>Does it work without signal?</summary><p>Yes. After the first time you open it, Rival saves itself on your phone, so a basement gym with no reception is fine.</p></details>
       <details><summary>What are the sample workouts I see at first?</summary><p>A first run shows a week of sample sessions so every screen has something in it. Clear them with one tap before your first real workout, or keep them while you explore.</p></details>
+      <details><summary>How do I report a bug or suggest something?</summary><p>Email <a href="mailto:almahrouqiahmed6@gmail.com?subject=Rival%20feedback">almahrouqiahmed6@gmail.com</a>. Bugs, missing exercises and ideas are all welcome, and every message gets read. In the app, the Settings tab has an Email feedback button too.</p></details>
       <details><summary>Can I use it on Android or a computer?</summary><p>Yes, any modern browser works. Rival is designed for a phone held between sets, so that is where it feels best.</p></details>
     </div>
   </section>
@@ -454,7 +457,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   </section>
   </main>
 
-  <footer class="foot"><span>Rival, a training project by Ahmed Al Mahrouqi. Made in Oman.</span><a href="#top">Back to top</a></footer>
+  <footer class="foot"><span>Rival, a training project by Ahmed Al Mahrouqi. Made in Oman.</span><span class="foot-r"><a href="mailto:almahrouqiahmed6@gmail.com?subject=Rival%20feedback">Feedback: almahrouqiahmed6@gmail.com</a><a href="#top">Back to top</a></span></footer>
 </div>
 
 <script>
