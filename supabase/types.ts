@@ -257,6 +257,7 @@ export type Database = {
         }[]
       }
       is_valid_muscle_list: { Args: { m: string[] }; Returns: boolean }
+      ping: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
