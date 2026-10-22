@@ -24,6 +24,7 @@ async function page(opts = {}, seed) {
 const state = p => p.evaluate(() => JSON.parse(localStorage.getItem('rival.v1')));
 // Skip the tour (which also saves the fresh state), change the saved data, then reload.
 async function edit(p, fn) {
+  if (await p.locator('[data-act=gateskip]').count()) { await p.locator('[data-act=gateskip]').click(); await p.waitForTimeout(400); }
   while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
   await p.evaluate(`(() => { const s = JSON.parse(localStorage.getItem('rival.v1')); (${fn})(s); localStorage.setItem('rival.v1', JSON.stringify(s)); })()`);
   await p.reload(); await p.waitForTimeout(500);
@@ -34,6 +35,11 @@ const noHScroll = p => p.evaluate(() => document.documentElement.scrollWidth <= 
 console.log('Fresh install');
 {
   const p = await page();
+  ok(await p.locator('.gate [data-act=authgoogle]').count() === 1, 'sign-in screen comes first, Google button on it');
+  ok(await p.locator('.gate a[href="../privacy.html"]').count() === 1 && await p.locator('.gate a[href="../terms.html"]').count() === 1, 'sign-in screen links Privacy and Terms');
+  ok(await noHScroll(p), 'sign-in screen: no sideways scroll');
+  await p.locator('[data-act=gateskip]').click(); await p.waitForTimeout(900);
+  ok(await p.locator('.gate').count() === 0, 'Continue without an account closes it');
   ok(await p.locator('.coach').count() === 1, 'tour starts');
   for (let i = 0; i < 20 && await p.locator('.coach').count(); i++) {
     const h = await p.locator('#coach-h').textContent();
@@ -145,6 +151,8 @@ console.log('Existing user');
   const seed = { profile: { units: 'kg', days: [{ name: 'Arms', ex: [{ id: 'pushdown', sets: 3, lo: 10, hi: 12 }, { id: 'ohext__gone-handle', sets: 2, lo: 10, hi: 12 }] }], tour: { done: true, wo: true } },
     sessions: [{ id: 'a1', dayIdx: 0, dayName: 'Arms', date: Date.now() - 86400000, dur: 40, entries: [{ exId: 'pushdown', sets: [{ w: 30, r: 12 }] }] }], active: null };
   const p = await page({}, seed);
+  ok(await p.locator('.gate').count() === 1, 'existing user also sees the sign-in screen once');
+  await p.locator('[data-act=gateskip]').click(); await p.waitForTimeout(900);
   ok(/New in Rival/.test(await p.locator('.sheet .h2').first().textContent().catch(() => '')), '"What\'s new" shown');
   await p.locator('[data-act=newsok]').click(); await p.waitForTimeout(400);
   const st = await state(p);
@@ -230,7 +238,7 @@ for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
   await p.context().close();
 }
 
-// ---------- account: sign in with email code, stays signed in, sign out; Google redirect ----------
+// ---------- account: sign-in screen, magic link return, Google, friendly errors, sign out ----------
 console.log('Account');
 {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -241,42 +249,49 @@ console.log('Account');
   const uid = '0b9c2f2e-0000-4000-8000-00000000abcd', exp = Math.floor(Date.now() / 1000) + 3600;
   const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: uid, exp, aud: 'authenticated', role: 'authenticated', email: 'tester@example.com' })}.sig`;
   const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'tester@example.com', created_at: new Date().toISOString(), app_metadata: { provider: 'email' }, user_metadata: {} };
+  const session = { access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r1', user };
   await p.route('**/auth/v1/**', async route => {
     const u = new globalThis.URL(route.request().url()); calls.push(route.request().method() + ' ' + u.pathname + u.search);
     if (u.pathname.endsWith('/otp')) return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
-    if (u.pathname.endsWith('/verify')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r1', user }) });
+    if (u.pathname.endsWith('/token')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) });
     if (u.pathname.endsWith('/user')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) });
     if (u.pathname.endsWith('/logout')) return route.fulfill({ status: 204, body: '' });
     if (u.pathname.endsWith('/authorize')) return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>google</p>' });
     return route.fulfill({ status: 404, body: '{}' });
   });
-  await p.goto(URL); await p.waitForTimeout(500);
-  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; });
-  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
-  ok(await p.locator('.acct [data-act=authgoogle]').count() === 1 && await p.locator('#authemail').count() === 1, 'signed out: Google button and email field');
+  await p.goto(URL); await p.waitForTimeout(700);
+  ok(await p.locator('.gate').count() === 1, 'signed out: sign-in screen shown');
+  ok(await p.locator('.gate .acct-google.primary').count() === 1, 'Google is the primary button');
+  await p.locator('.acct-mail summary').click();
   await p.locator('[data-act=authsend]').click(); await p.waitForTimeout(150);
   ok(/Enter your email/.test(await p.locator('.acct-err').textContent()), 'asks for an email first');
   await p.fill('#authemail', 'Tester@Example.com ');
   await p.locator('[data-act=authsend]').click(); await p.waitForTimeout(600);
   const otp = calls.find(c => c.includes('/otp'));
-  ok(!!otp && otp.includes('redirect_to=' + encodeURIComponent(URL)), 'email request sent with this page as the return address');
-  ok(await p.locator('#authcode').count() === 1, 'code step shown');
-  await p.fill('#authcode', '123456'); await p.locator('[data-act=authverify]').click(); await p.waitForTimeout(800);
-  ok(calls.some(c => c.startsWith('POST') && c.includes('/verify')), 'code checked with Supabase');
-  ok(/Signed in as/.test(await p.locator('.acct').textContent()), 'signed in view shown');
-  ok(await p.locator('.acct b.ph-no-capture').count() === 1, 'email shown only inside a no-capture element');
+  ok(!!otp && otp.includes('redirect_to=' + encodeURIComponent(URL)), 'magic link asks Supabase to return to this page');
+  const sent = await p.locator('.gate .acct').textContent();
+  ok(/Check your email/.test(sent) && /same browser you installed Rival from/.test(sent), '"Check your email" with the iPhone note');
+  ok(await p.locator('#authcode').count() === 0, 'no typed-code screen');
+  // tapping the link: the page opens with ?code=, supabase-js swaps it for a session
+  await p.goto(URL + '?code=link-code'); await p.waitForTimeout(1200);
+  ok(calls.some(c => c.includes('/token') && c.includes('pkce')), 'link code exchanged for a session');
+  ok(!/code=/.test(p.url()), 'code removed from the address bar');
+  ok(await p.locator('.gate').count() === 0, 'signed in: sign-in screen gone');
+  while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  ok(/Signed in as/.test(await p.locator('.acct').textContent()) && await p.locator('.acct b.ph-no-capture').count() === 1, 'Settings shows the account; email kept out of recordings');
   await p.reload(); await p.waitForTimeout(900);
+  ok(await p.locator('.gate').count() === 0, 'still signed in after reload');
   await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
-  ok(/Signed in as/.test(await p.locator('.acct').textContent()), 'still signed in after reload');
   await p.locator('[data-act=authsignout]').click(); await p.waitForTimeout(800);
-  ok(await p.locator('#authemail').count() === 1, 'signed out again');
-  ok(await p.evaluate(() => !!JSON.parse(localStorage.getItem('rival.v1')).profile), 'workouts kept on the phone after sign-out');
-  // a link that comes back with ?code= but no session (opened in another browser) is tidied up
-  await p.goto(URL + '?code=abc'); await p.waitForTimeout(900);
-  ok(!/code=/.test(p.url()), 'sign-in code removed from the address bar');
-  // Google: the redirect asks Supabase to send the user back to this page
-  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
-  await Promise.all([p.waitForURL(/authorize/), p.locator('[data-act=authgoogle]').click()]);
+  ok(await p.locator('.acct [data-act=authgoogle]').count() === 1, 'signed out');
+  ok(await p.locator('.gate').count() === 0, 'signing out does not throw the sign-in screen in your face');
+  // Google comes back with "access blocked" while the app is in Testing
+  await p.goto(URL + '?error=access_denied&error_code=403&error_description=Access+blocked%3A+Rival+has+not+completed+the+Google+verification+process'); await p.waitForTimeout(900);
+  ok(await p.locator('.gate').count() === 1 && /waiting for Google's approval/.test(await p.locator('.gate .acct-err').textContent()), 'friendly message for Google testing mode');
+  ok(!/error=/.test(p.url()), 'error removed from the address bar');
+  // Google button goes to Supabase, which returns to this page
+  await Promise.all([p.waitForURL(/authorize/), p.locator('.gate [data-act=authgoogle]').click()]);
   const g = new globalThis.URL(p.url());
   ok(g.searchParams.get('provider') === 'google' && g.searchParams.get('redirect_to') === URL, 'Google sign-in returns to this page');
   ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));

@@ -143,10 +143,29 @@ input{font:inherit;color:inherit}
 .acct p{font-size:14.5px;line-height:1.45}
 .acct .note-l{margin-top:2px}
 .acct .search{margin:0}
-.acct-google{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font-family:var(--text);font-stretch:100%;font-weight:650;font-size:16px}
-.acct-google svg{width:20px;height:20px}
-.acct-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
-.acct-or::before,.acct-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.acct-google{font-family:var(--text);font-stretch:100%;font-weight:700;font-size:16px}
+.acct-google{white-space:nowrap;gap:10px;padding:0 12px;min-width:0}
+@media (max-width:360px){.acct-google{font-size:14px;letter-spacing:-.01em;gap:8px}.acct-google .g{width:24px;height:24px}}
+.acct-google .g{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#fff}
+.acct-google svg{width:18px;height:18px}
+.acct-mail{border-top:1px solid var(--line);padding-top:4px}
+.acct-mail summary{list-style:none;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;font-weight:650;font-size:14.5px;color:var(--tagc,var(--accent))}
+.acct-mail summary::-webkit-details-marker{display:none}
+.acct-mail[open]{display:grid;gap:10px}
+.acct-mail .btn{width:100%}
+.acct-note{font-size:12.5px;color:var(--muted);line-height:1.4}
+.acct-legal{font-size:12.5px;color:var(--muted);text-align:center}
+.acct-legal a{color:inherit;text-underline-offset:3px}
+.gate{position:fixed;inset:0;z-index:90;overflow-y:auto;background:var(--bg);display:flex;justify-content:center;
+  padding:calc(40px + env(safe-area-inset-top,0px)) 16px calc(28px + env(safe-area-inset-bottom,0px));animation:fadeIn 180ms var(--ease-out)}
+.gate.out{opacity:0;transition:opacity 180ms var(--ease-out)}
+.gate-in{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
+.gate-logo{width:64px;height:64px;border-radius:16px}
+.gate-sub{font-size:16px;line-height:1.45;color:var(--muted);margin-bottom:8px}
+.gate .acct{background:var(--surface);border-radius:22px;padding:16px}
+.gate-skip{align-self:center;font-size:15px;min-height:44px}
+.gate-small{font-size:12.5px;color:var(--muted);text-align:center;line-height:1.4}
+body.gated{overflow:hidden}
 .acct-err{color:var(--warn);font-size:13.5px}
 .acct .link{justify-self:start}
 .acct-sync{font-size:14px}
@@ -1008,7 +1027,7 @@ function cleanProfile(p0) {
   out.bars = {bar:fin(b.bar) ? clamp(b.bar, 0, 40) : 20, ez:fin(b.ez) ? clamp(b.ez, 0, 40) : 10, smith:fin(b.smith) ? clamp(b.smith, 0, 40) : 15};
   out.custom = (Array.isArray(out.custom) ? out.custom : []).map(cleanCustom).filter(Boolean);
   out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
-  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen;
+  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped;
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
   // One-off sessions that sit on top of the program without changing it.
@@ -1642,8 +1661,8 @@ function vPlan() {
 
 /* ================= account: Supabase Auth =================
    Signing in is optional: without an account everything stays on this phone, as before.
-   Two ways in: Google, or email. The email has a link AND a 6-digit code, because on iPhone a link
-   opens in Safari rather than the installed app, and the two don't share storage. */
+   Google is the main way in; an emailed magic link is the second. The sign-in screen shows first for
+   anyone signed out, with a way to carry on without an account. */
 const db = window.rivalDb;
 // Where Supabase sends people back after Google or a link: this exact page, so it works on localhost and on /Rival/app/.
 const AUTH_REDIRECT = location.origin + location.pathname;
@@ -1666,21 +1685,21 @@ function requireAuth(fn, why) {
   openSheet(authSheetHTML(), () => { Auth.after = null; });
 }
 onAuth(user => { if (user && Auth.after) { const f = Auth.after; Auth.after = null; closeSheet(); setTimeout(f, 50); } });
+const LEGAL = `<p class="acct-legal">By continuing you agree to the <a href="../terms.html">Terms</a> and <a href="../privacy.html">Privacy Policy</a>.</p>`;
 function authFormHTML() {
   if (!db) return '<p class="sub">Accounts are not set up in this copy of Rival.</p>';
   if (!navigator.onLine) return '<p class="sub">You are offline. Signing in needs a connection; your workouts are safe on this phone meanwhile.</p>';
   const err = Auth.err ? `<p class="acct-err" role="alert">${esc(Auth.err)}</p>` : '';
-  if (Auth.step === 'code') return `<p>We sent a sign-in email to <b class="ph-no-capture">${esc(Auth.email)}</b>.</p>
-    <p class="sub">Tap the link in it, or type the 6-digit code here. On iPhone, the code is the way to sign in to the installed app.</p>
-    <label class="note-l" for="authcode">Code from the email</label>
-    <input class="search" id="authcode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456">${err}
-    <button class="btn primary big press" data-act="authverify"${Auth.busy ? ' disabled' : ''}>${Auth.busy ? 'Checking…' : 'Sign in'}</button>
+  if (Auth.step === 'sent') return `<p><b>Check your email.</b> We sent a sign-in link to <b class="ph-no-capture">${esc(Auth.email)}</b>. Tap it to finish signing in.</p>
+    <p class="acct-note">On iPhone, open the link in the same browser you installed Rival from.</p>${err}
     <button class="link" data-act="authrestart">Use a different email</button>`;
-  return `<button class="btn big press acct-google" data-act="authgoogle"${Auth.busy ? ' disabled' : ''}>${ICO.google}Continue with Google</button>
-    <div class="acct-or"><span>or</span></div>
-    <label class="note-l" for="authemail">Email</label>
-    <input class="search" id="authemail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" value="${esc(Auth.email)}">${err}
-    <button class="btn primary big press" data-act="authsend"${Auth.busy ? ' disabled' : ''}>${Auth.busy ? 'Sending…' : 'Email me a sign-in link'}</button>`;
+  return `${err}<button class="btn primary big press acct-google" data-act="authgoogle"${Auth.busy ? ' disabled' : ''}><span class="g">${ICO.google}</span>Continue with Google</button>
+    <details class="acct-mail"${Auth.mailOpen ? ' open' : ''}><summary>Use email instead</summary>
+      <label class="note-l" for="authemail">Email</label>
+      <input class="search" id="authemail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" value="${esc(Auth.email)}">
+      <button class="btn big press" data-act="authsend"${Auth.busy ? ' disabled' : ''}>${Auth.busy ? 'Sending…' : 'Email me a sign-in link'}</button>
+      <p class="acct-note">On iPhone, open the link in the same browser you installed Rival from.</p>
+    </details>${LEGAL}`;
 }
 function accountHTML() {
   if (!db) return '';
@@ -1697,15 +1716,58 @@ function accountHTML() {
 // Filled in by the sync engine; until then it just says the account is ready.
 function syncStatusHTML() { return typeof Sync.statusHTML === 'function' ? Sync.statusHTML() : '<span class="sub">Your account is ready.</span>'; }
 function authSheetHTML() { return `<h2 class="h2">Sign in</h2><p class="sub">${esc(Auth.why || '')}</p><div class="acct" style="margin-top:10px">${authUid() ? '<p>You are signed in.</p>' : authFormHTML()}</div>`; }
-function rerenderAuth() { if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML()); else if (tab === 'settings') { const y = scrollY; render(); scrollTo(0, y); } }
-const AUTH_ERR = {
-  'Email rate limit exceeded': 'Too many emails sent. Wait a few minutes and try again.',
-  'Token has expired or is invalid': 'That code has expired or is wrong. Ask for a new email.',
-  'Signups not allowed for otp': 'New sign-ups are switched off right now.',
-};
-const authErr = e => AUTH_ERR[(e && e.message) || ''] || (e && e.message) || 'Something went wrong. Try again.';
+function rerenderAuth() {
+  if (gateEl) { const a = gateEl.querySelector('.acct'); if (a) a.innerHTML = authFormHTML(); return; }
+  if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML()); else if (tab === 'settings') { const y = scrollY; render(); scrollTo(0, y); }
+}
+/* Route guard: the sign-in screen is the first thing a signed-out person sees. Signing in is optional,
+   so it also offers "Continue without an account" (remembered, so it doesn't nag). */
+let gateEl = null;
+const gateNeeded = () => !!db && Auth.ready && !authUid() && (!S.profile.gateSkipped || Auth.returnedWithError);
+function gateHTML() {
+  return `<div class="gate-in"><img class="gate-logo" src="icons/icon-192.png" alt="" width="64" height="64">
+    <h1 class="title" id="gate-h">Rival</h1>
+    <p class="gate-sub">Race your last session. Sign in to back up your workouts and use Rival on any phone.</p>
+    <div class="acct">${authFormHTML()}</div>
+    <button class="link gate-skip" data-act="gateskip">Continue without an account</button>
+    <p class="gate-small">Without an account, your workouts stay on this phone only. You can sign in any time from Settings.</p></div>`;
+}
+function openGate() {
+  if (gateEl) return;
+  gateEl = document.createElement('div');
+  gateEl.className = 'gate'; gateEl.setAttribute('role', 'dialog'); gateEl.setAttribute('aria-modal', 'true'); gateEl.setAttribute('aria-labelledby', 'gate-h');
+  gateEl.innerHTML = gateHTML();
+  document.body.appendChild(gateEl); document.body.classList.add('gated');
+}
+function closeGate(then) {
+  const g = gateEl; if (!g) return; gateEl = null;
+  Auth.returnedWithError = false;
+  g.classList.add('out'); document.body.classList.remove('gated');
+  setTimeout(() => { g.remove(); if (then) then(); }, reduced() ? 0 : 180);
+}
+// What a new arrival sees after the sign-in screen: the tour, or the "What's new" note.
+function startIntro() {
+  if (S.active) return;
+  if (!S.profile.tour.done) setTimeout(() => { if (!coach && !sheetEl && !gateEl) startCoach('tour'); }, 300);
+  else if (S.profile.tour.n < NEWS_V) setTimeout(() => { if (!coach && !sheetEl && !gateEl) newsSheet(); }, 500);
+}
+onAuth(user => { if (user && gateEl) closeGate(startIntro); });
+// Plain-language versions of the errors people actually hit.
+const GOOGLE_TESTING = "Google sign-in isn't open to everyone yet: Rival is still waiting for Google's approval. Use email for now, or ask almahrouqiahmed6@gmail.com to add you as a tester.";
+function authErr(e) {
+  const m = String((e && (e.message || e.error_description || e.error)) || e || '');
+  if (/rate limit/i.test(m)) return 'Too many sign-in emails. Wait a few minutes and try again.';
+  if (/expired|invalid.*(token|link|otp)|otp.*(expired|invalid)/i.test(m)) return 'That sign-in link has expired or was already used. Ask for a new one.';
+  if (/signups? not allowed/i.test(m)) return 'New sign-ups are switched off right now.';
+  if (/access[_ ]denied|access blocked|not completed.*verification|testing|test users?|unverified|org_internal|admin_policy/i.test(m)) return GOOGLE_TESTING;
+  if (/provider is not enabled|unsupported provider/i.test(m)) return "Google sign-in isn't switched on yet. Use email for now.";
+  if (/invalid_client|unauthorized_client/i.test(m)) return 'Google sign-in is misconfigured right now. Use email for now.';
+  if (/failed to fetch|network/i.test(m)) return "Couldn't reach the server. Check your connection and try again.";
+  if (/code verifier|both auth code and code verifier/i.test(m)) return 'That link opened in a different browser. Open it in the browser you started from, or ask for a new one.';
+  return m || 'Something went wrong. Try again.';
+}
 async function authInit() {
-  if (!db) return;
+  if (!db) return; // no backend configured: no sign-in screen, the app works on this phone only
   db.auth.onAuthStateChange((event, session) => { setTimeout(() => authChanged(session ? session.user : null, event), 0); }); // never await Supabase inside this callback
   const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.slice(1));
   const fromLink = q.has('code') || q.has('error') || h.has('access_token') || h.has('error');
@@ -1716,14 +1778,17 @@ async function authInit() {
     const desc = q.get('error_description') || h.get('error_description');
     history.replaceState(null, '', AUTH_REDIRECT); // tidy the address bar: no codes or tokens left in it
     if (session) toast('Signed in');
-    else if (desc) toast(desc.replace(/\+/g, ' '));
-    else if (q.has('code')) toast("That link opened somewhere else. Type the 6-digit code from the email instead");
+    else {
+      const raw = [q.get('error'), h.get('error'), desc, res && res.error && res.error.message].filter(Boolean).join(' ').replace(/\+/g, ' ');
+      Auth.err = raw ? authErr(raw) : authErr('code verifier');
+      Auth.returnedWithError = true;
+    }
   }
 }
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '19'; // matches the service worker cache, rival-v19
+const APP_VERSION = '20'; // matches the service worker cache, rival-v20
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2737,24 +2802,15 @@ const acts = {
     Auth.busy = true; Auth.err = ''; rerenderAuth();
     db.auth.signInWithOtp({email, options:{emailRedirectTo:AUTH_REDIRECT, shouldCreateUser:true}}).then(({error}) => {
       Auth.busy = false;
-      if (error) Auth.err = authErr(error); else Auth.step = 'code';
+      if (error) Auth.err = authErr(error); else Auth.step = 'sent';
       rerenderAuth();
-      const c = $('#authcode'); if (c && kbNav) c.focus();
     });
   },
-  authverify() {
-    if (!db || Auth.busy) return;
-    const inp = $('#authcode'), token = (inp ? inp.value : '').replace(/\s/g, '');
-    if (!/^\d{6,10}$/.test(token)) { Auth.err = 'Type the code from the email'; rerenderAuth(); return; }
-    Auth.busy = true; Auth.err = ''; rerenderAuth();
-    db.auth.verifyOtp({email:Auth.email, token, type:'email'}).then(({error}) => {
-      Auth.busy = false;
-      if (error) { Auth.err = authErr(error); rerenderAuth(); } else toast('Signed in');
-    });
-  },
-  authrestart() { Auth.step = 'start'; Auth.err = ''; rerenderAuth(); },
+  gateskip() { S.profile.gateSkipped = true; Auth.err = ''; touch(); closeGate(startIntro); },
+  authrestart() { Auth.step = 'start'; Auth.err = ''; Auth.mailOpen = true; rerenderAuth(); },
   authsignout(el) {
     if (!db) return;
+    S.profile.gateSkipped = true; touch(); // signing out on purpose: don't put the sign-in screen in front of them
     db.auth.signOut({scope:'local'}).then(() => { toast('Signed out. Your workouts stay on this phone.'); });
   },
   copymail() {
@@ -2834,10 +2890,10 @@ document.addEventListener('keydown', e => {
   }
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('g[data-act]')) { e.preventDefault(); acts.muscle(e.target); }
   if (e.key === 'Escape' && sheetEl) closeSheet();
-  if (e.key === 'Enter' && (e.target.id === 'authemail' || e.target.id === 'authcode')) { e.preventDefault(); (e.target.id === 'authemail' ? acts.authsend : acts.authverify)(); }
+  if (e.key === 'Enter' && e.target.id === 'authemail') { e.preventDefault(); acts.authsend(); }
 });
 document.addEventListener('input', e => {
-  if (e.target.id === 'authemail') { Auth.email = e.target.value; return; }
+  if (e.target.id === 'authemail') { Auth.email = e.target.value; Auth.mailOpen = true; return; }
   if (e.target.id === 'cxname' && cx) {
     cx.n = e.target.value; const b = sheetEl && sheetEl.querySelector('[data-act=cxsave]'); const ok = cx.n.trim() && cx.prim.length;
     if (b) b.disabled = !ok; return;
@@ -2875,12 +2931,11 @@ setInterval(() => {
 $('#importfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readBackup(f); e.target.value = ''; });
 $('#planfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readPlanFile(f); e.target.value = ''; });
 render();
-authInit();
+authInit().then(() => { if (gateNeeded() && !S.active) openGate(); else startIntro(); });
+document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('acct-mail')) Auth.mailOpen = e.target.open; }, true);
 addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
 addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
 if (S.active) updateResume();
-if (!S.profile.tour.done && !S.active) setTimeout(() => { if (!coach && !sheetEl) startCoach('tour'); }, 300);
-else if (S.profile.tour.n < NEWS_V && !S.active) setTimeout(() => { if (!coach && !sheetEl) newsSheet(); }, 500);
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
 })();
 </script>

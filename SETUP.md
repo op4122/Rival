@@ -1,5 +1,7 @@
 # Rival: manual setup in dashboards
 
+Status (23 Oct 2026): steps 1, 4 and 5 are done by the owner. Google app is in Testing (only listed test users can sign in).
+
 Things only the project owner can do in the Supabase, Google Cloud and GitHub dashboards.
 Project: `rival` (ref `rwlpwhwagcrzpusplvcz`). App URL: `https://op4122.github.io/Rival/app/`.
 
@@ -13,19 +15,11 @@ Project: `rival` (ref `rwlpwhwagcrzpusplvcz`). App URL: `https://op4122.github.i
 
 The app sends people back to the exact page they signed in from, so these patterns cover the live site and local testing. Keep the capital R in `/Rival/`.
 
-## 2. Supabase → Authentication → Emails → Magic Link template
+## 2. Email templates (later, needs custom SMTP)
 
-Add the 6-digit code to the email, so people using the installed iPhone app can type it in (a tapped link opens Safari, not the app). Replace the body with:
-
-```html
-<h2>Sign in to Rival</h2>
-<p>Tap the link to sign in:</p>
-<p><a href="{{ .ConfirmationURL }}">Sign in to Rival</a></p>
-<p>Or type this code in the app: <strong>{{ .Token }}</strong></p>
-<p>The link and code work once and expire in an hour. If you didn't ask for this, ignore this email.</p>
-```
-
-Do the same in the **Confirm signup** template (new users get that one first). Subject suggestion: `Your Rival sign-in code`.
+Templates can't be edited until custom SMTP is set up, so magic-link emails contain a link only. The app therefore
+shows the note "On iPhone, open the link in the same browser you installed Rival from." If you set up SMTP later,
+adding `{{ .Token }}` to the Magic Link template would let the app offer a typed code too.
 
 ## 3. Supabase → Authentication → Emails → SMTP Settings (before real users sign in)
 
