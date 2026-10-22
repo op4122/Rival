@@ -1,6 +1,7 @@
 # Rival: manual setup in dashboards
 
-Status (23 Oct 2026): steps 1, 4 and 5 are done by the owner. Google app is in Testing (only listed test users can sign in).
+Status (22 Oct 2026): steps 1, 4, 5, 6 and 8 are done. Google sign-in works for test users and the keep-alive workflow runs green.
+Still to do: step 7 (Branding + Publish app) if not done yet, and step 3 (custom SMTP) before opening email sign-in to everyone.
 
 Things only the project owner can do in the Supabase, Google Cloud and GitHub dashboards.
 Project: `rival` (ref `rwlpwhwagcrzpusplvcz`). App URL: `https://op4122.github.io/Rival/app/`.
