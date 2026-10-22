@@ -1,10 +1,11 @@
 // Rival service worker: keeps a copy of the app on the phone so it opens with no signal.
 // HTML is fetched fresh when online (so updates arrive) and falls back to the saved copy offline.
 // Fonts and icons are served from the saved copy first.
-const CACHE = 'rival-v17';
+const CACHE = 'rival-v18';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png',
+  './vendor/supabase.js', './supabase.js',
   '../assets/icon.svg', '../assets/fonts/archivo.woff2', '../assets/fonts/instrument-sans.woff2'
 ];
 
@@ -23,11 +24,14 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
-  if (req.mode === 'navigate') {
+  // Only same-origin files are handled here, so Supabase and PostHog requests are never cached.
+  // config.js holds the keys: fetch it fresh when online, fall back to the saved copy offline.
+  const nav = req.mode === 'navigate', key = nav ? './index.html' : req;
+  if (nav || new URL(req.url).pathname.endsWith('/config.js')) {
     e.respondWith(
       fetch(req)
-        .then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); return res; })
-        .catch(() => caches.match('./index.html'))
+        .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); } return res; })
+        .catch(() => caches.match(key))
     );
     return;
   }
