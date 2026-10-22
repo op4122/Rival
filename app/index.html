@@ -168,6 +168,8 @@ input{font:inherit;color:inherit}
 body.gated{overflow:hidden}
 .acct-err{color:var(--warn);font-size:13.5px}
 .acct .link{justify-self:start}
+.set-note{font-size:12.5px;padding:0 0 12px;border-bottom:1px solid var(--line);margin-top:-6px}
+.set-note a{color:inherit;text-underline-offset:3px}
 .acct-sync{font-size:14px;line-height:1.5}
 .hdr-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .syncpill{display:inline-flex;align-items:center;gap:6px;flex:none;padding:3px 9px 3px 8px;border-radius:999px;font-size:12px;font-weight:650;line-height:1.4;color:var(--muted);background:var(--surface);vertical-align:middle}
@@ -624,6 +626,7 @@ body.gated{overflow:hidden}
 <script src="vendor/supabase.js"></script>
 <script src="vendor/dexie.js"></script>
 <script src="supabase.js"></script>
+<script src="analytics.js"></script>
 <script>
 (() => {
 'use strict';
@@ -1219,6 +1222,8 @@ function planSlot0(slot, tier) {
 
 /* ================= storage note =================
    Everything lives in localStorage on this device. Backups are exported as JSON. */
+// Analytics: one helper (app/analytics.js). Safe to call when PostHog is off, blocked or not loaded yet.
+const A = window.RivalAnalytics || {track() {}, screen() {}, identify() {}, reset() {}, enabled() { return false; }, setEnabled() {}};
 /* ================= sync: offline-first =================
    The phone is the source of truth and the UI never waits for the network.
    1. Whenever something is saved, the engine turns the local data into database rows and compares each row with
@@ -1474,6 +1479,7 @@ const Sync = (() => {
   };
 })();
 window.RivalSync = Sync; // for tests and debugging in the browser console
+Sync.on((type, d) => { if (type === 'synced') A.track('sync_completed', {rows:d.count}); });
 function touch() { S.profile.updatedAt = Date.now(); persist(); Sync.profile(); }
 
 /* ================= icons ================= */
@@ -1972,6 +1978,18 @@ function requireAuth(fn, why) {
   openSheet(authSheetHTML(), () => { Auth.after = null; });
 }
 onAuth(user => { Sync.setUser(user); });
+// Analytics identity: the user id only. A brand-new account (created in the last 10 minutes) counts as a sign-up, once.
+onAuth((user, event, before) => {
+  if (!user) { if (before) A.reset(); return; }
+  A.identify(user.id);
+  const fresh = Date.now() - Date.parse(user.created_at || 0) < 10 * 60000, k = 'rival.signup.' + user.id;
+  let sent = false; try { sent = !!localStorage.getItem(k); } catch (e) {}
+  if (fresh && !sent) {
+    const prov = (user.app_metadata && user.app_metadata.provider) || '';
+    A.track('signup_completed', {method:prov === 'google' ? 'google' : 'email'});
+    try { localStorage.setItem(k, '1'); } catch (e) {}
+  }
+});
 onAuth(user => { if (user && Auth.after) { const f = Auth.after; Auth.after = null; closeSheet(); setTimeout(f, 50); } });
 const LEGAL = `<p class="acct-legal">By continuing you agree to the <a href="../terms.html">Terms</a> and <a href="../privacy.html">Privacy Policy</a>.</p>`;
 function authFormHTML() {
@@ -2076,7 +2094,7 @@ async function authInit() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '21'; // matches the service worker cache, rival-v21
+const APP_VERSION = '22'; // matches the service worker cache, rival-v22
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2099,6 +2117,8 @@ function vSettings() {
       <div class="set-row"><span>Theme</span><div class="seg" role="group" aria-label="Theme" style="width:216px">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-act="theme" data-v="${v}" aria-pressed="${(p.theme || 'system') === v}">${l}</button>`).join('')}</div></div>
     </div></section>
     <section class="section"><div class="section-head"><h2 class="h2">Workouts</h2></div><div class="card" style="padding:4px 16px">
+      <div class="set-row"><span>Usage analytics</span><div class="seg" style="width:140px"><button data-act="analytics" data-v="1" aria-pressed="${A.enabled()}">On</button><button data-act="analytics" data-v="0" aria-pressed="${!A.enabled()}">Off</button></div></div>
+      <p class="sub set-note">Anonymous usage stats and screen recordings (typed text hidden) help improve Rival. <a href="../privacy.html">Privacy</a></p>
       <div class="set-row"><span>Rest timer sound</span><div class="seg" style="width:140px"><button data-act="restsnd" data-v="1" aria-pressed="${p.restSound !== false}">On</button><button data-act="restsnd" data-v="0" aria-pressed="${p.restSound === false}">Off</button></div></div>
       <div class="set-row"><span>Warm-up sets</span><div class="seg" style="width:140px"><button data-act="warmset" data-v="1" aria-pressed="${p.warmups !== false}">On</button><button data-act="warmset" data-v="0" aria-pressed="${p.warmups === false}">Off</button></div></div>
       <div class="set-row"><span>Default units</span><div class="seg" style="width:140px"><button data-act="units" data-u="kg" aria-pressed="${p.units === 'kg'}">kg</button><button data-act="units" data-u="lb" aria-pressed="${p.units === 'lb'}">lb</button></div></div>
@@ -2182,6 +2202,7 @@ function applyTheme() {
     m.setAttribute('content', t === 'light' || t === 'dark' ? THEME_BAR[t] : THEME_BAR[own]);
   });
 }
+function screenChanged() { A.screen(tab); if (tab === 'progress') A.track('heatmap_viewed', {}); }
 function render() {
   applyTheme();
   view.innerHTML = tab === 'today' ? vToday() : tab === 'progress' ? vProgress() : tab === 'settings' ? vSettings() : vPlan();
@@ -2270,8 +2291,10 @@ function startWorkout(idx, o) {
       sets: planSlot(sl, tier).map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}))}))
   };
   persist(); openWorkout();
+  A.track('workout_started', {mode:S.active.mode, exercise_count:S.active.entries.length});
 }
 function openWorkout() {
+  A.screen('workout');
   renderWorkout();
   wo.setAttribute('aria-hidden', 'false');
   requestAnimationFrame(() => wo.classList.add('open'));
@@ -2342,6 +2365,9 @@ function logSet0(row) {
     if (r > MAX_REPS) { toast('That many reps? Check the number'); row.querySelector('.in-r').focus(); return; }
     s.w = w == null ? 0 : w; s.r = r; s.done = true; s.res = cmpGhost(s, s.g); s.at = Date.now(); if (!s.cid) s.cid = uuid();
     if (s.res === 'beat') buzz(18); else buzz(8);
+    A.track('set_logged', {exercise_id:en.exId, weight_kg:s.w, reps:s.r, offline:!navigator.onLine});
+    if (s.res === 'beat' && s.g) A.track('ghost_set_beaten', {exercise_id:en.exId, margin:Math.round((e1(s.w, s.r) - e1(s.g.w, s.g.r)) * 10) / 10});
+    if (!navigator.onLine && authUid()) A.track('offline_set_queued', {exercise_id:en.exId, pending:Sync.status.pending + 1});
     // carry a changed weight forward to the next untouched sets
     for (let j = si + 1; j < en.sets.length; j++) if (!en.sets[j].done && en.sets[j].w !== s.w && en.sets[j]._auto !== false) { en.sets[j].w = s.w; const inp = wo.querySelector(`#w-${ei}-${j}`); if (inp) inp.value = fmtW(s.w); }
     startRest(en.rest);
@@ -2464,6 +2490,7 @@ function saveWorkout() {
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
   hideRest(); closeSheet(); minimizeWorkout();
   toast(s.beat ? `Workout saved. You beat your ghost on ${pl(s.beat, 'set')}.` : 'Workout saved');
+  A.track('workout_completed', {duration_min:s.mins, set_count:s.sets, total_volume:Math.round(s.vol)});
 }
 
 /* ================= library & slot editor ================= */
@@ -2801,12 +2828,13 @@ const acts = {
   },
   install() { if (!installEvt) return; installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; render(); }); },
   noinstall() { try { localStorage.setItem('rival.noinstall', '1'); } catch (e) {} render(); },
-  tab(el) { tab = el.dataset.tab; selMuscle = null; render(); window.scrollTo(0, 0); },
+  tab(el) { const was = tab; tab = el.dataset.tab; selMuscle = null; render(); window.scrollTo(0, 0); if (was !== tab) screenChanged(); },
   rq(el) {
     draftR[el.dataset.k] = +el.dataset.v;
     if (RQ.every(q => draftR[q.k] != null)) {
       const score = Math.round((draftR.sleep + draftR.sore + draftR.energy) / 9 * 100);
       S.profile.readiness = {date: dkey(Date.now()), ...draftR, score};
+      A.track('readiness_checkin_completed', {score});
       draftR = {}; touch(); render();
       const card = view.querySelector('.ready'); if (card) card.classList.add('fade-in');
       const pr = $('#ringpr');
@@ -3098,6 +3126,7 @@ const acts = {
       rerenderAuth();
     });
   },
+  analytics(el) { A.setEnabled(el.dataset.v === '1'); render(); toast(el.dataset.v === '1' ? 'Usage analytics on' : 'Usage analytics off on this phone'); },
   syncnow() { Sync.push(); Sync.pull(true); },
   gateskip() { S.profile.gateSkipped = true; Auth.err = ''; touch(); closeGate(startIntro); },
   authrestart() { Auth.step = 'start'; Auth.err = ''; Auth.mailOpen = true; rerenderAuth(); },
@@ -3224,7 +3253,8 @@ setInterval(() => {
 $('#importfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readBackup(f); e.target.value = ''; });
 $('#planfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readPlanFile(f); e.target.value = ''; });
 render();
-authInit().then(() => { if (gateNeeded() && !S.active) openGate(); else startIntro(); });
+authInit().then(() => {
+  A.track('app_opened', {standalone:isStandalone(), signed_in:!!authUid(), surface:'app'}); A.screen(tab); if (gateNeeded() && !S.active) openGate(); else startIntro(); });
 document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('acct-mail')) Auth.mailOpen = e.target.open; }, true);
 addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
 addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
