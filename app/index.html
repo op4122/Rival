@@ -139,6 +139,17 @@ input{font:inherit;color:inherit}
 .help details[open] summary::after{transform:rotate(45deg)}
 .help details p{padding:0 0 14px;color:var(--muted);font-size:14px;line-height:1.45}
 .help details p b{color:var(--ink);font-weight:650}
+.acct{display:grid;gap:10px}
+.acct p{font-size:14.5px;line-height:1.45}
+.acct .note-l{margin-top:2px}
+.acct .search{margin:0}
+.acct-google{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font-family:var(--text);font-stretch:100%;font-weight:650;font-size:16px}
+.acct-google svg{width:20px;height:20px}
+.acct-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.acct-or::before,.acct-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.acct-err{color:var(--warn);font-size:13.5px}
+.acct .link{justify-self:start}
+.acct-sync{font-size:14px}
 .fb{display:grid;gap:12px}
 .fb p{font-size:14.5px;line-height:1.45}
 .fb .btn{text-decoration:none}
@@ -1629,9 +1640,90 @@ function vPlan() {
 }
 
 
+/* ================= account: Supabase Auth =================
+   Signing in is optional: without an account everything stays on this phone, as before.
+   Two ways in: Google, or email. The email has a link AND a 6-digit code, because on iPhone a link
+   opens in Safari rather than the installed app, and the two don't share storage. */
+const db = window.rivalDb;
+// Where Supabase sends people back after Google or a link: this exact page, so it works on localhost and on /Rival/app/.
+const AUTH_REDIRECT = location.origin + location.pathname;
+const Auth = {user:null, ready:!db, step:'start', email:'', busy:false, err:'', listeners:[]};
+function authUid() { return Auth.user ? Auth.user.id : null; }
+function onAuth(fn) { Auth.listeners.push(fn); }
+function authChanged(user, event) {
+  const before = authUid();
+  Auth.user = user || null; Auth.ready = true;
+  if (user) { Auth.step = 'start'; Auth.err = ''; }
+  if (before !== authUid()) Auth.listeners.forEach(fn => { try { fn(Auth.user, event, before); } catch (e) {} });
+  if (tab === 'settings' && !sheetEl) render();
+  else if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML());
+}
+// Route guard: run fn only when signed in; otherwise ask to sign in first, then carry on.
+function requireAuth(fn, why) {
+  if (!db) { toast('Accounts are not set up in this copy of Rival'); return; }
+  if (authUid()) return fn();
+  Auth.after = fn; Auth.why = why || 'Sign in to continue.';
+  openSheet(authSheetHTML(), () => { Auth.after = null; });
+}
+onAuth(user => { if (user && Auth.after) { const f = Auth.after; Auth.after = null; closeSheet(); setTimeout(f, 50); } });
+function authFormHTML() {
+  if (!db) return '<p class="sub">Accounts are not set up in this copy of Rival.</p>';
+  if (!navigator.onLine) return '<p class="sub">You are offline. Signing in needs a connection; your workouts are safe on this phone meanwhile.</p>';
+  const err = Auth.err ? `<p class="acct-err" role="alert">${esc(Auth.err)}</p>` : '';
+  if (Auth.step === 'code') return `<p>We sent a sign-in email to <b class="ph-no-capture">${esc(Auth.email)}</b>.</p>
+    <p class="sub">Tap the link in it, or type the 6-digit code here. On iPhone, the code is the way to sign in to the installed app.</p>
+    <label class="note-l" for="authcode">Code from the email</label>
+    <input class="search" id="authcode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456">${err}
+    <button class="btn primary big press" data-act="authverify"${Auth.busy ? ' disabled' : ''}>${Auth.busy ? 'Checking…' : 'Sign in'}</button>
+    <button class="link" data-act="authrestart">Use a different email</button>`;
+  return `<button class="btn big press acct-google" data-act="authgoogle"${Auth.busy ? ' disabled' : ''}>${ICO.google}Continue with Google</button>
+    <div class="acct-or"><span>or</span></div>
+    <label class="note-l" for="authemail">Email</label>
+    <input class="search" id="authemail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" value="${esc(Auth.email)}">${err}
+    <button class="btn primary big press" data-act="authsend"${Auth.busy ? ' disabled' : ''}>${Auth.busy ? 'Sending…' : 'Email me a sign-in link'}</button>`;
+}
+function accountHTML() {
+  if (!db) return '';
+  if (!Auth.ready) return `<section class="section"><div class="section-head"><h2 class="h2">Account</h2></div><div class="card acct"><p class="sub">Checking your account…</p></div></section>`;
+  const u = Auth.user;
+  const body = u
+    ? `<p>Signed in as <b class="ph-no-capture">${esc(u.email || 'your Google account')}</b>.</p>
+       <div class="acct-sync" id="acct-sync">${syncStatusHTML()}</div>
+       <button class="btn press" data-act="authsignout">Sign out</button>
+       <p class="sub" style="font-size:12.5px">Signing out keeps your workouts on this phone.</p>`
+    : `<p>Sign in to back up your workouts and use Rival on more than one phone. Without an account, everything stays on this phone, just like now.</p>${authFormHTML()}`;
+  return `<section class="section" style="margin-top:20px"><div class="section-head"><h2 class="h2">Account</h2></div><div class="card acct">${body}</div></section>`;
+}
+// Filled in by the sync engine; until then it just says the account is ready.
+function syncStatusHTML() { return typeof Sync.statusHTML === 'function' ? Sync.statusHTML() : '<span class="sub">Your account is ready.</span>'; }
+function authSheetHTML() { return `<h2 class="h2">Sign in</h2><p class="sub">${esc(Auth.why || '')}</p><div class="acct" style="margin-top:10px">${authUid() ? '<p>You are signed in.</p>' : authFormHTML()}</div>`; }
+function rerenderAuth() { if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML()); else if (tab === 'settings') { const y = scrollY; render(); scrollTo(0, y); } }
+const AUTH_ERR = {
+  'Email rate limit exceeded': 'Too many emails sent. Wait a few minutes and try again.',
+  'Token has expired or is invalid': 'That code has expired or is wrong. Ask for a new email.',
+  'Signups not allowed for otp': 'New sign-ups are switched off right now.',
+};
+const authErr = e => AUTH_ERR[(e && e.message) || ''] || (e && e.message) || 'Something went wrong. Try again.';
+async function authInit() {
+  if (!db) return;
+  db.auth.onAuthStateChange((event, session) => { setTimeout(() => authChanged(session ? session.user : null, event), 0); }); // never await Supabase inside this callback
+  const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.slice(1));
+  const fromLink = q.has('code') || q.has('error') || h.has('access_token') || h.has('error');
+  let res = null; try { res = await db.auth.getSession(); } catch (e) { res = {error:e}; }
+  const session = res && res.data && res.data.session;
+  authChanged(session ? session.user : null, 'INITIAL');
+  if (fromLink) {
+    const desc = q.get('error_description') || h.get('error_description');
+    history.replaceState(null, '', AUTH_REDIRECT); // tidy the address bar: no codes or tokens left in it
+    if (session) toast('Signed in');
+    else if (desc) toast(desc.replace(/\+/g, ' '));
+    else if (q.has('code')) toast("That link opened somewhere else. Type the 6-digit code from the email instead");
+  }
+}
+
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '17'; // matches the service worker cache, rival-v17
+const APP_VERSION = '19'; // matches the service worker cache, rival-v19
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -1649,6 +1741,7 @@ function feedbackHref() {
 function vSettings() {
   const p = S.profile;
   return `<header><p class="date">Rival version ${APP_VERSION}</p><h1 class="title">Settings</h1></header>
+    ${accountHTML()}
     <section class="section" style="margin-top:20px"><div class="section-head"><h2 class="h2">Appearance</h2></div><div class="card" style="padding:4px 16px">
       <div class="set-row"><span>Theme</span><div class="seg" role="group" aria-label="Theme" style="width:216px">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-act="theme" data-v="${v}" aria-pressed="${(p.theme || 'system') === v}">${l}</button>`).join('')}</div></div>
     </div></section>
@@ -2234,6 +2327,7 @@ let coach = null, kbNav = false; // move focus into the tour only for keyboard u
 addEventListener('keydown', e => { if (e.key === 'Tab' || e.key.startsWith('Arrow') || e.key === 'Enter') kbNav = true; }, true);
 addEventListener('pointerdown', () => { kbNav = false; }, true);
 const ICO = {
+  google:'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9c-.3 1.4-1 2.5-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.6H2.1v2.8C3.9 20.5 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.8 14.1c-.2-.7-.4-1.4-.4-2.1s.1-1.4.4-2.1V7.1H2.1C1.4 8.6 1 10.2 1 12s.4 3.4 1.1 4.9l3.7-2.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2C17.5 2.1 15 1 12 1 7.7 1 3.9 3.5 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>',
   shuffle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h4v4M4 18l16-14M20 16v4h-4M14.5 14.5L20 20M4 6l5 5"/></svg>',
   att:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v6M8 9h8l-1 4H9zM10 13l-3 8M14 13l3 8"/></svg>',
   edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>',
@@ -2629,6 +2723,40 @@ const acts = {
     s.w = w; s._auto = false; for (let j = si + 1; j < en.sets.length; j++) if (!en.sets[j].done && en.sets[j]._auto !== false) en.sets[j].w = w;
     persist(); closeSheet(); refreshEx(ei);
   },
+  authgoogle() {
+    if (!db || Auth.busy) return;
+    Auth.busy = true; Auth.err = ''; rerenderAuth();
+    db.auth.signInWithOAuth({provider:'google', options:{redirectTo:AUTH_REDIRECT}})
+      .then(({error}) => { if (error) { Auth.busy = false; Auth.err = authErr(error); rerenderAuth(); } }); // on success the page goes to Google
+  },
+  authsend() {
+    if (!db || Auth.busy) return;
+    const inp = $('#authemail'), email = (inp ? inp.value : Auth.email).trim().toLowerCase();
+    Auth.email = email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { Auth.err = 'Enter your email address'; rerenderAuth(); return; }
+    Auth.busy = true; Auth.err = ''; rerenderAuth();
+    db.auth.signInWithOtp({email, options:{emailRedirectTo:AUTH_REDIRECT, shouldCreateUser:true}}).then(({error}) => {
+      Auth.busy = false;
+      if (error) Auth.err = authErr(error); else Auth.step = 'code';
+      rerenderAuth();
+      const c = $('#authcode'); if (c && kbNav) c.focus();
+    });
+  },
+  authverify() {
+    if (!db || Auth.busy) return;
+    const inp = $('#authcode'), token = (inp ? inp.value : '').replace(/\s/g, '');
+    if (!/^\d{6,10}$/.test(token)) { Auth.err = 'Type the code from the email'; rerenderAuth(); return; }
+    Auth.busy = true; Auth.err = ''; rerenderAuth();
+    db.auth.verifyOtp({email:Auth.email, token, type:'email'}).then(({error}) => {
+      Auth.busy = false;
+      if (error) { Auth.err = authErr(error); rerenderAuth(); } else toast('Signed in');
+    });
+  },
+  authrestart() { Auth.step = 'start'; Auth.err = ''; rerenderAuth(); },
+  authsignout(el) {
+    if (!db) return;
+    db.auth.signOut({scope:'local'}).then(() => { toast('Signed out. Your workouts stay on this phone.'); });
+  },
   copymail() {
     const done = () => toast('Email address copied');
     try { navigator.clipboard.writeText(SUPPORT_EMAIL).then(done, () => toast(SUPPORT_EMAIL)); } catch (e) { toast(SUPPORT_EMAIL); }
@@ -2706,8 +2834,10 @@ document.addEventListener('keydown', e => {
   }
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('g[data-act]')) { e.preventDefault(); acts.muscle(e.target); }
   if (e.key === 'Escape' && sheetEl) closeSheet();
+  if (e.key === 'Enter' && (e.target.id === 'authemail' || e.target.id === 'authcode')) { e.preventDefault(); (e.target.id === 'authemail' ? acts.authsend : acts.authverify)(); }
 });
 document.addEventListener('input', e => {
+  if (e.target.id === 'authemail') { Auth.email = e.target.value; return; }
   if (e.target.id === 'cxname' && cx) {
     cx.n = e.target.value; const b = sheetEl && sheetEl.querySelector('[data-act=cxsave]'); const ok = cx.n.trim() && cx.prim.length;
     if (b) b.disabled = !ok; return;
@@ -2745,6 +2875,9 @@ setInterval(() => {
 $('#importfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readBackup(f); e.target.value = ''; });
 $('#planfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readPlanFile(f); e.target.value = ''; });
 render();
+authInit();
+addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
+addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
 if (S.active) updateResume();
 if (!S.profile.tour.done && !S.active) setTimeout(() => { if (!coach && !sheetEl) startCoach('tour'); }, 300);
 else if (S.profile.tour.n < NEWS_V && !S.active) setTimeout(() => { if (!coach && !sheetEl) newsSheet(); }, 500);

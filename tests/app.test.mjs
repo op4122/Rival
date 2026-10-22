@@ -230,6 +230,59 @@ for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
   await p.context().close();
 }
 
+// ---------- account: sign in with email code, stays signed in, sign out; Google redirect ----------
+console.log('Account');
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const p = await ctx.newPage(); p.errors = [];
+  p.on('pageerror', e => p.errors.push(String(e)));
+  const calls = [];
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const uid = '0b9c2f2e-0000-4000-8000-00000000abcd', exp = Math.floor(Date.now() / 1000) + 3600;
+  const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: uid, exp, aud: 'authenticated', role: 'authenticated', email: 'tester@example.com' })}.sig`;
+  const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'tester@example.com', created_at: new Date().toISOString(), app_metadata: { provider: 'email' }, user_metadata: {} };
+  await p.route('**/auth/v1/**', async route => {
+    const u = new globalThis.URL(route.request().url()); calls.push(route.request().method() + ' ' + u.pathname + u.search);
+    if (u.pathname.endsWith('/otp')) return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    if (u.pathname.endsWith('/verify')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r1', user }) });
+    if (u.pathname.endsWith('/user')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) });
+    if (u.pathname.endsWith('/logout')) return route.fulfill({ status: 204, body: '' });
+    if (u.pathname.endsWith('/authorize')) return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>google</p>' });
+    return route.fulfill({ status: 404, body: '{}' });
+  });
+  await p.goto(URL); await p.waitForTimeout(500);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; });
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  ok(await p.locator('.acct [data-act=authgoogle]').count() === 1 && await p.locator('#authemail').count() === 1, 'signed out: Google button and email field');
+  await p.locator('[data-act=authsend]').click(); await p.waitForTimeout(150);
+  ok(/Enter your email/.test(await p.locator('.acct-err').textContent()), 'asks for an email first');
+  await p.fill('#authemail', 'Tester@Example.com ');
+  await p.locator('[data-act=authsend]').click(); await p.waitForTimeout(600);
+  const otp = calls.find(c => c.includes('/otp'));
+  ok(!!otp && otp.includes('redirect_to=' + encodeURIComponent(URL)), 'email request sent with this page as the return address');
+  ok(await p.locator('#authcode').count() === 1, 'code step shown');
+  await p.fill('#authcode', '123456'); await p.locator('[data-act=authverify]').click(); await p.waitForTimeout(800);
+  ok(calls.some(c => c.startsWith('POST') && c.includes('/verify')), 'code checked with Supabase');
+  ok(/Signed in as/.test(await p.locator('.acct').textContent()), 'signed in view shown');
+  ok(await p.locator('.acct b.ph-no-capture').count() === 1, 'email shown only inside a no-capture element');
+  await p.reload(); await p.waitForTimeout(900);
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  ok(/Signed in as/.test(await p.locator('.acct').textContent()), 'still signed in after reload');
+  await p.locator('[data-act=authsignout]').click(); await p.waitForTimeout(800);
+  ok(await p.locator('#authemail').count() === 1, 'signed out again');
+  ok(await p.evaluate(() => !!JSON.parse(localStorage.getItem('rival.v1')).profile), 'workouts kept on the phone after sign-out');
+  // a link that comes back with ?code= but no session (opened in another browser) is tidied up
+  await p.goto(URL + '?code=abc'); await p.waitForTimeout(900);
+  ok(!/code=/.test(p.url()), 'sign-in code removed from the address bar');
+  // Google: the redirect asks Supabase to send the user back to this page
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  await Promise.all([p.waitForURL(/authorize/), p.locator('[data-act=authgoogle]').click()]);
+  const g = new globalThis.URL(p.url());
+  ok(g.searchParams.get('provider') === 'google' && g.searchParams.get('redirect_to') === URL, 'Google sign-in returns to this page');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nAll passed');
 process.exit(failed ? 1 : 0);
