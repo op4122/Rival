@@ -47,6 +47,31 @@ Supabase's built-in email sender is for testing: it only delivers to members of 
 
 The client secret lives only in Supabase. It never goes in the app or the repo.
 
-## 6. GitHub (Phase 7)
+## 6. GitHub
 
-Added after Phase 7: repository secrets and the Pages source.
+**Repository secrets** (GitHub → the Rival repo → Settings → Secrets and variables → Actions → New repository secret):
+
+| Name | Value |
+|---|---|
+| `SUPABASE_URL` | `https://rwlpwhwagcrzpusplvcz.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_lvYCJ5nykxUkIqbreBq1zQ_eTKhsbFG` |
+
+They're used only by the keep-alive workflow (`.github/workflows/keep-alive.yml`), which calls `ping()` every 3 days
+so the free Supabase project never pauses. After adding them, open Actions → "Supabase keep-alive" → Run workflow once
+to check it goes green.
+
+**Deploy:** nothing to change. Pages keeps serving the `main` branch. `app/config.js` is committed because it only holds
+public keys (Supabase publishable key, PostHog project key); to change them, edit `.env` and run `npm run config`.
+
+GitHub turns off scheduled workflows in a repository with no commits for 60 days and emails you; if that happens, press
+"Enable workflow" in the Actions tab.
+
+## 7. Google Branding page (to publish the Google sign-in app)
+
+Google Cloud → Google Auth Platform → Branding:
+
+- Application home page: `https://op4122.github.io/Rival/`
+- Privacy policy link: `https://op4122.github.io/Rival/privacy.html`
+- Terms of service link: `https://op4122.github.io/Rival/terms.html`
+
+These go live when this branch is merged into `main`. Then go to Audience → Publish app.

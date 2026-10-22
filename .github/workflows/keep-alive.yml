@@ -1,0 +1,31 @@
+# Keeps the free Supabase project from pausing after a week without activity.
+# Every 3 days it calls public.ping() through the REST API with the publishable key.
+# ping() returns true and reads no table, so the key gives away nothing.
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '17 3 */3 * *'   # 03:17 UTC (07:17 in Muscat) every 3rd day of the month
+  workflow_dispatch: {}      # "Run workflow" button in the Actions tab
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Add the SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY repository secrets"; exit 1
+          fi
+          for i in 1 2 3; do
+            body=$(curl -sS --max-time 30 -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+              -H "apikey: $SUPABASE_PUBLISHABLE_KEY" -H "Content-Type: application/json" -d '{}') && [ "$body" = "true" ] && { echo "Supabase answered: $body"; exit 0; }
+            echo "Attempt $i failed: $body"; sleep $((i * 20))
+          done
+          echo "::error::Supabase did not answer the ping"; exit 1

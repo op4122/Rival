@@ -45,7 +45,7 @@ Data lives in each phone's browser storage. Use Plan → Export backup to save a
 The app still has no build step. npm is only used to fetch pinned browser builds and write config:
 
 1. `npm install` then `npm run vendor` copies supabase-js, Dexie and posthog-js into `app/vendor/` (committed, so Pages serves them and the service worker caches them).
-2. `cp .env.example .env`, fill it in, then `npm run config` writes `app/config.js` (git-ignored). In CI the deploy workflow writes it from repository secrets.
+2. `cp .env.example .env`, fill it in, then `npm run config` writes `app/config.js`. It is committed (public keys only), so Pages serves it with no build step.
 3. `app/supabase.js` creates the one Supabase client (`window.rivalDb`). Without config it is `null` and the app works on the phone only.
 
 Only public keys go in config: the Supabase publishable key and the PostHog project key. Never the Supabase secret or service_role key.
