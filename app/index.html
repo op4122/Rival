@@ -168,7 +168,16 @@ input{font:inherit;color:inherit}
 body.gated{overflow:hidden}
 .acct-err{color:var(--warn);font-size:13.5px}
 .acct .link{justify-self:start}
-.acct-sync{font-size:14px}
+.acct-sync{font-size:14px;line-height:1.5}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.syncpill{display:inline-flex;align-items:center;gap:6px;flex:none;padding:3px 9px 3px 8px;border-radius:999px;font-size:12px;font-weight:650;line-height:1.4;color:var(--muted);background:var(--surface);vertical-align:middle}
+.syncpill i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.syncpill.ok i{background:#2FA36B}
+.syncpill.wait i{background:var(--win);animation:pulse 1.4s ease-in-out infinite}
+.syncpill.err{color:var(--warn)} .syncpill.err i{background:var(--warn)}
+.wo-s .syncpill{background:var(--surface-2);margin-right:6px;padding:1px 8px 1px 7px;font-size:11.5px}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.syncpill.wait i{animation:none}}
 .fb{display:grid;gap:12px}
 .fb p{font-size:14.5px;line-height:1.45}
 .fb .btn{text-decoration:none}
@@ -613,6 +622,7 @@ body.gated{overflow:hidden}
 <!-- Backend: config (generated, public keys only), the pinned supabase-js build, and the one client. -->
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
+<script src="vendor/dexie.js"></script>
 <script src="supabase.js"></script>
 <script>
 (() => {
@@ -910,6 +920,19 @@ const RQ = [
 const $ = (s, el = document) => el.querySelector(s);
 const clone = o => JSON.parse(JSON.stringify(o));
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+// Database ids. uuid() is random; detUuid(text) always gives the same id for the same text, so rows made from
+// old workouts get stable ids and re-uploading them can never create duplicates.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+function detUuid(str) {
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0, k; i < str.length; i++) { k = str.charCodeAt(i); h1 = h2 ^ Math.imul(h1 ^ k, 597399067); h2 = h3 ^ Math.imul(h2 ^ k, 2869860233); h3 = h4 ^ Math.imul(h3 ^ k, 951274213); h4 = h1 ^ Math.imul(h4 ^ k, 2716044179); }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067); h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233); h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213); h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  h1 ^= h2 ^ h3 ^ h4; h2 ^= h1; h3 ^= h1; h4 ^= h1;
+  const x = [h1, h2, h3, h4].map(h => (h >>> 0).toString(16).padStart(8, '0')).join('');
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-4${x.slice(13, 16)}-${(8 | (parseInt(x[16], 16) & 3)).toString(16)}${x.slice(17, 20)}-${x.slice(20, 32)}`;
+}
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad2 = n => String(n).padStart(2, '0');
 const dkey = t => { const d = new Date(t); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
@@ -989,13 +1012,21 @@ function cleanSession(s) {
   const entries = s.entries.map(en => {
     if (!isObj(en) || typeof en.exId !== 'string' || !Array.isArray(en.sets)) return null;
     const sets = en.sets.filter(x => isObj(x) && fin(x.r) && x.r > 0 && (fin(x.w) || x.w == null))
-      .map(x => ({w:fin(x.w) ? clamp(x.w, 0, MAX_KG) : 0, r:clamp(Math.round(x.r), 1, MAX_REPS), res:x.res === 'beat' || x.res === 'match' ? x.res : null}));
+      .map(x => ({w:fin(x.w) ? clamp(x.w, 0, MAX_KG) : 0, r:clamp(Math.round(x.r), 1, MAX_REPS), res:x.res === 'beat' || x.res === 'match' ? x.res : null,
+        ...(typeof x.cid === 'string' && UUID_RE.test(x.cid) ? {cid:x.cid} : {}), ...(fin(x.at) ? {at:x.at} : {})}));
     return sets.length ? {exId:en.exId, sets} : null;
   }).filter(Boolean);
   if (!entries.length) return null;
   return {id:str(s.id, 60) || newId(), dayIdx:fin(s.dayIdx) ? s.dayIdx : 0, dayName:str(s.dayName, 40) || 'Workout', date:s.date,
     dur:fin(s.dur) ? clamp(Math.round(s.dur), 0, 1440) : 0, readiness:fin(s.readiness) ? clamp(Math.round(s.readiness), 0, 100) : null,
-    entries, ...(s.sample ? {sample:true} : {}), updatedAt:fin(s.updatedAt) ? s.updatedAt : 0};
+    entries, ...(s.sample ? {sample:true} : {}), updatedAt:fin(s.updatedAt) ? s.updatedAt : 0,
+    ...(typeof s.rid === 'string' && UUID_RE.test(s.rid) ? {rid:s.rid} : {}), ...(cleanRq(s.rq) ? {rq:cleanRq(s.rq)} : {})};
+}
+// The check-in answers behind a workout's readiness score (0-3 each), kept so they can be stored in readiness_checkins.
+function cleanRq(q) {
+  if (!isObj(q) || typeof q.id !== 'string' || !UUID_RE.test(q.id)) return null;
+  const a = k => Number.isInteger(q[k]) && q[k] >= 0 && q[k] <= 3;
+  return a('sleep') && a('sore') && a('energy') && fin(q.score) ? {id:q.id, sleep:q.sleep, sore:q.sore, energy:q.energy, score:clamp(Math.round(q.score), 0, 100)} : null;
 }
 function cleanSessions(list) {
   const seen = new Set();
@@ -1028,6 +1059,7 @@ function cleanProfile(p0) {
   out.custom = (Array.isArray(out.custom) ? out.custom : []).map(cleanCustom).filter(Boolean);
   out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
   out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped;
+  if (typeof out.owner !== 'string' || !UUID_RE.test(out.owner)) delete out.owner; // the account this phone's workouts belong to
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
   // One-off sessions that sit on top of the program without changing it.
@@ -1052,10 +1084,11 @@ function load() {
   try { if (raw) localStorage.setItem(KEY + '.unreadable', raw); } catch (e) {}
   return null;
 }
-let saveWarned = false;
+let saveWarned = false, syncHook = null;
 function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); saveWarned = false; }
   catch (e) { if (!saveWarned) { saveWarned = true; try { toast("Couldn't save on this phone. Export a backup so you don't lose your workouts."); } catch (e2) {} } }
+  if (syncHook) syncHook(); // tell the sync engine something changed (it waits a moment, then queues the rows)
 }
 
 function cmpGhost(set, g) {
@@ -1186,7 +1219,261 @@ function planSlot0(slot, tier) {
 
 /* ================= storage note =================
    Everything lives in localStorage on this device. Backups are exported as JSON. */
-const Sync = { state:'local', init() {}, profile() {}, session() {}, remove() {} };
+/* ================= sync: offline-first =================
+   The phone is the source of truth and the UI never waits for the network.
+   1. Whenever something is saved, the engine turns the local data into database rows and compares each row with
+      what was last confirmed in Supabase. Anything new, changed or removed goes into an outbox in IndexedDB.
+   2. A worker sends the outbox when online (on start, on reconnect, when the app comes back to the screen),
+      retrying with exponential backoff. Sets upsert on client_id and workouts on their own id, so a retry or a
+      second phone can never create duplicates.
+   3. In the background it also pulls workouts made on other phones, so ghost sets and history work offline.
+   Sample workouts are never uploaded. Only the signed-in owner's data syncs. */
+const Sync = (() => {
+  const T = {ex:'exercises', rq:'readiness_checkins', w:'workouts', s:'workout_sets', p:'profiles'};
+  const ORDER_UP = ['ex', 'rq', 'w', 's', 'p'], ORDER_DEL = ['s', 'w', 'rq'];
+  const st = {uid:null, blocked:false, pending:0, failed:0, phase:'idle', last:0, tries:0, timer:0, soonT:0, running:false, again:false, synced:null, exMap:null, pulledAt:0, listeners:[]};
+  const sdb = () => window.rivalDb;
+  // Storage: IndexedDB through Dexie; plain memory if IndexedDB isn't available (very old or locked-down browsers).
+  let idb = null;
+  try { if (window.Dexie && window.indexedDB) { idb = new Dexie('rival-sync'); idb.version(1).stores({outbox:'key, uid', synced:'key, uid', meta:'key'}); } } catch (e) { idb = null; }
+  const mem = {outbox:new Map(), synced:new Map(), meta:new Map()};
+  const store = {
+    async all(t, uid) { if (idb) try { return await idb.table(t).where('uid').equals(uid).toArray(); } catch (e) {} return [...mem[t].values()].filter(r => r.uid === uid); },
+    async put(t, rows) { if (!rows.length) return; if (idb) try { await idb.table(t).bulkPut(rows); return; } catch (e) {} rows.forEach(r => mem[t].set(r.key, r)); },
+    async del(t, keys) { if (!keys.length) return; if (idb) try { await idb.table(t).bulkDelete(keys); return; } catch (e) {} keys.forEach(k => mem[t].delete(k)); },
+    async get(t, key) { if (idb) try { return await idb.table(t).get(key); } catch (e) {} return mem[t].get(key); },
+  };
+  const iso = t => new Date(t).toISOString();
+  const hash = o => JSON.stringify(o);
+  const exUid = slug => detUuid('x:' + st.uid + ':' + slug); // custom exercises get a stable id per account
+
+  // ---------- local data -> rows ----------
+  function customRows() {
+    const out = [];
+    (S.profile.custom || []).forEach(c => {
+      const ex = EX[c.id]; if (!ex) return;
+      const prim = Object.keys(ex.m).filter(k => ex.m[k] === 1), sec = Object.keys(ex.m).filter(k => ex.m[k] === .5);
+      const base = {name:c.n.slice(0, 80), primary_muscles:prim, secondary_muscles:sec, equipment:c.kind === 'bw' ? 'bodyweight' : c.kind === 'mach' ? 'machine' : 'free_weight',
+        increment_kg:c.inc, is_compound:!!c.c, per_side:!!ex.ea, is_custom:true, user_id:st.uid};
+      out.push({...base, id:exUid(c.id), slug:c.id, attachment:null, base_slug:null});
+      (c.att || []).forEach(a => { const sl = attId(c.id, a); out.push({...base, id:exUid(sl), slug:sl, name:(c.n + ' (' + a + ')').slice(0, 80), attachment:a, base_slug:c.id}); });
+    });
+    return out;
+  }
+  function settingsRow() {
+    const p = S.profile;
+    const keep = ['days', 'program', 'nextDay', 'custom', 'exUnit', 'restC', 'restI', 'theme', 'bars', 'warmups', 'restSound', 'units', 'programPicked', 'starterSeen', 'tour'];
+    const settings = {v:1, updatedAt:p.updatedAt || 0}; keep.forEach(k => { if (p[k] !== undefined) settings[k] = p[k]; });
+    return {id:st.uid, units:p.units === 'lb' ? 'lb' : 'kg', settings};
+  }
+  function desired() {
+    const want = new Map(), add = (t, key, row, extra) => want.set(t + ':' + key, {t, key:t + ':' + key, row, ...(extra || {})});
+    customRows().forEach(r => add('ex', r.slug, r));
+    const workout = (rid, name, start, end, rq) => {
+      if (rq) add('rq', rq.id, {id:rq.id, sleep_quality:rq.sleep + 1, energy:rq.energy + 1, soreness:rq.sore + 1, stress:null, score:rq.score, created_at:iso(start)});
+      add('w', rid, {id:rid, day_name:(name || 'Workout').slice(0, 40), started_at:iso(start), ended_at:end ? iso(Math.max(end, start)) : null, notes:null, readiness_id:rq ? rq.id : null});
+    };
+    const set = (cid, rid, slug, si, w, r, at) => add('s', cid, {client_id:cid, workout_id:rid, slug, set_index:Math.min(si, 99), weight:w > 0 ? Math.round(w * 100) / 100 : 0, reps:r, rpe:null, is_warmup:false, completed_at:iso(at)});
+    S.sessions.forEach(x => {
+      if (x.sample) return;
+      const rid = x.rid || detUuid('w:' + x.id + ':' + x.date);
+      workout(rid, x.dayName, x.date, x.date + (x.dur || 0) * 60000, cleanRq(x.rq));
+      x.entries.forEach((en, ei) => en.sets.forEach((v, si) => set(v.cid || detUuid('s:' + rid + ':' + ei + ':' + si), rid, en.exId, si, v.w, v.r, v.at || x.date + (ei * 4 + si) * 60000)));
+    });
+    const a = S.active;
+    if (a && a.entries.some(en => en.sets.some(v => v.done))) { // a workout in progress syncs set by set
+      const rid = activeRid(a);
+      workout(rid, a.dayName, a.startedAt, null, cleanRq(a.rq));
+      a.entries.forEach((en, ei) => en.sets.forEach((v, si) => { if (v.done) set(v.cid || detUuid('s:' + rid + ':' + ei + ':' + si), rid, en.exId, si, v.w || 0, v.r, v.at || a.startedAt); }));
+    }
+    add('p', st.uid, settingsRow());
+    want.forEach(o => { o.h = hash(o.row); });
+    return want;
+  }
+
+  // ---------- outbox ----------
+  async function loadSynced() { if (!st.synced) { st.synced = new Map((await store.all('synced', st.uid)).map(r => [r.key, r.h])); } return st.synced; }
+  async function reconcile() {
+    if (!st.uid || st.blocked) return;
+    const want = desired(), synced = await loadSynced(), old = await store.all('outbox', st.uid), rows = [];
+    const oldBad = new Map(old.filter(o => o.bad).map(o => [o.key, o]));
+    want.forEach(o => { if (synced.get(o.key) !== o.h) { const b = oldBad.get(o.key); rows.push({key:o.key, uid:st.uid, t:o.t, op:'up', row:o.row, h:o.h, ...(b && b.h === o.h ? {bad:b.bad} : {})}); } });
+    synced.forEach((h, key) => { const t = key.split(':')[0]; if (!want.has(key) && ORDER_DEL.includes(t)) rows.push({key, uid:st.uid, t, op:'del', id:key.slice(t.length + 1)}); });
+    const keep = new Set(rows.map(r => r.key));
+    await store.del('outbox', old.filter(o => !keep.has(o.key)).map(o => o.key));
+    await store.put('outbox', rows);
+    const before = st.pending;
+    st.pending = rows.filter(r => !r.bad).length; st.failed = rows.filter(r => r.bad).length;
+    if (st.pending > before) emit('queued', {count:st.pending - before, online:navigator.onLine});
+    paint();
+  }
+
+  // ---------- push ----------
+  async function exMap() {
+    if (st.exMap) return st.exMap;
+    const cached = await store.get('meta', 'ex:' + st.uid);
+    if (cached && Date.now() - cached.at < 7 * DAY) { st.exMap = cached.map; return st.exMap; }
+    const {data, error} = await sdb().from('exercises').select('id,slug,user_id');
+    if (error) throw error;
+    const map = {}; (data || []).forEach(e => { if (!e.user_id) map[e.slug] = e.id; });
+    st.exMap = map; await store.put('meta', [{key:'ex:' + st.uid, uid:st.uid, at:Date.now(), map}]);
+    return map;
+  }
+  const exIdFor = (slug, map) => map[slug] || ((S.profile.custom || []).some(c => slug === c.id || slug.startsWith(c.id + VSEP)) ? exUid(slug) : null);
+  async function send(t, op, items, map) {
+    const q = sdb().from(T[t]);
+    if (op === 'del') {
+      const col = t === 's' ? 'client_id' : 'id';
+      return q.delete().in(col, items.map(i => i.id));
+    }
+    let rows = items.map(i => i.row);
+    if (t === 's') rows = rows.map(r => { const {slug, ...rest} = r; return {...rest, exercise_id:exIdFor(slug, map)}; });
+    return q.upsert(rows, t === 's' ? {onConflict:'client_id'} : {});
+  }
+  const isNetErr = e => !e || !e.code || /fetch|network|timeout|load failed/i.test(e.message || '') || e.status === 0 || e.status >= 500 || e.status === 408 || e.status === 429;
+  async function push() {
+    const db = sdb(); if (!db || !st.uid || st.blocked) return;
+    if (st.running) { st.again = true; return; }
+    if (!navigator.onLine) { await reconcile(); st.phase = 'offline'; paint(); return; } // offline: still write the outbox to IndexedDB
+    st.running = true; st.phase = 'syncing'; paint();
+    clearTimeout(st.timer);
+    try {
+      await reconcile();
+      const box = (await store.all('outbox', st.uid)).filter(o => !o.bad);
+      if (box.length) {
+        const map = await exMap(), synced = await loadSynced();
+        const unknown = box.filter(o => o.t === 's' && o.op === 'up' && !exIdFor(o.row.slug, map));
+        for (const o of unknown) o.bad = "This exercise isn't in the online library";
+        if (unknown.length) await store.put('outbox', unknown);
+        const groups = [...ORDER_UP.map(t => [t, 'up']), ...ORDER_DEL.map(t => [t, 'del'])];
+        for (const [t, op] of groups) {
+          const items = box.filter(o => o.t === t && o.op === op && !o.bad);
+          for (let i = 0; i < items.length; i += 200) {
+            const chunk = items.slice(i, i + 200);
+            let {error} = await send(t, op, chunk, map);
+            if (error && isNetErr(error)) throw error;
+            let ok = chunk;
+            if (error) { // a bad row: find it by sending one at a time, keep the rest moving
+              ok = [];
+              for (const one of chunk) { const r = await send(t, op, [one], map); if (r.error && isNetErr(r.error)) throw r.error; if (r.error) { one.bad = r.error.message || 'Rejected'; await store.put('outbox', [one]); } else ok.push(one); }
+            }
+            const done = ok.map(o => o.key);
+            await store.del('outbox', done);
+            if (op === 'up') { await store.put('synced', ok.map(o => ({key:o.key, uid:st.uid, h:o.h}))); ok.forEach(o => synced.set(o.key, o.h)); }
+            else { await store.del('synced', done); done.forEach(k => synced.delete(k)); }
+          }
+        }
+      }
+      const sent = box.length;
+      st.tries = 0; st.last = Date.now();
+      await reconcile();
+      st.phase = st.failed ? 'error' : st.pending ? 'pending' : 'synced';
+      if (sent) emit('synced', {count:sent});
+    } catch (e) {
+      st.tries++; st.phase = navigator.onLine ? 'retry' : 'offline';
+      const wait = Math.min(300000, 2000 * 2 ** st.tries) * (0.8 + Math.random() * 0.4); // 4 s, 8 s, 16 s ... up to 5 min
+      st.timer = setTimeout(push, wait);
+    } finally {
+      st.running = false; paint();
+      if (st.again) { st.again = false; setTimeout(push, 50); }
+    }
+  }
+
+  // ---------- pull: workouts and plan from other phones ----------
+  async function pull(force) {
+    const db = sdb(); if (!db || !st.uid || st.blocked || !navigator.onLine) return;
+    if (!force && Date.now() - st.pulledAt < 10 * 60000) return;
+    st.pulledAt = Date.now();
+    try {
+      const map = await exMap(), bySlugId = {}; Object.keys(map).forEach(sl => { bySlugId[map[sl]] = sl; });
+      (S.profile.custom || []).forEach(c => { bySlugId[exUid(c.id)] = c.id; (c.att || []).forEach(a => { const sl = attId(c.id, a); bySlugId[exUid(sl)] = sl; }); });
+      const prof = await db.from('profiles').select('settings').eq('id', st.uid).maybeSingle();
+      let changed = false;
+      const rs = prof.data && prof.data.settings;
+      if (rs && fin(rs.updatedAt) && rs.updatedAt > (S.profile.updatedAt || 0)) { // newer plan from another phone
+        const keep = {today:S.profile.today, week:S.profile.week, readiness:S.profile.readiness, owner:S.profile.owner, gateSkipped:S.profile.gateSkipped};
+        const {v, ...rest} = rs; Object.assign(S.profile, rest, keep); S.profile.updatedAt = rs.updatedAt; changed = true;
+        (S.profile.custom || []).forEach(c => { bySlugId[exUid(c.id)] = c.id; (c.att || []).forEach(a => { const sl = attId(c.id, a); bySlugId[exUid(sl)] = sl; }); });
+      }
+      const {data, error} = await db.from('workouts')
+        .select('id, day_name, started_at, ended_at, readiness_checkins(id, score, sleep_quality, energy, soreness), workout_sets(client_id, exercise_id, set_index, weight, reps, is_warmup, completed_at)')
+        .order('started_at', {ascending:false}).limit(300);
+      if (error) throw error;
+      const have = new Set(S.sessions.map(x => x.rid || detUuid('w:' + x.id + ':' + x.date)));
+      if (S.active) have.add(activeRid(S.active));
+      const pulled = [];
+      (data || []).forEach(w => {
+        if (have.has(w.id)) return;
+        const sets = (w.workout_sets || []).filter(x => !x.is_warmup && bySlugId[x.exercise_id]).sort((a, b) => Date.parse(a.completed_at) - Date.parse(b.completed_at) || a.set_index - b.set_index);
+        if (!sets.length) return;
+        const entries = [];
+        sets.forEach(x => {
+          const slug = bySlugId[x.exercise_id]; let en = entries.find(e => e.exId === slug);
+          if (!en) { en = {exId:slug, sets:[]}; entries.push(en); }
+          en.sets.push({w:+x.weight || 0, r:x.reps, res:null, cid:x.client_id, at:Date.parse(x.completed_at)});
+        });
+        const r = w.readiness_checkins, start = Date.parse(w.started_at), end = w.ended_at ? Date.parse(w.ended_at) : start;
+        pulled.push({id:w.id, rid:w.id, dayIdx:-1, dayName:w.day_name || 'Workout', date:start, dur:Math.max(0, Math.round((end - start) / 60000)),
+          readiness:r ? r.score : null, ...(r ? {rq:{id:r.id, sleep:r.sleep_quality - 1, sore:r.soreness - 1, energy:r.energy - 1, score:r.score}} : {}), entries, updatedAt:Date.now()});
+      });
+      if (pulled.length || changed) {
+        S.sessions = cleanSessions(S.sessions.concat(pulled));
+        normalizeProfile();
+        // The pulled rows are exactly what Supabase has: mark them synced so they aren't sent back.
+        const want = desired(), synced = await loadSynced(), marks = [];
+        const keys = new Set();
+        pulled.forEach(x => { keys.add('w:' + x.rid); if (x.rq) keys.add('rq:' + x.rq.id); x.entries.forEach(en => en.sets.forEach(v => keys.add('s:' + v.cid))); });
+        if (changed) keys.add('p:' + st.uid);
+        keys.forEach(k => { const o = want.get(k); if (o) { marks.push({key:k, uid:st.uid, h:o.h}); synced.set(k, o.h); } });
+        await store.put('synced', marks);
+        localStorage.setItem(KEY, JSON.stringify(S));
+        render(); if (wo.classList.contains('open')) renderWorkout();
+        if (pulled.length) toast(`${pl(pulled.length, 'workout')} from your other devices added`);
+      }
+    } catch (e) { st.pulledAt = 0; }
+  }
+
+  // ---------- status ----------
+  function label() {
+    if (!st.uid) return null;
+    if (st.blocked) return {cls:'err', t:'Not syncing', d:"This phone's workouts belong to another account. Sign out to keep them separate."};
+    if (st.failed) return {cls:'err', t:`${st.failed} not synced`, d:`${pl(st.failed, 'item')} couldn't be saved online. They're safe on this phone.`};
+    if (!navigator.onLine) return st.pending ? {cls:'wait', t:`${st.pending} waiting`, d:`Offline. ${pl(st.pending, 'change')} will sync when you're back online.`} : {cls:'off', t:'Offline', d:'Offline. Everything is saved on this phone.'};
+    if (st.phase === 'syncing') return {cls:'wait', t:'Syncing…', d:'Saving your workouts online…'};
+    if (st.pending) return {cls:'wait', t:`${st.pending} waiting`, d:`${pl(st.pending, 'change')} waiting to sync. Rival keeps trying.`};
+    return {cls:'ok', t:'Synced', d:st.last ? `Everything is backed up. Last synced ${new Date(st.last).toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'})}.` : 'Everything is backed up.'};
+  }
+  function pillHTML() { const l = label(); return l ? `<span class="syncpill ${l.cls}" data-sync="pill" role="status" aria-label="Sync: ${esc(l.d)}"><i></i>${esc(l.t)}</span>` : ''; }
+  function statusHTML() { const l = label(); return l ? `<span class="syncpill ${l.cls}" data-sync="pill"><i></i>${esc(l.t)}</span> <span class="sub" data-sync="desc">${esc(l.d)}</span>${st.failed || st.pending ? ' <button class="link" data-act="syncnow">Sync now</button>' : ''}` : ''; }
+  function paint() {
+    const l = label();
+    document.querySelectorAll('[data-sync=pill]').forEach(el => { if (!l) { el.remove(); return; } el.className = 'syncpill ' + l.cls; el.innerHTML = '<i></i>' + esc(l.t); el.setAttribute('aria-label', 'Sync: ' + l.d); });
+    document.querySelectorAll('[data-sync=desc]').forEach(el => { if (l) el.textContent = l.d; });
+  }
+  function emit(type, detail) { st.listeners.forEach(f => { try { f(type, detail); } catch (e) {} }); }
+
+  // ---------- account changes ----------
+  async function setUser(user) {
+    st.uid = user ? user.id : null; st.synced = null; st.exMap = null; st.pending = 0; st.failed = 0; st.blocked = false; st.pulledAt = 0;
+    if (!st.uid) { paint(); return; }
+    const owner = S.profile.owner;
+    if (owner && owner !== st.uid) { st.blocked = true; paint(); return; } // never mix two accounts' workouts
+    if (!owner) { S.profile.owner = st.uid; localStorage.setItem(KEY, JSON.stringify(S)); }
+    await push(); await pull(true); push();
+  }
+  function soon() { if (!st.uid) return; clearTimeout(st.soonT); st.soonT = setTimeout(push, 800); }
+  addEventListener('online', () => { st.tries = 0; push(); pull(); });
+  addEventListener('offline', () => { st.phase = 'offline'; paint(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { push(); pull(); } });
+  syncHook = soon;
+  return {
+    state:'local', init() {}, profile() {}, session() {}, remove() {}, // older call sites: persist() already schedules a sync
+    setUser, soon, push, pull, statusHTML, pillHTML, paint, on(f) { st.listeners.push(f); },
+    get status() { return {uid:st.uid, pending:st.pending, failed:st.failed, phase:st.phase, blocked:st.blocked, last:st.last}; },
+    _store:store,
+  };
+})();
+window.RivalSync = Sync; // for tests and debugging in the browser console
 function touch() { S.profile.updatedAt = Date.now(); persist(); Sync.profile(); }
 
 /* ================= icons ================= */
@@ -1256,7 +1543,7 @@ function vToday() {
   const act = S.active
     ? `<button class="btn primary big press" data-act="resume">Resume ${S.active.dayName.length > 16 ? 'workout' : esc(S.active.dayName)}</button>`
     : day.ex.length ? `<button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button>` : '';
-  return `<header><p class="date">${fmtDate(Date.now())}</p>${weekStrip()}</header>
+  return `<header><p class="date hdr-row"><span>${fmtDate(Date.now())}</span>${Sync.pillHTML()}</p>${weekStrip()}</header>
     ${installNote()}
     ${hasSamples() ? `<div class="sample-note"><span>You're looking at sample workouts.</span><button data-act="clearsample">Clear them</button></div>` : ''}
     <section class="hero"><h1 class="title${day.name.length > 12 ? ' long' : ''}">${esc(day.name)}</h1>
@@ -1684,6 +1971,7 @@ function requireAuth(fn, why) {
   Auth.after = fn; Auth.why = why || 'Sign in to continue.';
   openSheet(authSheetHTML(), () => { Auth.after = null; });
 }
+onAuth(user => { Sync.setUser(user); });
 onAuth(user => { if (user && Auth.after) { const f = Auth.after; Auth.after = null; closeSheet(); setTimeout(f, 50); } });
 const LEGAL = `<p class="acct-legal">By continuing you agree to the <a href="../terms.html">Terms</a> and <a href="../privacy.html">Privacy Policy</a>.</p>`;
 function authFormHTML() {
@@ -1788,7 +2076,7 @@ async function authInit() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '20'; // matches the service worker cache, rival-v20
+const APP_VERSION = '21'; // matches the service worker cache, rival-v21
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -1971,11 +2259,13 @@ function toast(msg, action) {
 /* ================= workout ================= */
 const wo = $('#wo');
 let wakeLock = null;
+const activeRid = a => a.rid && UUID_RE.test(a.rid) ? a.rid : detUuid('w:' + a.id + ':' + a.startedAt);
 function startWorkout(idx, o) {
   const p = S.profile, day = (o ? o.days : p.days)[idx], r = todayR(), tier = curTier();
   S.active = {
-    id:newId(), dayIdx:idx, dayName:day.name, startedAt:Date.now(), mode:o ? o.kind : 'program',
+    id:newId(), rid:uuid(), dayIdx:idx, dayName:day.name, startedAt:Date.now(), mode:o ? o.kind : 'program',
     readiness: r && !r.skipped ? r.score : null, tierKey: tier.key,
+    rq: r && !r.skipped ? {id:uuid(), sleep:r.sleep, sore:r.sore, energy:r.energy, score:r.score} : null,
     entries: day.ex.map(sl => ({exId:sl.id, lo:sl.lo, hi:sl.hi, rest:restFor(sl), note:sl.note || '',
       sets: planSlot(sl, tier).map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}))}))
   };
@@ -2030,7 +2320,7 @@ function renderWorkout() {
     ? `<p class="adjust-note">Readiness <b>${a.readiness}</b>, ${t.label.toLowerCase()}. ${esc(t.note)}</p>`
     : `<p class="adjust-note">Readiness <b>${a.readiness}</b>, ${t.label.toLowerCase()}. ${esc(t.note)}</p>`;
   wo.innerHTML = `<header class="wo-head"><button class="ic press" data-act="min" aria-label="Minimize workout">${I.down}</button>
-    <div><p class="wo-t">${esc(a.dayName)}</p><p class="wo-s"><span class="num" data-elapsed>${fmtClock((Date.now() - a.startedAt) / 1000)}</span>, <span id="wo-count">${countDone()}</span></p></div>
+    <div><p class="wo-t">${esc(a.dayName)}</p><p class="wo-s">${Sync.pillHTML()}<span class="num" data-elapsed>${fmtClock((Date.now() - a.startedAt) / 1000)}</span>, <span id="wo-count">${countDone()}</span></p></div>
     <button class="finish press" data-act="finish">Finish</button></header>
     <div class="wo-body"><div class="wo-in">${note}<div id="wo-list" style="display:grid;gap:12px">${a.entries.map(exBlock).join('')}</div><button class="add-ex press" data-act="woadd"><span style="font-size:20px;line-height:1">+</span> Add an exercise</button></div></div>`;
 }
@@ -2050,7 +2340,7 @@ function logSet0(row) {
     if (w == null && !ex.bw) { toast('Enter the weight for this set first'); row.querySelector('.in-w').focus(); return; }
     if (w != null && (w < 0 || w > MAX_KG)) { toast(w < 0 ? "A weight can't be negative" : 'That weight looks too high. Check it'); row.querySelector('.in-w').focus(); return; }
     if (r > MAX_REPS) { toast('That many reps? Check the number'); row.querySelector('.in-r').focus(); return; }
-    s.w = w == null ? 0 : w; s.r = r; s.done = true; s.res = cmpGhost(s, s.g);
+    s.w = w == null ? 0 : w; s.r = r; s.done = true; s.res = cmpGhost(s, s.g); s.at = Date.now(); if (!s.cid) s.cid = uuid();
     if (s.res === 'beat') buzz(18); else buzz(8);
     // carry a changed weight forward to the next untouched sets
     for (let j = si + 1; j < en.sets.length; j++) if (!en.sets[j].done && en.sets[j].w !== s.w && en.sets[j]._auto !== false) { en.sets[j].w = s.w; const inp = wo.querySelector(`#w-${ei}-${j}`); if (inp) inp.value = fmtW(s.w); }
@@ -2152,8 +2442,10 @@ function finishSheet() {
 function saveWorkout() {
   const a = S.active, s = summary();
   const prog = !a.mode || a.mode === 'program';
-  const sess = {id:a.id, dayIdx:prog ? a.dayIdx : -1, dayName:a.dayName, date:a.startedAt, dur:s.mins, readiness:a.readiness,
-    entries: a.entries.map(en => ({exId:en.exId, sets: en.sets.filter(x => x.done).map(x => ({w:x.w, r:x.r, res:x.res}))})).filter(en => en.sets.length),
+  const rid = activeRid(a);
+  const sess = {id:a.id, rid, dayIdx:prog ? a.dayIdx : -1, dayName:a.dayName, date:a.startedAt, dur:s.mins, readiness:a.readiness, ...(cleanRq(a.rq) ? {rq:cleanRq(a.rq)} : {}),
+    entries: a.entries.map((en, ei) => ({exId:en.exId, sets: en.sets.map((x, si) => ({x, si})).filter(o => o.x.done)
+      .map(({x, si}) => ({w:x.w, r:x.r, res:x.res, cid:x.cid || detUuid('s:' + rid + ':' + ei + ':' + si), at:x.at || a.startedAt}))})).filter(en => en.sets.length),
     updatedAt: Date.now()};
   S.sessions.push(sess);
   const p = S.profile;
@@ -2806,6 +3098,7 @@ const acts = {
       rerenderAuth();
     });
   },
+  syncnow() { Sync.push(); Sync.pull(true); },
   gateskip() { S.profile.gateSkipped = true; Auth.err = ''; touch(); closeGate(startIntro); },
   authrestart() { Auth.step = 'start'; Auth.err = ''; Auth.mailOpen = true; rerenderAuth(); },
   authsignout(el) {

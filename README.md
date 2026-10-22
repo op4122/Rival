@@ -49,3 +49,15 @@ The app still has no build step. npm is only used to fetch pinned browser builds
 3. `app/supabase.js` creates the one Supabase client (`window.rivalDb`). Without config it is `null` and the app works on the phone only.
 
 Only public keys go in config: the Supabase publishable key and the PostHog project key. Never the Supabase secret or service_role key.
+
+## Sync (offline-first)
+
+The phone is the source of truth and logging never waits for the network. When signed in, every save is turned into
+database rows and compared with what Supabase last confirmed; the difference goes into an outbox in IndexedDB (via Dexie).
+A worker sends it when online (on start, reconnect and when the app returns to the screen), retrying with exponential
+backoff. Sets upsert on `client_id` and workouts on their own id, so retries never duplicate. Workouts made on another
+phone are pulled into local history, so ghost sets and the heat map work offline. Sample workouts never upload, and a
+phone's workouts stay tied to the first account that signed in on it.
+
+Checks: `node tests/app.test.mjs` (UI), `node tests/offline.sw.mjs` (service worker), and
+`RIVAL_TEST_PW=… node tests/sync.live.mjs` (live, needs the two test users).
