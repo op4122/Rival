@@ -235,6 +235,15 @@ for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
   await p.goto(URL.replace(/app\/$/, ''));
   ok(await p.locator('footer a[href^="mailto:almahrouqiahmed6@gmail.com"]').count() === 1, 'marketing page footer shows the email');
   ok(await p.locator('.faq a[href^="mailto:almahrouqiahmed6@gmail.com"]').count() === 1, 'marketing FAQ shows the email');
+  ok(await p.locator('footer a[href="privacy.html"]').count() === 1 && await p.locator('footer a[href="terms.html"]').count() === 1, 'site footer links Privacy and Terms');
+  ok(!/nothing is uploaded|no server for your workouts/i.test(await p.content()), 'site no longer claims nothing is uploaded');
+  for (const page of ['privacy.html', 'terms.html']) {
+    const r = await p.goto(URL.replace(/app\/$/, '') + page);
+    ok(r.status() === 200 && /almahrouqiahmed6@gmail\.com/.test(await p.content()), page + ' loads and gives the contact email');
+  }
+  await p.goto(URL.replace(/app\/$/, '') + 'privacy.html');
+  const txt = await p.locator('main').textContent();
+  ok(['Google', 'Supabase', 'PostHog', 'session replay', 'masked', 'sell', 'Delete my Rival account'].every(w => txt.toLowerCase().includes(w.toLowerCase())), 'privacy covers Google sign-in, Supabase, PostHog replay with masking, no selling, deletion');
   await p.context().close();
 }
 

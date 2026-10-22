@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Terms of Use · Rival Workouts</title>
+<meta name="description" content="The terms for using Rival Workouts, the free workout tracker.">
+<link rel="canonical" href="https://op4122.github.io/Rival/terms.html">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ECEEE9">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D0F13">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<style>
+
+@font-face{font-family:"Archivo";font-style:normal;font-display:swap;font-weight:100 900;font-stretch:62% 125%;src:url(assets/fonts/archivo.woff2) format("woff2-variations"),url(assets/fonts/archivo.woff2) format("woff2")}
+@font-face{font-family:"Instrument Sans";font-style:normal;font-display:swap;font-weight:400 700;src:url(assets/fonts/instrument-sans.woff2) format("woff2-variations"),url(assets/fonts/instrument-sans.woff2) format("woff2")}
+body{margin:0}
+
+/* Layout: a single 1080px column, left-aligned. The hero is the product's own set row blown up to poster scale;
+   each feature below pairs a short argument with a working demo. Dashed outline = the ghost, solid = you. */
+:root{
+  --bg:#ECEEE9; --surface:#FFFFFF; --surface-2:#F4F5F1; --ink:#14161B; --muted:#5F646D; --faint:#9EA3AB;
+  --line:rgba(20,22,27,.10); --accent:#2747DB; --accent-ink:#FFFFFF; --accent-soft:rgba(39,71,219,.10);
+  --ghost:#878E9D; --accent-text:#2747DB; --win:#8A5D00; --win-bg:rgba(242,183,5,.24); --warn:#C63A25; --body:#D9DCD4;
+  --display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --text:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --ease-out:cubic-bezier(.23,1,.32,1); --ease-in-out:cubic-bezier(.77,0,.175,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
+  --line:rgba(255,255,255,.09); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
+  --ghost:#717887; --accent-text:#A9B7FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
+  --line:rgba(255,255,255,.09); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
+  --ghost:#717887; --accent-text:#A9B7FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:16px}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font-family:var(--text);font-size:17px;line-height:1.55}
+h1,h2,h3,p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums}
+.press{transition:transform 140ms var(--ease-out)}
+.press:active{transform:scale(.97)}
+.skip{position:absolute;left:-9999px;top:8px;z-index:10;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:650;text-decoration:none}
+.skip:focus{left:20px}
+
+/* nav */
+.nav{display:flex;justify-content:space-between;align-items:center;padding-block:18px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-stretch:125%;font-weight:800;font-size:22px;letter-spacing:-.01em;text-decoration:none}
+.mark{width:36px;height:36px;flex:none;margin-right:-4px}
+.nav-r{display:flex;align-items:center;gap:4px}
+.nl{font-size:15px;font-weight:600;text-decoration:none;color:var(--muted);padding:10px 12px;border-radius:12px;transition:color 140ms ease}
+.nav a.cta-s{font-weight:650;font-size:15px;text-decoration:none;padding:10px 16px;border-radius:12px;background:var(--surface);margin-left:6px}
+
+
+.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-block:28px 40px;font-size:14px;color:var(--muted)}
+.foot a{text-underline-offset:3px}
+.foot-r{display:flex;flex-wrap:wrap;gap:8px 20px}
+/* legal pages */
+.legal{max-width:68ch;padding-block:32px 24px}
+.legal h1{font-family:var(--display);font-stretch:118%;font-weight:800;font-size:clamp(38px,6vw,60px);line-height:1;letter-spacing:-.025em}
+.legal .upd{margin-top:12px;color:var(--muted);font-size:15px}
+.legal .sum{margin-top:24px;padding:18px 20px;border-radius:18px;background:var(--surface)}
+.legal .sum p + p{margin-top:8px}
+.legal h2{font-family:var(--display);font-stretch:112%;font-weight:750;font-size:22px;line-height:1.2;margin-top:36px}
+.legal p,.legal li{color:var(--ink)}
+.legal p{margin-top:10px}
+.legal ul{margin:10px 0 0;padding-left:1.2em}
+.legal li + li{margin-top:6px}
+.legal a{color:var(--accent-text);text-underline-offset:3px;overflow-wrap:anywhere}
+.legal b{font-weight:650}
+@media (max-width:560px){.nav-r .nl{display:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+  <nav class="nav" aria-label="Main">
+    <a class="brand" href="./" aria-label="Rival, home">
+      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><g transform="translate(-1 0)"><path d="M16 18h14l32 32-32 32H16l32-32z" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="8 6" stroke-linejoin="round" stroke-opacity=".6"/><path d="M40 18h14l32 32-32 32H40l32-32z" fill="var(--accent)" stroke="var(--accent)" stroke-width="3.4" stroke-linejoin="round"/></g></svg>
+      Rival
+    </a>
+    <div class="nav-r">
+      <a class="nl" href="privacy.html">Privacy</a><a class="nl" href="terms.html" aria-current="page">Terms</a>
+      <a class="cta-s press" href="app/" data-cta="nav">Open the app</a>
+    </div>
+  </nav>
+  <main id="main" class="legal">
+    <h1>Terms of Use</h1>
+    <p class="upd">Last updated 22 October 2026</p>
+    <div class="sum">
+      <p><b>In short:</b> Rival is free to use. It's a training log, not medical advice, so train sensibly. Your workouts are yours. Please don't misuse the service.</p>
+    </div>
+
+    <h2>Using Rival</h2>
+    <p>Rival Workouts ("Rival") is a workout tracker made by Ahmed Al Mahrouqi. By using it you agree to these terms and to the <a href="privacy.html">Privacy Policy</a>. You can use Rival without an account, or sign in with Google or email to back up and sync your workouts.</p>
+
+    <h2>Your account</h2>
+    <p>Keep access to your Google account or email secure, because that is how you sign in to Rival. You're responsible for what happens under your account. You must be at least 13 years old to create an account.</p>
+
+    <h2>Health and safety</h2>
+    <p>Rival suggests weights, reps and lighter days based on your past sessions and check-in. These are general suggestions, not medical, fitness or professional advice. Check with a doctor before starting a new exercise programme, especially if you have a health condition or an injury. Use good form, use spotters and safety equipment where needed, and stop if something hurts. You train at your own risk.</p>
+
+    <h2>Your content</h2>
+    <p>The workouts, plans and notes you enter are yours. You let us store and process them only to run Rival for you, as described in the Privacy Policy. You can export or delete them at any time.</p>
+
+    <h2>Acceptable use</h2>
+    <p>Don't try to break, overload or get around the security of Rival or its services, access other people's data, or use Rival for anything unlawful. We may suspend or delete accounts that do.</p>
+
+    <h2>The service</h2>
+    <p>Rival is free and provided "as is", without warranties of any kind. It may change, have downtime or stop. Features can be added or removed. Keep your own backups (Settings → Export backup) if your training history matters to you.</p>
+
+    <h2>Liability</h2>
+    <p>As far as the law allows, Rival and its maker aren't liable for any injury, lost data or other loss that comes from using or not being able to use Rival. Nothing in these terms limits rights you have under laws that can't be excluded.</p>
+
+    <h2>Ending your use</h2>
+    <p>You can stop using Rival at any time and ask us to delete your account by emailing <a href="mailto:almahrouqiahmed6@gmail.com?subject=Delete%20my%20Rival%20account">almahrouqiahmed6@gmail.com</a>.</p>
+
+    <h2>Changes and law</h2>
+    <p>We may update these terms; the date at the top shows the latest version, and continuing to use Rival means you accept it. These terms are governed by the laws of the Sultanate of Oman.</p>
+
+    <h2>Contact</h2>
+    <p><a href="mailto:almahrouqiahmed6@gmail.com">almahrouqiahmed6@gmail.com</a></p>
+
+  </main>
+  <footer class="foot"><span>Rival, a training project by Ahmed Al Mahrouqi. Made in Oman.</span><span class="foot-r"><a href="./">Home</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="mailto:almahrouqiahmed6@gmail.com">almahrouqiahmed6@gmail.com</a></span></footer>
+</div>
+<!-- Analytics: the same PostHog project as the app, so a visit and the first workout join up into one funnel.
+     Public keys only (app/config.js); the library is our own vendored copy. -->
+<script src="app/config.js"></script>
+<script src="app/analytics.js" data-vendor="app/vendor/posthog.js"></script>
+<script>
+(function () {
+  var A = window.RivalAnalytics; if (!A) return;
+  A.pageview();
+  // Every "Open the app" button (and any other link into the app) reports where it was clicked from.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="app/"], a[href="./app/"]'); if (!a) return;
+    var sec = a.closest('section[id], header, footer');
+    A.track('cta_clicked', {location: a.dataset.cta || (sec && (sec.id || sec.tagName.toLowerCase())) || 'page', label: a.textContent.trim().slice(0, 40)}, {beacon: true});
+  });
+})();
+</script>
+</body>
+</html>

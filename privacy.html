@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Privacy Policy · Rival Workouts</title>
+<meta name="description" content="How Rival Workouts handles your data: what is collected, where it is stored, analytics, and how to delete your account.">
+<link rel="canonical" href="https://op4122.github.io/Rival/privacy.html">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ECEEE9">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D0F13">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<style>
+
+@font-face{font-family:"Archivo";font-style:normal;font-display:swap;font-weight:100 900;font-stretch:62% 125%;src:url(assets/fonts/archivo.woff2) format("woff2-variations"),url(assets/fonts/archivo.woff2) format("woff2")}
+@font-face{font-family:"Instrument Sans";font-style:normal;font-display:swap;font-weight:400 700;src:url(assets/fonts/instrument-sans.woff2) format("woff2-variations"),url(assets/fonts/instrument-sans.woff2) format("woff2")}
+body{margin:0}
+
+/* Layout: a single 1080px column, left-aligned. The hero is the product's own set row blown up to poster scale;
+   each feature below pairs a short argument with a working demo. Dashed outline = the ghost, solid = you. */
+:root{
+  --bg:#ECEEE9; --surface:#FFFFFF; --surface-2:#F4F5F1; --ink:#14161B; --muted:#5F646D; --faint:#9EA3AB;
+  --line:rgba(20,22,27,.10); --accent:#2747DB; --accent-ink:#FFFFFF; --accent-soft:rgba(39,71,219,.10);
+  --ghost:#878E9D; --accent-text:#2747DB; --win:#8A5D00; --win-bg:rgba(242,183,5,.24); --warn:#C63A25; --body:#D9DCD4;
+  --display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --text:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --ease-out:cubic-bezier(.23,1,.32,1); --ease-in-out:cubic-bezier(.77,0,.175,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
+  --line:rgba(255,255,255,.09); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
+  --ghost:#717887; --accent-text:#A9B7FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
+  --line:rgba(255,255,255,.09); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
+  --ghost:#717887; --accent-text:#A9B7FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:16px}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font-family:var(--text);font-size:17px;line-height:1.55}
+h1,h2,h3,p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums}
+.press{transition:transform 140ms var(--ease-out)}
+.press:active{transform:scale(.97)}
+.skip{position:absolute;left:-9999px;top:8px;z-index:10;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:650;text-decoration:none}
+.skip:focus{left:20px}
+
+/* nav */
+.nav{display:flex;justify-content:space-between;align-items:center;padding-block:18px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-stretch:125%;font-weight:800;font-size:22px;letter-spacing:-.01em;text-decoration:none}
+.mark{width:36px;height:36px;flex:none;margin-right:-4px}
+.nav-r{display:flex;align-items:center;gap:4px}
+.nl{font-size:15px;font-weight:600;text-decoration:none;color:var(--muted);padding:10px 12px;border-radius:12px;transition:color 140ms ease}
+.nav a.cta-s{font-weight:650;font-size:15px;text-decoration:none;padding:10px 16px;border-radius:12px;background:var(--surface);margin-left:6px}
+
+
+.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-block:28px 40px;font-size:14px;color:var(--muted)}
+.foot a{text-underline-offset:3px}
+.foot-r{display:flex;flex-wrap:wrap;gap:8px 20px}
+/* legal pages */
+.legal{max-width:68ch;padding-block:32px 24px}
+.legal h1{font-family:var(--display);font-stretch:118%;font-weight:800;font-size:clamp(38px,6vw,60px);line-height:1;letter-spacing:-.025em}
+.legal .upd{margin-top:12px;color:var(--muted);font-size:15px}
+.legal .sum{margin-top:24px;padding:18px 20px;border-radius:18px;background:var(--surface)}
+.legal .sum p + p{margin-top:8px}
+.legal h2{font-family:var(--display);font-stretch:112%;font-weight:750;font-size:22px;line-height:1.2;margin-top:36px}
+.legal p,.legal li{color:var(--ink)}
+.legal p{margin-top:10px}
+.legal ul{margin:10px 0 0;padding-left:1.2em}
+.legal li + li{margin-top:6px}
+.legal a{color:var(--accent-text);text-underline-offset:3px;overflow-wrap:anywhere}
+.legal b{font-weight:650}
+@media (max-width:560px){.nav-r .nl{display:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+  <nav class="nav" aria-label="Main">
+    <a class="brand" href="./" aria-label="Rival, home">
+      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><g transform="translate(-1 0)"><path d="M16 18h14l32 32-32 32H16l32-32z" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="8 6" stroke-linejoin="round" stroke-opacity=".6"/><path d="M40 18h14l32 32-32 32H40l32-32z" fill="var(--accent)" stroke="var(--accent)" stroke-width="3.4" stroke-linejoin="round"/></g></svg>
+      Rival
+    </a>
+    <div class="nav-r">
+      <a class="nl" href="privacy.html" aria-current="page">Privacy</a><a class="nl" href="terms.html">Terms</a>
+      <a class="cta-s press" href="app/" data-cta="nav">Open the app</a>
+    </div>
+  </nav>
+  <main id="main" class="legal">
+    <h1>Privacy Policy</h1>
+    <p class="upd">Last updated 22 October 2026</p>
+    <div class="sum">
+      <p><b>In short:</b> you can use Rival without an account, and your workouts stay on your phone. If you sign in, your workouts are stored in your account so they're backed up and follow you to other phones. Rival collects usage analytics to get better. Nothing is sold, and there are no ads.</p>
+      <p>Questions or deletion requests: <a href="mailto:almahrouqiahmed6@gmail.com">almahrouqiahmed6@gmail.com</a></p>
+    </div>
+
+    <h2>Who runs Rival</h2>
+    <p>Rival Workouts is made by Ahmed Al Mahrouqi, an individual developer in Oman. In this policy, "Rival", "we" and "us" mean him. Contact: <a href="mailto:almahrouqiahmed6@gmail.com">almahrouqiahmed6@gmail.com</a>.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><b>If you sign in with Google:</b> Google shares your name and email address with Rival (Google's basic profile also includes a link to your profile picture, which Rival doesn't use). We ask for nothing else from your Google account.</li>
+      <li><b>If you sign in with email:</b> your email address, so we can send you a sign-in link.</li>
+      <li><b>Your training, if you're signed in:</b> workouts, sets (weight, reps, time), readiness check-in answers and score, your training plan, custom exercises and app settings.</li>
+      <li><b>Usage analytics:</b> which screens you open and what you tap, events such as starting or finishing a workout, device and browser type, and an approximate location worked out from your IP address. See "Analytics and session replay" below.</li>
+    </ul>
+    <p>Without an account, your workouts and settings are stored only in your browser on your phone. They never reach us.</p>
+
+    <h2>How we use it</h2>
+    <ul>
+      <li>To sign you in and keep you signed in.</li>
+      <li>To store and sync your workouts and plan, and to show your past sets ("ghost sets"), progress and heat map.</li>
+      <li>To understand how Rival is used, find bugs and decide what to improve.</li>
+      <li>To reply when you contact us.</li>
+    </ul>
+    <p>We don't sell your data, we don't show ads, and we don't use your data to advertise to you anywhere else.</p>
+
+    <h2>Where it's stored and who processes it</h2>
+    <p>Rival uses a few services to run. They process data only to provide their service to us:</p>
+    <ul>
+      <li><b>Supabase</b> hosts the database and sign-in. Your account and workouts are stored in its data centre in Seoul, South Korea.</li>
+      <li><b>PostHog</b> (United States) receives usage analytics and session recordings.</li>
+      <li><b>Google</b> handles "Continue with Google" sign-in.</li>
+      <li><b>GitHub Pages</b> hosts the website and app files, and may log basic request data such as IP addresses.</li>
+    </ul>
+    <p>This means your data may be stored and processed outside your country.</p>
+
+    <h2>Analytics and session replay</h2>
+    <p>Rival uses PostHog to see how the app is used. This includes session replay: a recording of what happens on screen (taps, scrolls and screen changes), used to find confusing parts and bugs.</p>
+    <ul>
+      <li>Everything you type is masked, so typed weights, reps and email addresses are never recorded.</li>
+      <li>Your signed-in email is hidden in recordings, and we never send your email or name to PostHog. When you sign in, your activity is linked to your account's random ID only.</li>
+      <li>Session recordings are kept for 30 days.</li>
+      <li>You can turn analytics off at any time in the app: <b>Settings → Usage analytics → Off</b>. It stops on that phone straight away. If your browser sends "Do Not Track", Rival respects it.</li>
+    </ul>
+
+    <h2>How long we keep it</h2>
+    <p>Your account and training data are kept until you delete them or ask us to delete your account. Deleting a workout in the app, or using <b>Delete all workouts</b> in Settings, also removes it from your account. Analytics events are kept by PostHog for as long as our plan allows, and recordings for 30 days.</p>
+
+    <h2>Deleting your account</h2>
+    <p>Email <a href="mailto:almahrouqiahmed6@gmail.com?subject=Delete%20my%20Rival%20account">almahrouqiahmed6@gmail.com</a> from the address you signed in with (or, for Google sign-in, the Gmail address you used), with the subject "Delete my Rival account". We'll delete your account and all training data stored with it within 30 days and confirm by email. Workouts kept only on your phone can be removed in the app at any time.</p>
+
+    <h2>Your choices and rights</h2>
+    <ul>
+      <li>Use Rival without an account, so nothing leaves your phone except analytics (which you can switch off).</li>
+      <li>Export a backup of your workouts any time from Settings.</li>
+      <li>Ask for a copy of your data, a correction or deletion by emailing us.</li>
+    </ul>
+
+    <h2>Security</h2>
+    <p>Data travels over encrypted connections. In the database, each account can only read and change its own rows. No service is perfectly secure, but we take reasonable care to protect your data.</p>
+
+    <h2>Children</h2>
+    <p>Rival isn't meant for children under 13, and we don't knowingly collect their data. If you think a child has signed up, email us and we'll delete the account.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, we'll update the date at the top. For important changes we'll also say so in the app.</p>
+
+  </main>
+  <footer class="foot"><span>Rival, a training project by Ahmed Al Mahrouqi. Made in Oman.</span><span class="foot-r"><a href="./">Home</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="mailto:almahrouqiahmed6@gmail.com">almahrouqiahmed6@gmail.com</a></span></footer>
+</div>
+<!-- Analytics: the same PostHog project as the app, so a visit and the first workout join up into one funnel.
+     Public keys only (app/config.js); the library is our own vendored copy. -->
+<script src="app/config.js"></script>
+<script src="app/analytics.js" data-vendor="app/vendor/posthog.js"></script>
+<script>
+(function () {
+  var A = window.RivalAnalytics; if (!A) return;
+  A.pageview();
+  // Every "Open the app" button (and any other link into the app) reports where it was clicked from.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="app/"], a[href="./app/"]'); if (!a) return;
+    var sec = a.closest('section[id], header, footer');
+    A.track('cta_clicked', {location: a.dataset.cta || (sec && (sec.id || sec.tagName.toLowerCase())) || 'page', label: a.textContent.trim().slice(0, 40)}, {beacon: true});
+  });
+})();
+</script>
+</body>
+</html>

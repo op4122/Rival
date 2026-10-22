@@ -139,6 +139,7 @@ input{font:inherit;color:inherit}
 .help details[open] summary::after{transform:rotate(45deg)}
 .help details p{padding:0 0 14px;color:var(--muted);font-size:14px;line-height:1.45}
 .help details p b{color:var(--ink);font-weight:650}
+.help details p a,.fb p a{color:inherit;text-underline-offset:3px}
 .acct{display:grid;gap:10px}
 .acct p{font-size:14.5px;line-height:1.45}
 .acct .note-l{margin-top:2px}
@@ -2094,14 +2095,15 @@ async function authInit() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '22'; // matches the service worker cache, rival-v22
+const APP_VERSION = '23'; // matches the service worker cache, rival-v23
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
   ['Can I use the plan I already follow?', 'Yes. On the Plan tab, tap <b>Import a plan</b> and paste it from Notes or a spreadsheet, one exercise per line, like "Lat pulldown 3x8-10". You check every match before anything changes.'],
   ['Why are rope and bar pushdowns separate?', 'The weight you move differs with each attachment, so each one keeps its own weights and ghost. Pick the attachment on the exercise card during your workout.'],
   ['What is the ghost?', 'What you lifted on that set last time. Beat it and you\'re getting stronger. Hit the top of the rep range on every set and the weight goes up next session.'],
-  ['Where are my workouts saved?', 'Only on this phone. Nobody else can see them, but clearing browser data or losing the phone clears them too, so tap <b>Export backup</b> below now and then. Restore it on a new phone with <b>Import backup</b>.'],
+  ['Where are my workouts saved?', 'On this phone, and in your account if you sign in, so they\'re backed up and show up on any phone you sign in on. Only you can see them. Without an account, clearing browser data or losing the phone clears them, so tap <b>Export backup</b> below now and then. <a href="../privacy.html">Privacy Policy</a>'],
+  ['Does it work without signal?', 'Yes. Sets save on the phone first and sync when you\'re back online. The small label at the top says <b>Synced</b>, <b>waiting</b> or <b>Offline</b>.'],
   ['Why doesn\'t my phone buzz when rest ends?', 'iPhone doesn\'t let web apps vibrate, so Rival plays a short chime instead. It follows your silent switch and won\'t pause your music. It can\'t play while the phone is locked.'],
   ['How do I get the newest version?', 'Close Rival fully and open it again. Updates arrive in the background when you\'re online.']
 ];
@@ -2139,6 +2141,7 @@ function vSettings() {
     <section class="section"><div class="section-head"><h2 class="h2">Feedback</h2></div><div class="card fb">
       <p>Found a bug, missing an exercise, or have an idea? Rival is made by one person, Ahmed, and every message gets read.</p>
       <a class="btn primary big press" href="${feedbackHref()}">Email feedback</a>
+      <p class="sub" style="font-size:12.5px"><a href="../privacy.html">Privacy Policy</a> · <a href="../terms.html">Terms of Use</a></p>
       <div class="fb-mail"><span>${SUPPORT_EMAIL.replace('@', '@<wbr>')}</span><button class="link" data-act="copymail">Copy</button></div>
     </div></section>`;
 }
