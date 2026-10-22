@@ -271,6 +271,7 @@ console.log('Account');
   await p.goto(URL); await p.waitForTimeout(700);
   ok(await p.locator('.gate').count() === 1, 'signed out: sign-in screen shown');
   ok(await p.locator('.gate .acct-google.primary').count() === 1, 'Google is the primary button');
+  ok(await p.evaluate(() => typeof window.RivalSync === 'object'), 'sync engine present');
   await p.locator('.acct-mail summary').click();
   await p.locator('[data-act=authsend]').click(); await p.waitForTimeout(150);
   ok(/Enter your email/.test(await p.locator('.acct-err').textContent()), 'asks for an email first');

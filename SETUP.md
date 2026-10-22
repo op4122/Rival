@@ -75,3 +75,19 @@ Google Cloud → Google Auth Platform → Branding:
 - Terms of service link: `https://op4122.github.io/Rival/terms.html`
 
 These go live when this branch is merged into `main`. Then go to Audience → Publish app.
+
+## 8. Clean-up after setup testing
+
+- Supabase → Authentication → Users: delete `rival-test-a@example.com`, `rival-test-b@example.com` and
+  `rival-test-c@example.com`. Their workouts, sets, check-ins and profiles are deleted with them automatically.
+- PostHog: test traffic came from those users and from a headless browser on 22 Oct 2026. Hide the `probe3` event in
+  Data management → Events. Optionally delete the three test persons in People.
+
+## Open items
+
+- **Email sign-in for everyone:** set up custom SMTP (step 3). Until then Supabase only emails members of your Supabase
+  organization; the app tells other people to use Google.
+- **Publish the Google app:** add the three URLs (step 7) on the Branding page, then Audience → Publish app. Until then
+  only listed test users can use Google sign-in; everyone else sees a friendly "not open yet" message.
+- **Security advisor, "Leaked password protection disabled":** Rival never uses passwords (Google and magic link only),
+  so this doesn't affect users. The setting is under Authentication → Providers → Email and needs a paid plan.

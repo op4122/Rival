@@ -2066,6 +2066,8 @@ function authErr(e) {
   if (/rate limit/i.test(m)) return 'Too many sign-in emails. Wait a few minutes and try again.';
   if (/expired|invalid.*(token|link|otp)|otp.*(expired|invalid)/i.test(m)) return 'That sign-in link has expired or was already used. Ask for a new one.';
   if (/signups? not allowed/i.test(m)) return 'New sign-ups are switched off right now.';
+  if (/email address .*not authori[sz]ed|not authori[sz]ed.*email/i.test(m)) return "Email sign-in isn't open to everyone yet. Please use Continue with Google for now.";
+  if (/email.*(is )?invalid|invalid email|validate email|email_address_invalid/i.test(m)) return "That email address doesn't look right. Check it and try again.";
   if (/access[_ ]denied|access blocked|not completed.*verification|testing|test users?|unverified|org_internal|admin_policy/i.test(m)) return GOOGLE_TESTING;
   if (/provider is not enabled|unsupported provider/i.test(m)) return "Google sign-in isn't switched on yet. Use email for now.";
   if (/invalid_client|unauthorized_client/i.test(m)) return 'Google sign-in is misconfigured right now. Use email for now.';
@@ -2095,7 +2097,7 @@ async function authInit() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '23'; // matches the service worker cache, rival-v23
+const APP_VERSION = '24'; // matches the service worker cache, rival-v24
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
