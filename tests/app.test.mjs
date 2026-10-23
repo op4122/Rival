@@ -1238,6 +1238,129 @@ console.log('Delete account');
   await p.context().close();
 }
 
+// ---------- tour, logger tips and "What's new" cover supersets, rivals, the share card and plateau hints ----------
+console.log("Tour, tips and What's new");
+{
+  const ME = '00000000-0000-4000-8000-000000000001', SARA = '00000000-0000-4000-8000-0000000000aa', D = 86400000, now = Date.now();
+  const fake = { me: { id: ME, display_name: 'Omar Test' }, users: [{ id: SARA, display_name: 'Sara Test', share_lifts: true }], rivals: [[ME, SARA]], codes: [{ code: 'a'.repeat(32), user_id: ME }],
+    ghosts: { [SARA]: [{ set_index: 0, weight: 82.5, reps: 8, started_at: '2026-10-20T10:00:00Z' }, { set_index: 1, weight: 82.5, reps: 7, started_at: '2026-10-20T10:00:00Z' }] } };
+  async function open(seed, { w = 390, dark = false, signedIn = false, instant = false } = {}) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: w === 390 ? 844 : 640 }, colorScheme: dark ? 'dark' : 'light', serviceWorkers: 'block' }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    if (signedIn) {
+      await p.addInitScript(sd => { window.__fakeSeed = sd; }, fake);
+      await p.addInitScript({ path: new globalThis.URL('./fake-supabase.js', import.meta.url).pathname });
+      // Real requests take a moment; the fake answers instantly, before the logger has finished opening.
+      if (!instant) await p.addInitScript(() => { window.__fake.tables.exercises = ['bench', 'bbrow', 'squat'].map(x => ({ id: 'ex-' + x, slug: x, user_id: null }));
+        const f = window.rivalDb, rpc = f.rpc; f.rpc = (fn, a) => new Promise(r => setTimeout(r, 120)).then(() => rpc.call(f, fn, a)); });
+    }
+    if (seed) await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(700);
+    return p;
+  }
+  // Click through whatever is open (tour or tips). One row per step: the heading, the tab, and whether the spotlight and the card sit on screen.
+  async function walk(p) {
+    const rows = [];
+    for (let i = 0; i < 30 && await p.locator('.coach').count(); i++) {
+      await p.waitForTimeout(420);
+      const row = await p.evaluate(() => { if (!document.querySelector('.coach-pop')) return null; // the last tip's card is still fading out
+        const r = q => document.querySelector(q).getBoundingClientRect(), pop = r('.coach-pop'), hole = r('.coach-hole'), vw = document.documentElement.clientWidth, vh = innerHeight, c = !!document.querySelector('.coach.center'), dots = document.querySelectorAll('.coach-dots i');
+        const a = document.querySelector('.tab[aria-current=page]');
+        return { h: document.querySelector('#coach-h').textContent, p: document.querySelector('.coach-pop p') ? document.querySelector('.coach-pop p').textContent : '', tab: a && a.dataset.tab, center: c, dots: dots.length, on: [...dots].findIndex(x => x.classList.contains('on')),
+          popIn: pop.left >= 0 && pop.right <= vw + 1 && pop.top >= 0 && pop.bottom <= vh + 1, holeIn: hole.width > 10 && hole.height > 10 && hole.top >= 0 && hole.bottom <= vh + 1 && hole.right <= vw + 1 }; });
+      if (!row) break;
+      rows.push(row);
+      const next = p.locator('[data-act=coachnext]');
+      if (await next.count()) await next.click(); else { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(400); break; }
+    }
+    return rows;
+  }
+  const heads = rows => rows.map(r => r.h);
+  const plan = ex => ({ profile: { units: 'kg', gateSkipped: true, readiness: null, sampleCleared: true, warmups: true, days: [{ name: 'Upper', ex }] } });
+  const slot = (id, x = {}) => ({ id, sets: 3, lo: 6, hi: 8, ...x });
+  const hist = bench => [10, 7, 4, 2].map((ago, i) => ({ id: 'h' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, entries: [{ exId: 'bench', sets: [0, 1, 2].map(() => ({ w: bench(i), r: 7 })) }, { exId: 'squat', sets: [0, 1, 2].map(() => ({ w: 100 + i * 5, r: 8 })) }] }));
+
+  // Fresh install, signed out, on a normal and a narrow phone, light and dark: the whole tour, every step on a real target
+  for (const [w, dark] of [[390, false], [320, true]]) {
+    const p = await open(null, { w, dark });
+    await p.locator('[data-act=gateskip]').click(); await p.waitForTimeout(1000);
+    const rows = await walk(p), hs = heads(rows), at = h => rows[hs.indexOf(h)];
+    ok(rows.length <= 11 && rows.length >= 9, `${w}px ${dark ? 'dark' : 'light'}: the tour is ${rows.length} steps (at most 11)`);
+    ok(hs.indexOf('Supersets') > hs.indexOf('A starting point, not a rulebook') && hs.indexOf('Rival a friend') > hs.indexOf('Supersets'), `${w}px: Plan supersets step, then Settings rivals step`);
+    ok(at('Supersets') && at('Supersets').tab === 'plan' && /Link with the next one/.test(at('Supersets').p) && /Up to 3/.test(at('Supersets').p), `${w}px: supersets step is on the Plan tab and names the Link button`);
+    ok(at('Rival a friend') && at('Rival a friend').tab === 'settings' && /whether they see your lifts/.test(at('Rival a friend').p), `${w}px: the tour switches to Settings for the rivals step`);
+    ok(rows.every(r => r.popIn), `${w}px: the tooltip is on screen on every step`);
+    ok(rows.filter(r => !r.center).every(r => r.holeIn), `${w}px: every step spotlights something on screen (no step points at nothing)`);
+    ok((await state(p)).profile.tour.n === 3 && (await state(p)).profile.tour.done === true, `${w}px: finished; new users never get the What's new note`);
+    ok(await p.locator('.sheet').count() === 0, `${w}px: nothing else pops up after the tour`);
+    ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+    await p.context().close();
+  }
+
+  // Signed in: Rivals loads in the background and redraws Settings while the tour is on it. The spotlight has to follow the new card
+  // (with the fake answering at once the old card is gone before the first redraw; with a delay it is resized after it).
+  for (const instant of [false, true]) {
+    const p = await open({ ...plan([slot('bench'), slot('bbrow')]), sessions: [], active: null }, { w: 320, dark: true, signedIn: true, instant });
+    for (let i = 0; i < 12 && !/Rival a friend/.test(await p.locator('#coach-h').textContent()); i++) { await p.locator('[data-act=coachnext]').click(); await p.waitForTimeout(450); }
+    await p.waitForTimeout(900);
+    const m = await p.evaluate(() => { const h = document.querySelector('.coach-hole').getBoundingClientRect(), t = document.querySelector('#rivals').getBoundingClientRect(), pop = document.querySelector('.coach-pop').getBoundingClientRect();
+      return { h: [h.left, h.top, h.right, h.bottom].map(Math.round), t: [t.left, t.top, t.right, t.bottom].map(Math.round), popIn: pop.top >= 0 && pop.bottom <= innerHeight + 1,
+        covers: h.left <= t.left + 1 && h.right >= t.right - 1 && h.top <= t.top + 1 && h.bottom >= Math.min(t.bottom, innerHeight - 8) - 1 && h.height > 10 }; });
+    ok(m.covers && m.popIn, `signed in${instant ? ', rivals load at once' : ''}: the spotlight covers the Rivals card after it reloads: hole ${m.h} card ${m.t}`);
+    await p.context().close();
+  }
+
+  // "Show again" runs the new tour, then leaves What's new alone
+  {
+    const p = await open({ ...plan([slot('bench')]), sessions: hist(i => 70 + i * 5), active: null });
+    await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('rival.v1')); s.profile.tour = { done: true, wo: true, n: 3 }; localStorage.setItem('rival.v1', JSON.stringify(s)); });
+    await p.reload(); await p.waitForTimeout(900);
+    ok(await p.locator('.coach, .sheet').count() === 0, 'up to date: no tour and no What\'s new');
+    await p.locator('[data-act=tab][data-tab=settings]').click(); await p.waitForTimeout(400);
+    await p.locator('[data-act=replaytour]').click(); await p.waitForTimeout(700);
+    const rows = await walk(p), hs = heads(rows);
+    ok(hs[0] === 'Welcome to Rival' && hs.includes('Supersets') && hs.includes('Rival a friend') && rows.length <= 11, '"Show again" replays the new tour from the welcome card');
+    await p.reload(); await p.waitForTimeout(900);
+    ok(await p.locator('.coach, .sheet').count() === 0, 'and nothing pops up on the next launch');
+    await p.context().close();
+  }
+
+  // Logger tips on a first workout: supersets, rival and plateau tips only when there is something to point at
+  const TIPS = ['Supersets', 'Racing a rival', 'Stuck for a few sessions?'];
+  for (const [name, seed, signedIn, want] of [
+    ['plain', { ...plan([slot('bench'), slot('squat')]), sessions: hist(i => 70 + i * 5), active: null }, false, [0, 0, 0]],
+    ['superset + plateau + rival', { ...plan([slot('bench', { ln: 1 }), slot('squat')]), sessions: hist(() => 80), active: null }, true, [1, 1, 1]],
+    ['plateau only', { ...plan([slot('bench'), slot('squat')]), sessions: hist(() => 80), active: null }, false, [0, 0, 1]]]) {
+    seed.profile.tour = { done: true, wo: false, n: 3 };
+    const p = await open(seed, { w: 320, dark: name === 'plain', signedIn });
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(1500);
+    const rows = await walk(p), hs = heads(rows);
+    ok(TIPS.every((t, i) => hs.includes(t) === !!want[i]), `logger tips (${name}): ${TIPS.map((t, i) => t + (want[i] ? ' shown' : ' skipped')).join(', ')}: ${hs.join(' | ')}`);
+    ok(rows.every(r => r.popIn && (r.center || r.holeIn)), `logger tips (${name}): every tip and spotlight on screen`);
+    ok(rows.every((r, i) => r.dots === rows.length && r.on === i), `logger tips (${name}): the dots match the ${rows.length} tips shown`);
+    ok(/share a story-sized card/.test(rows[rows.length - 1].p), `logger tips (${name}): the finish tip mentions the story-sized card`);
+    ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+    await p.context().close();
+  }
+
+  // What's new: an existing user (n=2) sees the four items once, then never again
+  {
+    const seed = { ...plan([slot('bench')]), sessions: hist(i => 70 + i * 5), active: null }; seed.profile.tour = { done: true, wo: true, n: 2 };
+    const p = await open(seed, { w: 320, dark: true });
+    await p.waitForTimeout(500);
+    const items = await p.locator('.sheet .news li').allTextContents();
+    ok(items.length === 4 && /^Supersets/.test(items[0]) && /^Rival a friend/.test(items[1]) && /^Share card/.test(items[2]) && /^Plateau and deload hints/.test(items[3]), "What's new lists Supersets, Rival a friend, Share card, Plateau and deload hints");
+    ok(await p.locator('.sheet .news li > span:first-child svg').count() === 4, 'each item has its icon');
+    ok(await p.evaluate(() => { const r = document.querySelector('.sheet').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth; }), 'the sheet fits a 320 px phone');
+    await p.locator('[data-act=newsok]').click(); await p.waitForTimeout(400);
+    ok((await state(p)).profile.tour.n === 3, 'Got it marks it seen');
+    await p.reload(); await p.waitForTimeout(1000);
+    ok(await p.locator('.sheet, .coach').count() === 0, 'not shown again');
+    ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+    await p.context().close();
+  }
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nAll passed');
 process.exit(failed ? 1 : 0);

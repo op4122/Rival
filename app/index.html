@@ -751,7 +751,7 @@ body.gated .toasts{z-index:95}
 /* ================= data ================= */
 const KEY = 'rival.v1';
 let erasing = false; // set while an account is being deleted, so nothing is written back to the phone
-const NEWS_V = 2; // bump when there's a new "What's new" note for existing users
+const NEWS_V = 3; // bump when there's a new "What's new" note for existing users
 const DAY = 86400000;
 // Plateau and deload hints: stuck after 3 sessions; deload when readiness averages under 50 and 2+ lifts are stuck.
 const PLATEAU_N = 3, DL_DAYS = 7, DL_QUIET = 14, DL_READY = 50, DL_LIFTS = 2;
@@ -2553,12 +2553,12 @@ onAuth((user, event) => {
 });
 function rivalsHTML() {
   if (!db) return '';
-  if (!authUid()) return `<section class="section"><div class="section-head"><h2 class="h2">Rivals</h2></div><div class="card sheet-actions">
+  if (!authUid()) return `<section class="section" id="rivals"><div class="section-head"><h2 class="h2">Rivals</h2></div><div class="card sheet-actions">
     <p class="sub" style="padding:2px 4px 6px">Race a friend's ghost: their last session shows beside your sets. Sign in to invite a friend.</p><button class="btn press" data-act="rvsignin">Sign in</button></div></section>`;
   // Refresh in the background (rivals, invite link, name and sharing switch can change on another phone).
   if (!RV.loading && navigator.onLine && (!RV.list || Date.now() - (RV.at || 0) > 60000)) {
     RV.loading = true; RV.at = Date.now();
-    Promise.all([rvLoad(true), meLoad(true)]).then(() => { RV.loading = false; if (tab === 'settings' && !sheetEl) { const y = viewScrollTop(); render(); viewScrollTo(y); } });
+    Promise.all([rvLoad(true), meLoad(true)]).then(() => { RV.loading = false; if (tab === 'settings' && !sheetEl) { const y = viewScrollTop(); render(); viewScrollTo(y); if (coach) placeCoach(true); } });
   }
   const p = S.profile;
   const inv = RV.code ? `<p class="note-l" style="margin-top:6px">Your invite link</p><div class="fb-mail"><span class="rv-link">${esc(inviteUrl(RV.code))}</span><button class="link" data-act="rvcopy">Copy</button></div>
@@ -2617,7 +2617,7 @@ function rivalLinesHTML() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '31'; // matches the service worker cache, rival-v31
+const APP_VERSION = '32'; // matches the service worker cache, rival-v32
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -3569,12 +3569,11 @@ const TOUR = [
   {tab:'today', sel:'.card.ready', h:'Check in before you train', b:'Three taps: sleep, soreness, energy. On a rough day Rival trims today\'s weights by 5 to 10%, so you still train without grinding.'},
   {tab:'today', sel:'.card.session .pv', h:'Meet your ghost', b:'Every lift shows today\'s target and your <b>ghost</b>: what you lifted last time. Beat it and you\'re getting stronger. Hit the top of the rep range on every set and the weight goes up next session.'},
   {tab:'today', sel:'#startbar .btn', h:'Start when you\'re ready', b:'Opens the logger full screen. A few quick tips show up the first time.'},
-  {tab:'today', sel:'.daypick', h:'Train any day, in any order', b:'Tap a day to do it next. Rival keeps your place in the program either way.'},
-  {tab:'today', sel:'.tiles', h:'Your plan bends', b:'Not feeling it, or short on time this week? <b>Train something else</b> for just today, or plan a different week. Your program waits where you left it.'},
+  {tab:'today', sel:'.tiles', h:'Your plan bends', b:'Tap any day on your session card to train it next, in any order. Short on time? <b>Train something else</b> for just today, or plan a different week. Your program waits where you left it.'},
   {tab:'progress', sel:'.map-card .bodies', h:'Your muscle heat map', b:'Hard sets per muscle over the last 7 days. <b>Blue</b> is the 10 to 20 sets that builds muscle best. Tap a muscle to see what trained it.'},
-  {tab:'plan', sel:'.prog-card', h:'A starting point, not a rulebook', b:'The plan you start with is only a template. <b>Change program</b> to fit 2 to 6 days a week, build your own split, or <b>import a plan</b> you already follow.'},
-  {tab:'plan', sel:'.card.day .slot', h:'Make every day yours', b:'Tap any exercise to change its sets, reps, rest, order or attachment, or switch between the free-weight and machine version.'},
-  {tab:'plan', sel:'.card.day .add', h:'108 exercises, plus yours', b:'Each one lists the muscles it works. Can\'t find yours? Create it in a few taps.'},
+  {tab:'plan', sel:'.prog-card', h:'A starting point, not a rulebook', b:'The plan you start with is only a template. <b>Change program</b> to fit 2 to 6 days a week, build your own split, or <b>import a plan</b> you already follow. Tap any exercise to edit it, or add one of 108 or your own.'},
+  {tab:'plan', sel:'.card.day .slot', h:'Supersets', b:'Pair lifts into a superset. Tap an exercise, then <b>Link with the next one</b>. Up to 3 back to back, one rest after the round.'},
+  {tab:'settings', sel:'#rivals', h:'Rival a friend', b:'Race a friend\'s ghost. Send them your link; once they open it signed in, their last numbers show beside yours. You choose whether they see your lifts.'},
   {center:'done', tab:'today'}
 ];
 const WO_TIPS = [
@@ -3582,11 +3581,14 @@ const WO_TIPS = [
   {sel:['.set .in-w', '.set .in-r'], h:'Today\'s target', b:'Filled in from your plan. Tap to change the weight or reps if you did something different.'},
   {sel:'.set .sug-b:not([hidden])', h:'Your next step', b:'Today\'s numbers are already filled in. <b>+1</b> means one more rep than last time. Hit the top of the rep range on every set and the weight goes up instead. Change anything and ↺ Reset puts the suggestion back.'},
   {sel:'.set .check', h:'Log each set', b:'Tap the tick when you finish a set. The rest timer starts by itself and you\'ll see if you beat the ghost.'},
+  {sel:'.ss-l', h:'Supersets', b:'Supersets go A1, A2, then rest. The timer waits until the round is done.'},
+  {sel:'#rv-bar .rv-bar', h:'Racing a rival', b:'Their last set shows under yours. Beat it and you\'ll hear about it. <b>Off</b> hides them for this workout.'},
+  {sel:'.plat', h:'Stuck for a few sessions?', b:'Swap to a lift that trains the same muscles, or go 10% lighter today.'},
   {sel:'.ex .wu', h:'Warm-up sets', b:'Lighter ramp-up sets before your first heavy lift. Tap each one as you go. They don\'t count as work sets.'},
   {sel:'.ex [data-act=plates]', h:'Plate math, done', b:'Shows exactly which plates go on each side of the bar.'},
   {sel:'.ex .att', h:'Pick your attachment', b:'Rope, straight bar, V-bar: each one keeps its own weights and ghost, so a rope pushdown never sets the target for a bar pushdown.'},
   {sel:'.ex [data-act=swap]', h:'Machine taken?', b:'Swap any exercise for one that trains the same muscles. Your logged sets stay put.'},
-  {sel:'.wo-head .finish', h:'Finish and save', b:'Save the workout when you\'re done. The arrow on the left tucks the logger away so you can check other tabs mid-session.'}
+  {sel:'.wo-head .finish', h:'Finish and save', b:'Save the workout when you\'re done. After saving you can share a story-sized card. The arrow on the left tucks the logger away so you can check other tabs mid-session.'}
 ];
 let coach = null, kbNav = false; // move focus into the tour only for keyboard users, so taps don't flash a focus ring
 addEventListener('keydown', e => { if (e.key === 'Tab' || e.key.startsWith('Arrow') || e.key === 'Enter') kbNav = true; }, true);
@@ -3626,7 +3628,7 @@ function goCoach(i, dir) {
   if (i >= c.steps.length) return endCoach();
   c.i = i;
   const st = c.steps[i], pop = c.el.querySelector('.coach-pop');
-  const pts = c.steps.filter(x => x.sel), n = pts.indexOf(st);
+  const pts = c.steps.filter(x => x.sel && (c.kind !== 'wo' || coachTargets(x).length)), n = pts.indexOf(st);
   if (st.sel) {
     const t = st._t[0];
     if (coach.kind === 'wo') t.scrollIntoView({block:'center'});
@@ -3660,10 +3662,10 @@ function goCoach(i, dir) {
 function newsSheet() {
   openSheet(`<h2 class="h2">New in Rival</h2><p class="sub">A few things people asked for.</p>
     <ul class="news">
-      <li><span>${ICO.shuffle}</span><span><b>Supersets.</b> Tap an exercise on the Plan tab (or ⋯ in a workout) and link it with the next one. Rival takes you from A1 to A2 and rests after the round.</span></li>
-      <li><span>${ICO.ring}</span><span><b>Rival a friend.</b> In Settings → Rivals, send a friend your link and race their ghost. Your lifts stay hidden unless you switch sharing on.</span></li>
-      <li><span>${I.share}</span><span><b>Share your workout.</b> Tap Share when you finish for a story-sized picture of your session.</span></li>
-      <li><span>${ICO.edit}</span><span><b>Stuck on a lift?</b> After 3 sessions without beating your ghost, Rival suggests a swap or a lighter day, and a deload week when you're worn down.</span></li>
+      <li><span>${ICO.shuffle}</span><span><b>Supersets.</b> Link 2 or 3 lifts and take one rest after each round.</span></li>
+      <li><span>${ICO.ring}</span><span><b>Rival a friend.</b> Send your link from Settings and race their ghost.</span></li>
+      <li><span>${I.share}</span><span><b>Share card.</b> After a workout, share a story-sized picture of it.</span></li>
+      <li><span>${ICO.edit}</span><span><b>Plateau and deload hints.</b> When you get stuck, Rival suggests a swap, a lighter day or a deload week.</span></li>
     </ul>
     <div class="sheet-actions"><button class="btn primary big press" data-act="newsok">Got it</button></div>`, () => { S.profile.tour.n = NEWS_V; persist(); });
 }
@@ -3671,6 +3673,7 @@ function placeCoach(instant) {
   const c = coach; if (!c) return;
   const st = c.steps[c.i], hole = c.el.querySelector('.coach-hole'), pop = c.el.querySelector('.coach-pop');
   if (instant) c.el.classList.add('instant');
+  if (st.sel && st._t && st._t.some(t => !t.isConnected)) { const t = coachTargets(st); if (t.length) st._t = t; } // the view was redrawn under us
   const vw = document.documentElement.clientWidth, vh = innerHeight, pw = pop.offsetWidth, ph = pop.offsetHeight;
   let hx = vw / 2, hy = vh / 2, hw = 0, hh = 0, rad = 18, py = Math.max(16, (vh - ph) / 2), px = (vw - pw) / 2;
   if (st.sel && st._t && st._t.length) {
