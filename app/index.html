@@ -1442,7 +1442,7 @@ function ssMove(list, i, d) {
 // The links as they are now, and putting them back exactly (for Undo).
 const ssLinks = list => list.map(x => !!x.ln);
 const ssRestore = (list, links) => { if (links.length === list.length) list.forEach((x, k) => { if (links[k]) x.ln = 1; else delete x.ln; }); };
-window.RivalSuperset = {ssGroups, ssCanLink, ssRemove, ssMove, MAX:SS_MAX};
+window.RivalSuperset = {ssGroups, ssCanLink, ssRemove, ssMove, ssUnlink: (l, i) => ssUnlink(l, i), MAX:SS_MAX};
 const ssLabel = gi => gi ? `<span class="ss-l">${gi.g}${gi.n}</span>` : '';
 // Wraps each group's items in one block with a shared coloured bar.
 function ssWrap(list, item) {
@@ -3123,7 +3123,14 @@ function ssLink(list, i, where) {
   const size = ssCanLink(list, i); if (!size) return;
   list[i].ln = 1; A.track('superset_created', {size, where}); toast(size === 2 ? 'Superset linked' : 'Added to the superset');
 }
-function ssUnlink(list, i) { const gi = ssGroups(list)[i]; if (!gi) return; for (let k = gi.start; k <= gi.end; k++) delete list[k].ln; toast('Superset unlinked'); }
+// Remove one exercise from its superset. First or last: only it leaves and the rest stay grouped. A middle one can't
+// leave without splitting the group, so its links on both sides go.
+function ssUnlink(list, i) {
+  const gi = ssGroups(list)[i]; if (!gi) return false;
+  if (i > gi.start) delete list[i - 1].ln;
+  if (i < gi.end) delete list[i].ln;
+  return true;
+}
 function focusSet({ei, si}) {
   const row = wo.querySelector(`.set[data-e="${ei}"][data-s="${si}"]`); if (!row) return;
   row.scrollIntoView({behavior:reduced() ? 'auto' : 'smooth', block:'center'});
@@ -3436,7 +3443,7 @@ function ssRowHTML(list, i, kind, ei) {
   const gi = ssGroups(list)[i], nm = x => esc(EX[x.id || x.exId] ? EX[x.id || x.exId].n : (x.id || x.exId)), de = ei != null ? ` data-e="${ei}"` : '';
   // Both rows can show: an exercise already in a group can still bring the next one in (A2 of 2 adds an A3).
   const size = ssCanLink(list, i), nx = size ? list[i + 1] : null;
-  const unlink = gi ? `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">${list.slice(gi.start, gi.end + 1).map((x, k) => gi.g + (k + 1) + ' ' + nm(x)).join(', ')}</span></span><button class="link" data-act="${kind}unlink"${de}>Unlink</button></div>` : '';
+  const unlink = gi ? `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">${list.slice(gi.start, gi.end + 1).map((x, k) => gi.g + (k + 1) + ' ' + nm(x)).join(', ')}</span></span><button class="link" data-act="${kind}unlink"${de}>Remove from superset</button></div>` : '';
   const link = nx ? `<div class="set-row"><span>Link with the next one<span class="menu-s" style="display:block">${gi ? `Adds ${nm(nx)} as ${gi.g}${size}` : `Alternate sets with ${nm(nx)}, rest after each round`}</span></span><button class="link" data-act="${kind}link"${de}>Link</button></div>` : '';
   return unlink + link;
 }
@@ -3655,9 +3662,9 @@ const acts = {
   shareback() { finishSheet(); },
   sharename(el) { S.profile.shareName = el.dataset.v === '1'; touch(); shareSheet(); },
   slotlink() { ssLink(S.profile.days[slotCtx.d].ex, slotCtx.s, 'plan'); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
-  slotunlink() { ssUnlink(S.profile.days[slotCtx.d].ex, slotCtx.s); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
+  slotunlink() { if (ssUnlink(S.profile.days[slotCtx.d].ex, slotCtx.s)) toast('Removed from superset'); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
   exlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; ssLink(S.active.entries, ei, 'workout'); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
-  exunlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; ssUnlink(S.active.entries, ei); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
+  exunlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; if (ssUnlink(S.active.entries, ei)) toast('Removed from superset'); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
   plswap(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'swap'); refreshEx(+el.dataset.e); acts.swap(el); },
   plx(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'dismiss'); refreshEx(+el.dataset.e); },
   pllight(el) {

@@ -828,6 +828,32 @@ console.log('Link a third (BUG-1)');
   await p.context().close();
 }
 
+// ---------- BUG-2: "Remove from superset" takes out only the tapped exercise ----------
+console.log('Remove from superset (BUG-2)');
+{
+  const sl = (id, ln) => ({ id, sets: 3, lo: 8, hi: 12, ...(ln ? { ln: 1 } : {}) });
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, days: [{ name: 'Upper', ex: [sl('bench', 1), sl('bbrow', 1), sl('ezcurl'), sl('squat')] }] }, sessions: [], active: null });
+  const U = (list, i) => p.evaluate(([list, i]) => { const l = list.map(n => ({ n: n.replace('+', ''), ...(n.endsWith('+') ? { ln: 1 } : {}) })), S = window.RivalSuperset;
+    S.ssUnlink(l, i); const g = S.ssGroups(l); return l.map((x, k) => x.n + (g[k] ? g[k].g + g[k].n : '')).join(' '); }, [list, i]);
+  ok(await U(['a+', 'b+', 'c'], 0) === 'a bA1 cA2', 'first of three: only it leaves, the other two stay a pair');
+  ok(await U(['a+', 'b+', 'c'], 2) === 'aA1 bA2 c', 'last of three: only it leaves');
+  ok(await U(['a+', 'b+', 'c'], 1) === 'a b c', 'middle of three: the group splits');
+  ok(await U(['a+', 'b'], 1) === 'a b', 'last of a pair: both are on their own');
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="2"]').click(); await p.waitForTimeout(400);
+  ok((await p.locator('.sheet [data-act=slotunlink]').textContent()).trim() === 'Remove from superset', 'button says "Remove from superset"');
+  await p.locator('.sheet [data-act=slotunlink]').click(); await p.waitForTimeout(300);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  ok(JSON.stringify(await p.locator('#view .ss-l').allTextContents()) === JSON.stringify(['A1', 'A2']), 'plan: A3 (curl) removed, bench and row are still A1 / A2');
+  // In the logger: remove the first of a pair
+  await p.locator('[data-act=tab][data-tab=today]').click(); await p.waitForTimeout(300);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=exunlink]').click(); await p.waitForTimeout(300);
+  ok(await p.locator('#wo .ss-l').count() === 0 && /Removed from superset/.test(await p.locator('#toasts').textContent()), 'logger: removing A1 of a pair leaves both on their own, toast "Removed from superset"');
+  await p.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
