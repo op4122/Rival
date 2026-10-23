@@ -636,6 +636,13 @@ body.gated .toasts{z-index:95}
 .finish{height:44px}
 .wu{row-gap:10px}
 .wu-c{color:var(--ink)}
+/* "Try 82.5 × 8": the suggested next step, tucked under the inputs. Plate-blue like other actions; eased days go quiet grey. */
+.set .sug{grid-column:2/5;grid-row:2;justify-self:start;position:relative;display:inline-flex;align-items:center;height:26px;margin:1px 0 2px;padding:0 9px;border-radius:8px;
+  background:var(--accent-soft);color:var(--accent);font-family:var(--display);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;white-space:nowrap}
+.set .sug.eased{background:var(--surface-2);color:var(--muted)}
+.set .sug[hidden]{display:none}
+.set .sug:active{transform:scale(.97)}
+.set .sug::after{content:'';position:absolute;left:-4px;right:-4px;top:50%;height:44px;transform:translateY(-50%)}
 .swap,.wu-c,.att-o .chip,.ex-act button{position:relative}
 .swap::after,.wu-c::after,.att-o .chip::after,.ex-act button::after{content:'';position:absolute;left:-2px;right:-2px;top:50%;height:44px;min-width:44px;transform:translateY(-50%)}
 .att-o{padding-top:4px;padding-bottom:4px;margin:-4px 0}
@@ -1020,6 +1027,7 @@ function exUChoice(id) { const m = S.profile.exUnit, u = m && (m[id] || m[baseOf
 function exU(id) { const u = exUChoice(id); return u === 'def' ? S.profile.units : u; }
 function inU(id, fn) { const prev = UX; UX = exU(id); try { return fn(); } finally { UX = prev; } }
 // Weight steps people can actually load. In lb, plates and dumbbells go up in 2.5, 5 or 10 lb, not in converted kg.
+const INC_STEPS = [0.5, 1, 1.25, 2, 2.5, 5, 10]; // weight jumps you can pick, kg
 const lbStep = incKg => incKg <= 1.25 ? 2.5 : incKg <= 2.5 ? 5 : 10;
 function stepKg(incKg) { return U() === 'lb' ? lbStep(incKg) / 2.20462 : incKg; }
 function roundW(kg, incKg) {
@@ -1108,6 +1116,7 @@ function cleanActive(a) {
   if (!a.entries.every(en => isObj(en) && typeof en.exId === 'string' && Array.isArray(en.sets) && en.sets.every(isObj))) return null;
   a.id = str(a.id, 60) || newId(); a.dayName = str(a.dayName, 40) || 'Workout';
   a.mode = a.mode === 'today' || a.mode === 'week' ? a.mode : 'program';
+  a.entries.forEach(en => en.sets.forEach(x => { const g = x.sg; if (g && !(isObj(g) && (g.w == null || fin(g.w)) && fin(g.r) && (g.t === 'reps' || g.t === 'weight'))) delete x.sg; }));
   a.entries.forEach(en => { en.lo = fin(en.lo) ? en.lo : 8; en.hi = fin(en.hi) ? en.hi : en.lo; en.rest = fin(en.rest) ? en.rest : 90; en.note = str(en.note, 80); });
   // The rest timer is stored as its end time, so it's right even if the phone closed the app in the background.
   if (!(isObj(a.rest) && fin(a.rest.end) && fin(a.rest.total) && a.rest.total > 0 && a.rest.total <= 3600)) delete a.rest;
@@ -1123,6 +1132,9 @@ function cleanProfile(p0) {
   { const m = isObj(p.exUnit) ? p.exUnit : {}, o = {};
     Object.keys(m).slice(0, 400).forEach(k => { if ((m[k] === 'kg' || m[k] === 'lb' || m[k] === 'def') && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
     out.exUnit = o; }
+  { const m = isObj(p.exInc) ? p.exInc : {}, o = {}; // per-exercise weight jump in kg (⋯ menu)
+    Object.keys(m).slice(0, 400).forEach(k => { if (INC_STEPS.includes(m[k]) && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
+    out.exInc = o; }
   out.restC = fin(out.restC) ? clamp(Math.round(out.restC), 30, 600) : 150;
   out.restI = fin(out.restI) ? clamp(Math.round(out.restI), 30, 600) : 90;
   out.warmups = out.warmups !== false;
@@ -1269,26 +1281,59 @@ function tierOf(score) {
 }
 function curTier() { const r = todayR(); return tierOf(r && !r.skipped ? r.score : null); }
 
+// Weight jump for one exercise: the user's own setting (⋯ menu), else its base lift's, else the library's
+// (2.5 kg barbell, 2 kg dumbbell, 1 kg small dumbbell, the machine's own step).
+function incOf(id) { const m = S.profile.exInc, v = m && (m[id] || m[baseOf(id)]); return fin(v) ? v : (EX[id] && EX[id].inc) || 2.5; }
+
+/* Double progression: the weight goes up only once the reps have earned it.
+   - Every working set last time reached the top of the range: next weight up (one step), reps back to the bottom.
+   - Otherwise: same weight, one more rep on the first set that fell short; the other sets repeat last time.
+   Reps never go below the bottom of the range. Bodyweight sets with no added weight can't go up a step, so they
+   add a rep on the first set instead. Pure (no app state), so tests can call it: window.RivalProgression.
+   g: last session's sets [{w, r}] (kg). Returns {type: 'weight'|'reps', sets: [{w, r}]} or null with no ghost. */
+function progression(g, sets, lo, hi, stepKgV, bw) {
+  if (!Array.isArray(g) || !g.length) return null;
+  const allTop = g.length >= sets && g.slice(0, sets).every(s => s.r >= hi);
+  const miss = allTop ? 0 : g.slice(0, sets).findIndex(s => s.r < hi);
+  let type = 'reps';
+  const out = [];
+  for (let i = 0; i < sets; i++) {
+    const gs = g[i] || g[g.length - 1], fixed = bw && !gs.w; // fixed: bodyweight only, nothing to add
+    let w = gs.w, r = Math.max(gs.r, lo);
+    if (allTop && !fixed) { w = +(gs.w + stepKgV).toFixed(3); r = lo; type = 'weight'; }
+    else if (i === miss && g[i]) r = allTop ? gs.r + 1 : Math.min(Math.max(gs.r + 1, lo), hi);
+    out.push({w, r: Math.min(r, MAX_REPS)});
+  }
+  return {type, sets: out};
+}
+window.RivalProgression = {progression}; // for tests and the browser console
+
 function planSlot(slot, tier) { return inU(slot.id, () => planSlot0(slot, tier)); }
+// Each set: w, r (what the inputs start with), g (its ghost), sg (the suggestion behind w, r, shown as the "Try" hint).
 function planSlot0(slot, tier) {
-  const ex = EX[slot.id] || {inc:2.5};
+  const ex = EX[slot.id] || {}, inc = incOf(slot.id);
   const last = lastWith(slot.id), g = last ? last.sets : [];
   let n = slot.sets; if (tier.drop && n >= 3) n -= 1;
-  const allTop = g.length >= slot.sets && g.slice(0, slot.sets).every(s => s.r >= slot.hi);
+  const pr = progression(g, slot.sets, slot.lo, slot.hi, stepKg(inc), !!ex.bw);
   const out = [];
   for (let i = 0; i < n; i++) {
-    const gs = g[i] || g[g.length - 1] || null;
-    let w = null, r = slot.lo;
-    if (gs) {
-      w = gs.w; r = Math.min(Math.max(gs.r + 1, slot.lo), slot.hi);
-      if (allTop && !(ex.bw && !gs.w)) { w = gs.w + stepKg(ex.inc || 2.5); r = slot.lo; }
-      else if (allTop) r = Math.min(slot.hi + 2, (gs.r || slot.hi) + 1);
-      if (w > 0 && U() === 'lb') w = roundW(w, ex.inc || 2.5);
-    }
-    if (w != null && w > 0 && tier.factor < 1) w = roundW(w * tier.factor, ex.inc || 1);
-    out.push({w, r, g: g[i] || null});
+    const gi = g[i] || null;
+    if (!pr) { out.push({w:null, r:slot.lo, g:gi}); continue; }
+    let {w, r} = pr.sets[i];
+    if (w > 0 && U() === 'lb') w = roundW(w, inc);
+    const ref = gi || g[g.length - 1], p = !gi || Math.abs(w - ref.w) > 0.01 || r !== ref.r; // p: this set moves on from its ghost
+    let e = false;
+    if (w > 0 && tier.factor < 1) { const ew = roundW(w * tier.factor, inc); e = Math.abs(ew - w) > 0.01; w = ew; }
+    out.push({w, r, g:gi, sg:{w, r, t:pr.type, e, p}});
   }
   return out;
+}
+// The set objects a workout keeps, from a plan.
+const planSets = (slot, tier) => planSlot(slot, tier).map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, ...(x.sg ? {sg:x.sg} : {}), done:false, res:null}));
+// progression_suggested: once per exercise per workout, when its targets are first drawn up.
+function trackSuggested(en) {
+  const s = en.sets.find(x => x.sg); if (!s || en.sugT) return;
+  en.sugT = 1; A.track('progression_suggested', {exercise_id:en.exId, type:s.sg.t, eased:en.sets.some(x => x.sg && x.sg.e)});
 }
 
 /* ================= storage note =================
@@ -1338,7 +1383,7 @@ const Sync = (() => {
   }
   function settingsRow() {
     const p = S.profile;
-    const keep = ['days', 'program', 'nextDay', 'custom', 'exUnit', 'restC', 'restI', 'theme', 'bars', 'warmups', 'restSound', 'units', 'programPicked', 'starterSeen', 'tour'];
+    const keep = ['days', 'program', 'nextDay', 'custom', 'exUnit', 'exInc', 'restC', 'restI', 'theme', 'bars', 'warmups', 'restSound', 'units', 'programPicked', 'starterSeen', 'tour'];
     const settings = {v:1, updatedAt:p.updatedAt || 0}; keep.forEach(k => { if (p[k] !== undefined) settings[k] = p[k]; });
     return {id:st.uid, units:p.units === 'lb' ? 'lb' : 'kg', settings};
   }
@@ -2215,7 +2260,7 @@ async function authInit() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '26'; // matches the service worker cache, rival-v26
+const APP_VERSION = '27'; // matches the service worker cache, rival-v27
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2414,10 +2459,11 @@ function startWorkout(idx, o) {
     readiness: r && !r.skipped ? r.score : null, tierKey: tier.key,
     rq: r && !r.skipped ? {id:uuid(), sleep:r.sleep, sore:r.sore, energy:r.energy, score:r.score} : null,
     entries: day.ex.map(sl => ({exId:sl.id, lo:sl.lo, hi:sl.hi, rest:restFor(sl), note:sl.note || '',
-      sets: planSlot(sl, tier).map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}))}))
+      sets: planSets(sl, tier)}))
   };
   persist(); openWorkout();
   A.track('workout_started', {mode:S.active.mode, exercise_count:S.active.entries.length});
+  S.active.entries.forEach(trackSuggested); persist();
 }
 function openWorkout() {
   document.body.classList.add('wo-open');
@@ -2453,8 +2499,19 @@ function setRow0(en, s, ei, si) {
     <span class="ghost">${gtxt}<span class="g-win${s.res === 'match' ? ' match' : ''}">${esc(win)}</span></span>
     <input class="in-w" id="w-${ei}-${si}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Set ${si + 1} weight in ${U()}${ex.ea ? ', for each side' : ''}" placeholder="${ex.bw ? 'BW' : U()}" value="${s.w == null || (ex.bw && !s.w) ? '' : fmtW(s.w)}">
     <input class="in-r" id="r-${ei}-${si}" inputmode="numeric" enterkeyhint="done" autocomplete="off" aria-label="Set ${si + 1} reps" placeholder="reps" value="${s.r == null ? '' : s.r}">
-    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button></div></div>`;
+    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button>${sugHTML(ex, s)}</div></div>`;
 }
+/* The "Try 82.5 × 8" hint: the suggested target behind the pre-filled inputs. Shown on sets where today moves on from
+   the ghost (more reps or the next weight up), on eased days ("Eased: 80 × 8"), and on any set whose inputs were
+   changed. Tapping it puts the suggestion back. Gone once the set is logged. */
+const sugSame = s => !!s.sg && fmtW(s.w || 0) === fmtW(s.sg.w || 0) && s.r === s.sg.r;
+const sugShown = s => !!s.sg && !s.done && (s.sg.p || s.sg.e || !sugSame(s));
+function sugHTML(ex, s) {
+  if (!s.sg || s.done) return '';
+  const w = ex.bw && !s.sg.w ? 'BW' : fmtW(s.sg.w), lab = s.sg.e ? 'Eased' : 'Try';
+  return `<button class="sug${s.sg.e ? ' eased' : ''}" data-act="sug" ${sugShown(s) ? '' : 'hidden'} aria-label="${lab}: ${w}${w === 'BW' ? '' : ' ' + U()} × ${s.sg.r}. Tap to fill in.">${lab}${s.sg.e ? ':' : ''} ${w} × ${s.sg.r}</button>`;
+}
+function sugRefresh(row, s) { const b = row && row.querySelector('.sug'); if (b) b.hidden = !sugShown(s); }
 function exBlock(en, ei) { return inU(en.exId, () => exBlock0(en, ei)); }
 function exBlock0(en, ei) {
   const ex = EX[en.exId] || {n:en.exId};
@@ -2480,7 +2537,10 @@ function exMenuHTML(ei) {
   const cur = exUChoice(en.exId), def = S.profile.units;
   const units = `<p class="note-l" style="margin-top:${sets ? 16 : 4}px">Units for this exercise</p>
     <div class="seg menu-seg" role="group" aria-label="Units for ${esc(ex.n)}">${[['kg', 'kg'], ['lb', 'lb'], ['def', `Use default (${def})`]].map(([v, l]) => `<button data-act="exunit" data-e="${ei}" data-u="${v}" aria-pressed="${cur === v}">${l}</button>`).join('')}</div>`;
-  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}${units}
+  const inc = incOf(en.exId), ii = INC_STEPS.indexOf(inc), incTxt = inU(en.exId, () => `${U() === 'lb' ? lbStep(inc) : fmtW(inc)} ${U()}`);
+  const jump = ex.bw && !en.sets.some(x => x.w > 0) ? '' : `<div class="set-row" style="margin-top:12px"><span>Weight jump<span class="menu-s" style="display:block">When every set hits ${en.hi} reps</span></span>
+    <div class="stepper"><button data-act="exinc" data-e="${ei}" data-v="-1" aria-label="Smaller jump" ${ii === 0 ? 'disabled' : ''}>−</button><output>${incTxt}</output><button data-act="exinc" data-e="${ei}" data-v="1" aria-label="Bigger jump" ${ii === INC_STEPS.length - 1 ? 'disabled' : ''}>+</button></div></div>`;
+  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}${units}${jump}
     <div class="sheet-actions" style="margin-top:16px"><button class="btn danger press" data-act="rmex" data-e="${ei}">Remove exercise</button></div>
     <p class="sub" style="margin-top:10px;font-size:13px">Tip: swipe a set to the left to delete it.</p>`;
 }
@@ -2564,11 +2624,13 @@ function logSet0(row) {
     if (r > MAX_REPS) { toast('That many reps? Check the number'); row.querySelector('.in-r').focus(); return; }
     s.w = w == null ? 0 : w; s.r = r; s.done = true; s.res = cmpGhost(s, s.g); s.at = Date.now(); if (!s.cid) s.cid = uuid();
     if (s.res === 'beat') buzz(18); else buzz(8);
+    // progression_accepted: once per exercise per workout, the first time a set that moves on from its ghost is logged as suggested
+    if (s.sg && s.sg.p && !en.accT && sugSame(s)) { en.accT = 1; A.track('progression_accepted', {exercise_id:en.exId, type:s.sg.t, via:s.sugTap ? 'tap' : 'prefill'}); }
     A.track('set_logged', {exercise_id:en.exId, weight_kg:s.w, reps:s.r, offline:!navigator.onLine});
     if (s.res === 'beat' && s.g) A.track('ghost_set_beaten', {exercise_id:en.exId, margin:Math.round((e1(s.w, s.r) - e1(s.g.w, s.g.r)) * 10) / 10});
     if (!navigator.onLine && authUid()) A.track('offline_set_queued', {exercise_id:en.exId, pending:Sync.status.pending + 1});
     // carry a changed weight forward to the next untouched sets
-    for (let j = si + 1; j < en.sets.length; j++) if (!en.sets[j].done && en.sets[j].w !== s.w && en.sets[j]._auto !== false) { en.sets[j].w = s.w; const inp = wo.querySelector(`#w-${ei}-${j}`); if (inp) inp.value = fmtW(s.w); }
+    for (let j = si + 1; j < en.sets.length; j++) if (!en.sets[j].done && en.sets[j].w !== s.w && en.sets[j]._auto !== false) { en.sets[j].w = s.w; const inp = wo.querySelector(`#w-${ei}-${j}`); if (inp) { inp.value = fmtW(s.w); sugRefresh(inp.closest('.set'), en.sets[j]); } }
     startRest(en.rest);
   }
   persist();
@@ -2783,7 +2845,6 @@ function cxHTML() {
       ${cx.id ? '<button class="btn danger press" data-act="cxdel">Delete exercise</button>' : ''}
       ${ok ? '' : '<p class="sub" style="text-align:center">Add a name and at least one primary muscle.</p>'}</div>`;
 }
-const INC_STEPS = [0.5, 1, 1.25, 2, 2.5, 5, 10];
 let plateCtx = null;
 function plateHTML() { return inU(S.active.entries[plateCtx.ei].exId, plateHTML0); }
 function plateHTML0() {
@@ -2852,8 +2913,8 @@ function addToCtx(id) {
   if (libCtx && libCtx.imp && imp) { const r = imp.days[libCtx.imp.d].ex[libCtx.imp.i]; r.id = id; r.off = false; libCtx = null; openSheet(impReviewHTML()); return; }
   if (libCtx && libCtx.workout && S.active) {
     const lo = ex.c ? 6 : 10, hi = ex.c ? 10 : 15, slot = {id, sets:3, lo, hi};
-    const plan = planSlot(slot, tierOf(S.active.readiness));
-    S.active.entries.push({exId:id, lo, hi, rest:restFor(slot), note:'', sets: plan.map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}))});
+    S.active.entries.push({exId:id, lo, hi, rest:restFor(slot), note:'', sets: planSets(slot, tierOf(S.active.readiness))});
+    trackSuggested(S.active.entries[S.active.entries.length - 1]);
     persist(); closeSheet();
     const ei = S.active.entries.length - 1, tmp = document.createElement('div'); tmp.innerHTML = exBlock(S.active.entries[ei], ei);
     $('#wo-list').appendChild(tmp.firstElementChild); $('#wo-count').textContent = countDone();
@@ -2928,6 +2989,7 @@ const TOUR = [
 const WO_TIPS = [
   {sel:'.set .ghost', h:'This is your ghost', b:'What you did on this set last time. Match it, or beat it.'},
   {sel:['.set .in-w', '.set .in-r'], h:'Today\'s target', b:'Filled in from your plan. Tap to change the weight or reps if you did something different.'},
+  {sel:'.set .sug:not([hidden])', h:'Your next step', b:'Hit the top of the rep range on every set and Rival suggests the next weight up. Until then, one more rep. Tap the hint to put the suggestion back if you changed the numbers.'},
   {sel:'.set .check', h:'Log each set', b:'Tap the tick when you finish a set. The rest timer starts by itself and you\'ll see if you beat the ghost.'},
   {sel:'.ex .wu', h:'Warm-up sets', b:'Lighter ramp-up sets before your first heavy lift. Tap each one as you go. They don\'t count as work sets.'},
   {sel:'.ex [data-act=plates]', h:'Plate math, done', b:'Shows exactly which plates go on each side of the bar.'},
@@ -3114,6 +3176,14 @@ const acts = {
   resume() { if (S.active) openWorkout(); },
   min() { minimizeWorkout(); },
   log(el) { logSet(el.closest('.set')); },
+  sug(el) {
+    const row = el.closest('.set'), en = S.active && S.active.entries[+row.dataset.e], s = en && en.sets[+row.dataset.s];
+    if (!s || !s.sg || s.done) return;
+    s.w = s.sg.w; s.r = s.sg.r; s.sugTap = 1;
+    inU(en.exId, () => { const ex = EX[en.exId] || {}; row.querySelector('.in-w').value = s.w == null || (ex.bw && !s.w) ? '' : fmtW(s.w); });
+    row.querySelector('.in-r').value = s.r;
+    persist(); inU(en.exId, () => sugRefresh(row, s)); buzz(8);
+  },
   addset(el) {
     const ei = +el.dataset.e, en = S.active.entries[ei], last = en.sets[en.sets.length - 1];
     const prev = lastWith(en.exId), g = prev && prev.sets[en.sets.length];
@@ -3181,6 +3251,16 @@ const acts = {
     const f = wo.querySelector(`.ex[data-e="${ei}"] [data-act=exmenu]`); if (f && kbNav) f.focus({preventScroll:true});
     toast(`${ex.n || 'Exercise'} now in ${u}${choice === 'def' ? ' (your default)' : ''}`);
   },
+  exinc(el) {
+    const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
+    const id = en.exId, cur = incOf(id), i = INC_STEPS.indexOf(cur), nx = INC_STEPS[clamp((i < 0 ? INC_STEPS.indexOf(2.5) : i) + +el.dataset.v, 0, INC_STEPS.length - 1)];
+    S.profile.exInc = isObj(S.profile.exInc) ? S.profile.exInc : {};
+    if (nx === ((EX[id] && EX[id].inc) || 2.5) && !S.profile.exInc[baseOf(id)]) delete S.profile.exInc[id]; else S.profile.exInc[id] = nx;
+    // Re-plan sets not logged yet; sets still on the old suggestion move to the new one, edited sets keep what was typed.
+    const tier = Object.assign({}, tierOf(S.active.readiness), {drop:false}), fresh = planSets({id, sets:en.sets.length, lo:en.lo, hi:en.hi}, tier);
+    en.sets.forEach((x, k) => { if (x.done || !fresh[k] || !fresh[k].sg) return; if (!x.sg || inU(id, () => sugSame(x))) { x.w = fresh[k].w; x.r = fresh[k].r; } x.sg = fresh[k].sg; });
+    touch(); refreshEx(ei); setSheet(exMenuHTML(ei));
+  },
   rest(el) { const k = el.dataset.k; S.profile[k] = Math.max(30, Math.min(600, S.profile[k] + +el.dataset.d)); touch(); render(); },
   slot(el) { slotCtx = {d:+el.dataset.d, s:+el.dataset.s}; openSheet(slotHTML(slotCtx.d, slotCtx.s)); },
   slotstep(el) {
@@ -3209,11 +3289,12 @@ const acts = {
     const id = el.dataset.id, ctx = swapCtx; if (!S.active || !ctx || !EX[id]) return;
     const ei = ctx.ei, en = S.active.entries[ei]; if (!en || en.exId !== ctx.from) { closeSheet(); return; }
     const before = clone(S.active.entries), done = en.sets.filter(x => x.done), tier = Object.assign({}, tierOf(S.active.readiness), {drop:false});
-    const mk = n => planSlot({id, sets:n, lo:en.lo, hi:en.hi}, tier).map(x => ({w:x.w, r:x.r, g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null}));
+    const mk = n => planSets({id, sets:n, lo:en.lo, hi:en.hi}, tier);
     let ni = ei;
     if (!done.length) Object.assign(en, {exId:id, note:'', wdone:[], rest:restFor({id}), sets:mk(en.sets.length)});
     else { const n = Math.max(1, en.sets.length - done.length); en.sets = done;
       S.active.entries.splice(ei + 1, 0, {exId:id, lo:en.lo, hi:en.hi, rest:restFor({id}), note:'', sets:mk(n)}); ni = ei + 1; }
+    if (!done.length) delete en.sugT; trackSuggested(S.active.entries[ni]);
     persist(); swapCtx = null; closeSheet();
     const body = wo.querySelector('.wo-body'), y = body ? body.scrollTop : 0; renderWorkout();
     const b2 = wo.querySelector('.wo-body'); if (b2) b2.scrollTop = y;
@@ -3230,7 +3311,7 @@ const acts = {
     // Weights come from the last time you used this attachment. Never used it? Keep what's on the card as a starting point.
     const mk = old => planSlot({id:to, sets:Math.max(1, old.length), lo:en.lo, hi:en.hi}, tier).map((x, i) => {
       const o = old[i] || old[old.length - 1] || {};
-      return {w:known ? x.w : (o.w != null ? o.w : x.w), r:known ? x.r : (o.r != null ? o.r : x.r), g:x.g ? {w:x.g.w, r:x.g.r} : null, done:false, res:null};
+      return {w:known ? x.w : (o.w != null ? o.w : x.w), r:known ? x.r : (o.r != null ? o.r : x.r), g:x.g ? {w:x.g.w, r:x.g.r} : null, ...(known && x.sg ? {sg:x.sg} : {}), done:false, res:null};
     });
     const done = en.sets.filter(x => x.done), left = en.sets.filter(x => !x.done);
     let ni = ei;
@@ -3240,6 +3321,7 @@ const acts = {
       a.entries.splice(ei + 1, 0, {exId:to, lo:en.lo, hi:en.hi, rest:en.rest, note:en.note, sets:mk(left.length ? left : [done[done.length - 1]])}); ni = ei + 1;
     }
     rememberAtt(from, to);
+    if (!done.length) delete en.sugT; trackSuggested(a.entries[ni]);
     persist();
     const body = wo.querySelector('.wo-body'), y = body ? body.scrollTop : 0; renderWorkout();
     const b2 = wo.querySelector('.wo-body'); if (b2) b2.scrollTop = y;
@@ -3329,7 +3411,7 @@ const acts = {
     openSheet(plateHTML());
   },
   pcw(el) {
-    const en = S.active.entries[plateCtx.ei], ex = EX[en.exId], stepKg = U() === 'lb' ? 5 / 2.20462 : (ex.inc || 2.5);
+    const en = S.active.entries[plateCtx.ei], ex = EX[en.exId], stepKg = U() === 'lb' ? 5 / 2.20462 : incOf(en.exId);
     plateCtx.w = clamp(+(plateCtx.w + +el.dataset.v * stepKg).toFixed(3), 0, MAX_KG); if (U() === 'lb') plateCtx.w = toKg(Math.round(toUnit(plateCtx.w) / 5) * 5);
     setSheet(plateHTML());
   },
@@ -3469,6 +3551,7 @@ document.addEventListener('input', e => {
     if (+row.dataset.s === 0) { clearTimeout(wuT); const ei = +row.dataset.e; wuT = setTimeout(() => { const sec = wo.querySelector(`.ex[data-e="${ei}"] .wu`); const wu = warmups(en, ei);
       if (sec || wu.length) { const tmp = document.createElement('div'); tmp.innerHTML = exBlock(en, ei); const nw = tmp.querySelector('.wu'); if (sec && nw) sec.replaceWith(nw); else if (sec) sec.remove(); else if (nw) wo.querySelector(`.ex[data-e="${ei}"] .cols`).before(nw); } }, 600); } }
   if (e.target.classList.contains('in-r')) { const r = parseInt(e.target.value, 10); s.r = isNaN(r) ? null : r; }
+  inU(en.exId, () => sugRefresh(row, s));
   persist();
 });
 document.addEventListener('change', e => {

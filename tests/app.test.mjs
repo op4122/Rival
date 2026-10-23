@@ -354,6 +354,104 @@ console.log('Units per exercise');
   await p.context().close();
 }
 
+// ---------- suggested progression (double progression) ----------
+console.log('Suggested progression');
+{
+  const day = Date.now() - 2 * 86400000, today = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+  const progSeed = (extra = {}) => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null,
+      days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }, { id: 'squat', sets: 3, lo: 6, hi: 8 }, { id: 'pullup', sets: 3, lo: 6, hi: 10 }] }], ...(extra.profile || {}) },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: day, dur: 50, entries: [
+      { exId: 'bench', sets: [{ w: 80, r: 8 }, { w: 80, r: 8 }, { w: 80, r: 8 }] },
+      { exId: 'squat', sets: [{ w: 100, r: 8 }, { w: 100, r: 7 }, { w: 100, r: 6 }] },
+      { exId: 'pullup', sets: [{ w: 0, r: 10 }, { w: 0, r: 10 }, { w: 0, r: 10 }] }] }], active: null });
+  // Record what the app sends to analytics, without PostHog.
+  const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
+    set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
+  async function start(seed) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    await p.addInitScript(spy);
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(600);
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+    return p;
+  }
+  const hints = (p, e) => p.locator(`.set[data-e="${e}"] .sug`).evaluateAll(b => b.map(x => x.hidden ? '' : x.textContent));
+  const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
+
+  // The rule itself
+  const p = await start(progSeed());
+  const P = (g, sets, lo, hi, step, bw) => p.evaluate(a => window.RivalProgression.progression(...a), [g, sets, lo, hi, step, bw]);
+  const s3 = (w, ...r) => r.map(x => ({ w, r: x }));
+  let r = await P(s3(80, 8, 8, 8), 3, 6, 8, 2.5);
+  ok(r.type === 'weight' && r.sets.every(x => x.w === 82.5 && x.r === 6), 'all sets at the top: next weight up, reps back to the bottom');
+  r = await P(s3(30, 12, 12), 2, 8, 12, 2);
+  ok(r.type === 'weight' && r.sets.every(x => x.w === 32 && x.r === 8), 'dumbbell jumps 2 kg');
+  r = await P(s3(100, 8, 7, 6), 3, 6, 8, 2.5);
+  ok(r.type === 'reps' && JSON.stringify(r.sets.map(x => [x.w, x.r])) === '[[100,8],[100,8],[100,6]]', '+1 rep only on the first set that missed the top: ' + JSON.stringify(r.sets));
+  r = await P(s3(100, 6, 6, 6), 3, 6, 8, 2.5);
+  ok(r.type === 'reps' && r.sets[0].r === 7 && r.sets[1].r === 6 && r.sets.every(x => x.w === 100), 'first set gets the extra rep when all missed');
+  r = await P(s3(100, 4, 5, 8), 3, 6, 8, 2.5);
+  ok(r.sets[0].r === 6 && r.sets[1].r === 6 && r.sets[2].r === 8, 'reps never fall below the bottom of the range');
+  r = await P(s3(80, 8, 8), 3, 6, 8, 2.5);
+  ok(r.type === 'reps' && r.sets.length === 3 && r.sets[2].w === 80, 'fewer sets last time than planned: no weight jump yet');
+  r = await P(s3(0, 10, 10, 10), 3, 6, 10, 2.5, true);
+  ok(r.type === 'reps' && r.sets[0].r === 11 && r.sets[1].r === 10 && r.sets.every(x => x.w === 0), 'bodyweight at the top: one more rep, no weight');
+  r = await P(s3(10, 10, 10, 10), 3, 6, 10, 2.5, true);
+  ok(r.type === 'weight' && r.sets[0].w === 12.5, 'weighted bodyweight lift adds weight');
+  ok(await P([], 3, 6, 8, 2.5) === null, 'no ghost, no suggestion');
+
+  // In the workout
+  ok(JSON.stringify(await hints(p, 0)) === JSON.stringify(['Try 82.5 × 6', 'Try 82.5 × 6', 'Try 82.5 × 6']), 'bench shows "Try 82.5 × 6" on every set');
+  ok(await p.inputValue('#w-0-0') === '82.5' && await p.inputValue('#r-0-0') === '6', 'inputs pre-filled with the suggestion');
+  ok(JSON.stringify(await hints(p, 1)) === JSON.stringify(['', 'Try 100 × 8', '']), 'squat: hint only on the set that moves on (set 2)');
+  ok(JSON.stringify(await hints(p, 2)) === JSON.stringify(['Try BW × 11', '', '']), 'pull-up: bodyweight shows BW × 11');
+  const sug = await ev(p, 'progression_suggested');
+  ok(sug.length === 3 && sug.find(x => x.exercise_id === 'bench').type === 'weight' && sug.find(x => x.exercise_id === 'squat').type === 'reps' && sug.every(x => x.eased === false),
+    'progression_suggested once per exercise, with exercise_id and type: ' + JSON.stringify(sug));
+  // Override, then tap the hint to restore
+  await p.fill('#w-1-0', '95'); await p.fill('#r-1-0', '5');
+  ok((await hints(p, 1))[0] === 'Try 100 × 8', 'changing the numbers shows the hint on that set');
+  await p.locator('.set[data-e="1"][data-s="0"] .sug').click();
+  ok(await p.inputValue('#w-1-0') === '100' && await p.inputValue('#r-1-0') === '8', 'tapping the hint fills the inputs');
+  ok((await hints(p, 1))[0] === '', 'hint hides again once the numbers match');
+  // Accepted: logging a set that moves on, as suggested
+  await p.locator('.set[data-e="1"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(200);
+  ok((await ev(p, 'progression_accepted')).length === 0, 'logging a set that only repeats the ghost is not "accepted"');
+  await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(200);
+  await p.locator('.set[data-e="0"][data-s="1"] [data-act=log]').click(); await p.waitForTimeout(200);
+  let acc = await ev(p, 'progression_accepted');
+  ok(acc.length === 1 && acc[0].exercise_id === 'bench' && acc[0].type === 'weight' && acc[0].via === 'prefill', 'progression_accepted once for bench (prefill): ' + JSON.stringify(acc));
+  ok(await p.locator('.set[data-e="0"][data-s="0"] .sug').count() === 0, 'hint gone once the set is logged');
+  await p.fill('#r-1-1', '7'); await p.locator('.set[data-e="1"][data-s="1"] .sug').click();
+  await p.locator('.set[data-e="1"][data-s="1"] [data-act=log]').click(); await p.waitForTimeout(200);
+  acc = await ev(p, 'progression_accepted');
+  ok(acc.length === 2 && acc[1].exercise_id === 'squat' && acc[1].type === 'reps' && acc[1].via === 'tap', 'progression_accepted for squat via tap, type reps');
+  // Weight jump per exercise (⋯ menu)
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').click(); await p.waitForTimeout(400);
+  ok(/2\.5 kg/.test(await p.locator('.sheet [data-act=exinc]').first().locator('xpath=..').textContent()), 'menu shows the bench weight jump, 2.5 kg');
+  await p.locator('.sheet [data-act=exinc][data-v="1"]').click(); await p.waitForTimeout(200);
+  ok(/5 kg/.test(await p.locator('.sheet .stepper output').last().textContent()), 'jump goes up to 5 kg');
+  ok((await state(p)).profile.exInc.bench === 5, 'saved per exercise in settings (syncs with the profile)');
+  ok(await p.inputValue('#w-0-2') === '85' && JSON.stringify(await hints(p, 0)) === '["Try 85 × 6"]', 'unlogged bench set re-planned to 85 × 6; logged sets keep 82.5');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // Readiness eases after the progression, and says so
+  const q = await start(progSeed({ profile: { readiness: { date: today, score: 50, sleep: 1, sore: 1, energy: 2 } } }));
+  ok(JSON.stringify(await hints(q, 0)) === JSON.stringify(['Eased: 77.5 × 6', 'Eased: 77.5 × 6', 'Eased: 77.5 × 6']), 'eased day: 82.5 eased 5% to "Eased: 77.5 × 6"');
+  ok(await q.locator('.sug.eased').count() >= 3 && await q.inputValue('#w-0-0') === '77.5', 'inputs carry the eased weight');
+  ok((await ev(q, 'progression_suggested')).filter(x => x.exercise_id !== 'pullup').every(x => x.eased === true), 'progression_suggested has eased: true (bodyweight pull-up has nothing to ease)');
+  ok(await noHScroll(q), 'no sideways scroll with hints');
+  await q.context().close();
+
+  // lb: the next weight up is a plate you can load
+  const l = await start(progSeed({ profile: { units: 'lb' } }));
+  const lw = +(await l.inputValue('#w-0-0'));
+  ok(lw % 5 === 0 && lw > 176 && lw <= 185 && (await hints(l, 0))[0] === `Try ${lw} × 6`, 'lb: 80 kg (176 lb) goes to a loadable ' + lw + ' lb');
+  await l.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {

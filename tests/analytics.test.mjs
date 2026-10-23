@@ -48,12 +48,14 @@ console.log('App');
   if (PW) { await p.evaluate(([e, pw]) => window.rivalDb.auth.signInWithPassword({ email: e, password: pw }), [EMAIL, PW]); await p.waitForTimeout(3500); }
   await p.evaluate(() => window.posthog.flush && window.posthog.flush()); await p.waitForTimeout(3500);
   const n = names(sent);
-  for (const e of ['app_opened', 'readiness_checkin_completed', 'heatmap_viewed', 'workout_started', 'set_logged', 'ghost_set_beaten', 'workout_completed', '$pageview', '$autocapture'])
+  for (const e of ['app_opened', 'readiness_checkin_completed', 'heatmap_viewed', 'workout_started', 'set_logged', 'ghost_set_beaten', 'workout_completed', 'progression_suggested', '$pageview', '$autocapture'])
     ok(n.includes(e), `${e} sent`);
   const wc = sent.find(e => e.event === 'workout_completed');
   ok(wc && wc.properties.set_count === 1 && wc.properties.total_volume === 720 && Number.isFinite(wc.properties.duration_min), 'workout_completed has duration_min, set_count, total_volume');
   const gb = sent.find(e => e.event === 'ghost_set_beaten');
   ok(gb && gb.properties.exercise_id === 'bench' && gb.properties.margin > 0, `ghost_set_beaten has exercise_id and margin (${gb && gb.properties.margin})`);
+  const ps = sent.find(e => e.event === 'progression_suggested');
+  ok(ps && typeof ps.properties.exercise_id === 'string' && ['reps', 'weight'].includes(ps.properties.type) && typeof ps.properties.eased === 'boolean', 'progression_suggested has exercise_id, type, eased');
   const rc = sent.find(e => e.event === 'readiness_checkin_completed');
   ok(rc && rc.properties.score === 78, 'readiness_checkin_completed has the score');
   const pv = sent.filter(e => e.event === '$pageview').map(e => e.properties.screen);

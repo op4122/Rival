@@ -21,10 +21,13 @@
    * @property {{exercise_id: string, pending: number}} offline_set_queued
    * @property {{rows: number}} sync_completed
    * @property {{location: string, label: string}} cta_clicked
+   * @property {{exercise_id: string, type: 'reps'|'weight', eased: boolean}} progression_suggested
+   * @property {{exercise_id: string, type: 'reps'|'weight', via: 'prefill'|'tap'}} progression_accepted
    */
   /** @type {Array<keyof RivalEvents>} */
   var EVENTS = ['app_opened', 'signup_completed', 'workout_started', 'workout_completed', 'set_logged', 'ghost_set_beaten',
-    'readiness_checkin_completed', 'heatmap_viewed', 'offline_set_queued', 'sync_completed', 'cta_clicked'];
+    'readiness_checkin_completed', 'heatmap_viewed', 'offline_set_queued', 'sync_completed', 'cta_clicked',
+    'progression_suggested', 'progression_accepted'];
   var OFF_KEY = 'rival.analytics';
   // Where the vendored posthog-js lives, relative to the page: the app uses vendor/, the marketing site app/vendor/.
   var VENDOR = (document.currentScript && document.currentScript.getAttribute('data-vendor')) || 'vendor/posthog.js';
