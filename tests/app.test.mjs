@@ -329,6 +329,31 @@ console.log('Safer set removal');
   await ctx.close();
 }
 
+console.log('Units per exercise');
+{
+  const p = await page({ w: 360 });
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  ok(await p.locator('.wo .useg').count() === 0, 'no kg/lb switch on the cards');
+  ok(await p.locator('.wo .u-tag').count() === 0, 'no unit tag while every exercise uses the default');
+  await p.fill('#w-0-0', '100'); await p.fill('#r-0-0', '5'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(300);
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').click(); await p.waitForTimeout(450);
+  ok(await p.locator('.sheet [data-act=exunit][data-u=def][aria-pressed=true]').count() === 1 && /Use default \(kg\)/.test(await p.locator('.sheet').textContent()), '⋯ menu: "Units for this exercise", Use default selected');
+  ok(await p.locator('.sheet [data-act=exunit]').evaluateAll(b => b.every(x => x.getBoundingClientRect().height >= 44 && x.scrollWidth <= x.clientWidth + 1)), 'unit buttons are 44px tall and fit at 360px');
+  await p.locator('.sheet [data-act=exunit][data-u=lb]').click(); await p.waitForTimeout(500);
+  let st = await state(p);
+  ok(st.profile.exUnit[st.active.entries[0].exId] === 'lb' && /in lb/.test(await p.locator('.ex[data-e="0"] .u-tag').textContent()), 'lb for this exercise: tag "in lb" on its card');
+  ok(await p.locator('.ex[data-e="1"] .u-tag').count() === 0 && /^kg/.test(await p.locator('.ex[data-e="1"] .cols span').nth(2).textContent()), 'other exercises stay in kg');
+  ok(st.active.entries[0].sets[0].w === 100 && await p.inputValue('#w-0-0') === '220.5', 'logged set keeps the weight lifted: 100 kg shown as 220.5 lb');
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').click(); await p.waitForTimeout(450);
+  await p.locator('.sheet [data-act=exunit][data-u=def]').click(); await p.waitForTimeout(500);
+  st = await state(p);
+  ok(!st.profile.exUnit[st.active.entries[0].exId] && await p.locator('.wo .u-tag').count() === 0 && await p.inputValue('#w-0-0') === '100', '"Use default" goes back to kg, tag gone, 100 kg unchanged');
+  ok(await noHScroll(p), 'no sideways scroll');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {

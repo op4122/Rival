@@ -527,6 +527,13 @@ body.gated .toasts{z-index:95}
 .set-wrap.sw .set-del{visibility:visible}
 .swap.more{width:44px;padding:0;display:grid;place-items:center;color:var(--ink)}
 .swap.more svg{width:20px;height:20px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tags .ea-tag{margin-top:0}
+.u-tag{background:var(--win-bg);color:var(--ink)}
+.menu-seg{margin-top:8px;width:100%}
+.menu-seg button{min-height:44px}
+.menu-seg button[data-u=def]{flex:2.2;white-space:nowrap}
+.ex-mrow{padding-top:6px}
 .menu-list{display:grid;gap:6px;margin-top:8px}
 .menu-i{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:0 14px;border-radius:14px;background:var(--surface-2);font-weight:650;text-align:left}
 .menu-s{font-family:var(--display);font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted);font-weight:600}
@@ -1008,7 +1015,9 @@ const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e)
 let UX = null; // unit in force while one exercise is being drawn or edited
 function U() { return UX || S.profile.units; }
 // Each exercise can have its own unit (dumbbells in lb, plates in kg). Falls back to the app-wide unit.
-function exU(id) { const m = S.profile.exUnit, u = m && (m[id] || m[baseOf(id)]); return u === 'kg' || u === 'lb' ? u : S.profile.units; }
+// Unit for one exercise: its own choice, else its base exercise's (attachments), else the default. 'def' = use the default.
+function exUChoice(id) { const m = S.profile.exUnit, u = m && (m[id] || m[baseOf(id)]); return u === 'kg' || u === 'lb' ? u : 'def'; }
+function exU(id) { const u = exUChoice(id); return u === 'def' ? S.profile.units : u; }
 function inU(id, fn) { const prev = UX; UX = exU(id); try { return fn(); } finally { UX = prev; } }
 // Weight steps people can actually load. In lb, plates and dumbbells go up in 2.5, 5 or 10 lb, not in converted kg.
 const lbStep = incKg => incKg <= 1.25 ? 2.5 : incKg <= 2.5 ? 5 : 10;
@@ -1112,7 +1121,7 @@ function cleanProfile(p0) {
   out.units = out.units === 'lb' ? 'lb' : 'kg';
   out.theme = out.theme === 'light' || out.theme === 'dark' ? out.theme : 'system';
   { const m = isObj(p.exUnit) ? p.exUnit : {}, o = {};
-    Object.keys(m).slice(0, 400).forEach(k => { if ((m[k] === 'kg' || m[k] === 'lb') && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
+    Object.keys(m).slice(0, 400).forEach(k => { if ((m[k] === 'kg' || m[k] === 'lb' || m[k] === 'def') && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
     out.exUnit = o; }
   out.restC = fin(out.restC) ? clamp(Math.round(out.restC), 30, 600) : 150;
   out.restI = fin(out.restI) ? clamp(Math.round(out.restI), 30, 600) : 90;
@@ -2216,7 +2225,7 @@ const HELP = [
   ['Where are my workouts saved?', 'On this phone, and in your account if you sign in, so they\'re backed up and show up on any phone you sign in on. Only you can see them. Without an account, clearing browser data or losing the phone clears them, so tap <b>Export backup</b> below now and then. <a href="../privacy.html">Privacy Policy</a>'],
   ['Does it work without signal?', 'Yes. Sets save on the phone first and sync when you\'re back online. The small label at the top says <b>Synced</b>, <b>waiting</b> or <b>Offline</b>.'],
   ['Why doesn\'t my phone buzz when rest ends?', 'iPhone doesn\'t let web apps vibrate, so Rival plays a short chime instead. It follows your silent switch and won\'t pause your music. It can\'t play while the phone is locked.'],
-  ['How do I get the newest version?', 'Close Rival fully and open it again. Updates arrive in the background when you\'re online.']
+  ['How do I get the newest version?', 'Updates download in the background when you\'re online. When one is ready, Rival shows "Update ready, tap to refresh" (never in the middle of a workout).']
 ];
 function feedbackHref() {
   const body = '\n\n\n---\nRival version ' + APP_VERSION + (isStandalone() ? ', installed' : ', in browser') + (isIOS ? ', iPhone/iPad' : '');
@@ -2454,9 +2463,9 @@ function exBlock0(en, ei) {
   const wuHTML = wu.length ? `<div class="wu" role="group" aria-label="Warm-up sets"><span class="wu-l">Warm-up</span>${wu.map((x, i) => `<button class="wu-c${en.wdone[i] ? ' done' : ''}" data-act="wlog" data-e="${ei}" data-i="${i}" aria-pressed="${!!en.wdone[i]}">${x.bar ? 'Bar' : fmtW(x.w)} × ${x.r}</button>`).join('')}</div>` : '';
   const atts = attsOf(en.exId), title = atts.length && ex.bn ? ex.bn : ex.n;
   const attHTML = atts.length ? `<div class="att" role="group" aria-label="Attachment for ${esc(ex.bn || ex.n)}"><span class="att-l">Attachment</span><div class="att-o">${atts.map(a => `<button class="chip press" data-act="att" data-e="${ei}" data-id="${esc(a.id)}" aria-pressed="${a.id === en.exId}">${esc(a.n)}</button>`).join('')}</div></div>` : '';
-  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}</div>
+  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea || U() !== S.profile.units ? `<span class="tags">${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}${U() !== S.profile.units ? `<span class="ea-tag u-tag" title="This exercise uses ${U()}; your default is ${S.profile.units}">in ${U()}</span>` : ''}</span>` : ''}</div>
     <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button><button class="swap more press" data-act="exmenu" data-e="${ei}" aria-haspopup="dialog" aria-label="More for ${esc(ex.n)}">${I.more}</button></div></div>
-    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
+    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
     <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button></div></section>`;
@@ -2468,8 +2477,11 @@ function exMenuHTML(ei) {
   const sets = en.sets.length > 1 ? `<p class="note-l" style="margin-top:4px">Delete a set</p><div class="menu-list">${inU(en.exId, () => en.sets.map((x, si) => {
     const what = x.w != null || x.r != null ? `${ex.bw && !x.w ? 'BW' : x.w != null ? fmtW(x.w) + ' ' + U() : '–'} × ${x.r != null ? x.r : '–'}` : 'Empty';
     return `<button class="menu-i press" data-act="menudelset" data-e="${ei}" data-s="${si}"><span>Delete set ${si + 1}</span><span class="menu-s">${what}${x.done ? ', logged' : ''}</span></button>`; }).join(''))}</div>` : '';
-  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}
-    <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="rmex" data-e="${ei}">Remove exercise</button></div>
+  const cur = exUChoice(en.exId), def = S.profile.units;
+  const units = `<p class="note-l" style="margin-top:${sets ? 16 : 4}px">Units for this exercise</p>
+    <div class="seg menu-seg" role="group" aria-label="Units for ${esc(ex.n)}">${[['kg', 'kg'], ['lb', 'lb'], ['def', `Use default (${def})`]].map(([v, l]) => `<button data-act="exunit" data-e="${ei}" data-u="${v}" aria-pressed="${cur === v}">${l}</button>`).join('')}</div>`;
+  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}${units}
+    <div class="sheet-actions" style="margin-top:16px"><button class="btn danger press" data-act="rmex" data-e="${ei}">Remove exercise</button></div>
     <p class="sub" style="margin-top:10px;font-size:13px">Tip: swipe a set to the left to delete it.</p>`;
 }
 function deleteSet(ei, si) {
@@ -3151,18 +3163,23 @@ const acts = {
   units(el) { S.profile.units = el.dataset.u; touch(); render(); },
   theme(el) { const v = el.dataset.v; S.profile.theme = v === 'light' || v === 'dark' ? v : 'system'; touch(); render(); },
   exunit(el) {
-    const ei = +el.dataset.e, u = el.dataset.u, en0 = S.active && S.active.entries[ei];
-    if (!en0 || (u !== 'kg' && u !== 'lb') || u === exU(en0.exId)) return;
-    const id = en0.exId, ex = EX[id] || {};
+    const ei = +el.dataset.e, choice = el.dataset.u, en0 = S.active && S.active.entries[ei];
+    if (!en0 || !['kg', 'lb', 'def'].includes(choice)) return;
+    const id = en0.exId, ex = EX[id] || {}, was = exU(id);
     S.profile.exUnit = isObj(S.profile.exUnit) ? S.profile.exUnit : {};
-    S.profile.exUnit[id] = u; // remembered for this exercise, other exercises are untouched
+    const m = S.profile.exUnit; // remembered for this exercise, other exercises are untouched
+    if (choice === 'def') { delete m[id]; if (id !== baseOf(id) && m[baseOf(id)]) m[id] = 'def'; } // an attachment can follow the default even if its base has its own unit
+    else m[id] = choice;
+    const u = exU(id);
+    if (sheetEl) closeSheet();
+    if (u === was) { touch(); S.active.entries.forEach((en, i) => { if (en.exId === id) refreshEx(i); }); toast(`${ex.n || 'Exercise'} uses ${choice === 'def' ? 'your default, ' + u : u}`); return; }
     // Sets not logged yet move to the nearest weight you can load in the new unit; logged sets keep what was lifted.
     inU(id, () => S.active.entries.forEach(en => { if (en.exId !== id) return;
       en.sets.forEach(s => { if (!s.done && fin(s.w) && s.w > 0) s.w = clamp(roundW(s.w, ex.inc || 2.5), 0, MAX_KG); }); }));
     touch();
     S.active.entries.forEach((en, i) => { if (en.exId === id) refreshEx(i); });
-    const f = wo.querySelector(`.ex[data-e="${ei}"] .useg [data-u="${u}"]`); if (f) f.focus({preventScroll:true});
-    toast(`${ex.n || 'Exercise'} now in ${u}`);
+    const f = wo.querySelector(`.ex[data-e="${ei}"] [data-act=exmenu]`); if (f && kbNav) f.focus({preventScroll:true});
+    toast(`${ex.n || 'Exercise'} now in ${u}${choice === 'def' ? ' (your default)' : ''}`);
   },
   rest(el) { const k = el.dataset.k; S.profile[k] = Math.max(30, Math.min(600, S.profile[k] + +el.dataset.d)); touch(); render(); },
   slot(el) { slotCtx = {d:+el.dataset.d, s:+el.dataset.s}; openSheet(slotHTML(slotCtx.d, slotCtx.s)); },
