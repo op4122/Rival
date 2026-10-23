@@ -576,6 +576,166 @@ console.log('Plateau and deload hints');
   await one.context().close();
 }
 
+// ---------- supersets ----------
+console.log('Supersets');
+{
+  const day = Date.now() - 2 * 86400000;
+  const ssSeed = (ln) => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: false,
+      days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8, rest: 120, ...(ln ? { ln: 1 } : {}) }, { id: 'bbrow', sets: 2, lo: 8, hi: 12, rest: 90 }, { id: 'ezcurl', sets: 3, lo: 8, hi: 12 }, { id: 'squat', sets: 3, lo: 6, hi: 8 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: day, dur: 50, entries: [
+      { exId: 'bench', sets: [{ w: 80, r: 6 }, { w: 80, r: 6 }, { w: 80, r: 6 }] }, { exId: 'bbrow', sets: [{ w: 60, r: 9 }, { w: 60, r: 9 }] }] }], active: null });
+  const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
+    set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
+  async function open(seed, w = 390) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    await p.addInitScript(spy);
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(600);
+    return p;
+  }
+  const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
+  const labels = (p, root = '#view') => p.locator(root + ' .ss-l').allTextContents();
+
+  // The rule
+  const p = await open(ssSeed(false), 320);
+  const G = list => p.evaluate(l => window.RivalSuperset.ssGroups(l).map(g => g ? g.g + g.n : '-').join(' '), list);
+  ok(await G([{ ln: 1 }, {}, {}]) === 'A1 A2 -', 'a link joins an exercise to the next one');
+  ok(await G([{ ln: 1 }, { ln: 1 }, { ln: 1 }, { ln: 1 }, {}]) === 'A1 A2 A3 B1 B2', 'groups stop at 3; the rest start a new group');
+  ok(await G([{}, { ln: 1 }, {}, { ln: 1 }, {}]) === '- A1 A2 B1 B2', 'letters go in order');
+  ok(await G([{}, {}, { ln: 1 }]) === '- - -', 'a link on the last exercise does nothing');
+  ok(await p.evaluate(() => window.RivalSuperset.ssCanLink([{ ln: 1 }, { ln: 1 }, {}, {}], 2)) === 0, 'a 4th exercise cannot join');
+
+  // Plan editor
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="0"]').click(); await p.waitForTimeout(400);
+  ok(/Alternate sets with Barbell Row/.test(await p.locator('.sheet').textContent()), 'exercise sheet offers a superset with the next exercise');
+  await p.locator('.sheet [data-act=slotlink]').click(); await p.waitForTimeout(300);
+  ok(/A1 Barbell Bench Press, A2 Barbell Row/.test(await p.locator('.sheet').textContent()), 'sheet shows the group, with Unlink');
+  let ce = await ev(p, 'superset_created');
+  ok(ce.length === 1 && ce[0].size === 2 && ce[0].where === 'plan', 'superset_created size 2: ' + JSON.stringify(ce));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0 && await p.locator('.sheet [data-act=slotunlink]').count() === 1, 'A2 shows the group with Unlink');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  ok(JSON.stringify(await labels(p)) === JSON.stringify(['A1', 'A2']) && await p.locator('.day .ssg').count() === 1, 'plan shows A1 / A2 and one shared bar');
+  ok(await p.locator('.day .ssg').evaluate(el => getComputedStyle(el, '::before').backgroundColor !== 'rgba(0, 0, 0, 0)'), 'the bar is coloured');
+  ok(await noHScroll(p), 'plan: no sideways scroll at 320 px');
+  let st = await state(p);
+  ok(st.profile.days[0].ex[0].ln === 1 && !st.profile.days[0].ex[1].ln, 'saved in the plan (ln on A1)');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // Logger
+  const q = await open(ssSeed(true));
+  ok(JSON.stringify(await labels(q)) === JSON.stringify(['A1', 'A2']), 'Today targets show A1 / A2');
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  ok(await q.locator('#wo-list > .ssg .ex').count() === 2 && JSON.stringify(await labels(q, '#wo')) === JSON.stringify(['A1', 'A2']), 'logger: bench and row share one bar, A1 / A2');
+  ok(/then A2, no rest/.test(await q.locator('.ex[data-e="0"] .ex-meta').textContent()) && /rest 2:00 after the round/.test(await q.locator('.ex[data-e="1"] .ex-meta').textContent()), 'A1 says "then A2", A2 rests 2:00 (the longer of 2:00 and 1:30)');
+  ok(await q.inputValue('#w-1-0') === '60', 'row keeps its own ghost (60)');
+  const restOn = () => q.evaluate(() => document.querySelector('#rest').classList.contains('show'));
+  await q.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await q.waitForTimeout(700);
+  ok(!(await restOn()), 'after A1 set 1: no rest timer');
+  ok(await q.evaluate(() => { const r = document.activeElement && document.activeElement.closest('.set'); return !!r && r.dataset.e === '1' && r.dataset.s === '0'; }), 'focus moves to A2 set 1');
+  await q.locator('.set[data-e="1"][data-s="0"] [data-act=log]').click(); await q.waitForTimeout(700);
+  st = await state(q);
+  ok(await restOn() && st.active.rest.total === 120, 'after A2: rest starts, for the group rest (120 s)');
+  ok(await q.evaluate(() => { const r = document.activeElement && document.activeElement.closest('.set'); return !!r && r.dataset.e === '0' && r.dataset.s === '1'; }), 'focus goes back to A1 set 2');
+  await q.locator('[data-act=restskip]').click(); await q.waitForTimeout(300);
+  await q.locator('.set[data-e="0"][data-s="1"] [data-act=log]').click(); await q.waitForTimeout(500);
+  await q.locator('.set[data-e="1"][data-s="1"] [data-act=log]').click(); await q.waitForTimeout(500);
+  await q.locator('[data-act=restskip]').click(); await q.waitForTimeout(300);
+  await q.locator('.set[data-e="0"][data-s="2"] [data-act=log]').click(); await q.waitForTimeout(500);
+  ok(await restOn(), 'A2 has no sets left: A1 set 3 starts the rest');
+  // Link in the logger (⋯ menu): curl + squat
+  await q.locator('.ex[data-e="2"] [data-act=exmenu]').click(); await q.waitForTimeout(400);
+  await q.locator('.sheet [data-act=exlink]').click(); await q.waitForTimeout(300);
+  ce = await ev(q, 'superset_created');
+  ok(ce.length === 1 && ce[0].size === 2 && ce[0].where === 'workout', 'superset_created from the logger: ' + JSON.stringify(ce));
+  await q.keyboard.press('Escape'); await q.waitForTimeout(300);
+  ok(JSON.stringify(await labels(q, '#wo')) === JSON.stringify(['A1', 'A2', 'B1', 'B2']) && await q.locator('#wo-list > .ssg').count() === 2, 'curl + squat become B1 / B2, with their own bar');
+  ok(await q.locator('#wo-list > .ssg').nth(1).evaluate(el => getComputedStyle(el).getPropertyValue('--ssc').trim()) !== await q.locator('#wo-list > .ssg').nth(0).evaluate(el => getComputedStyle(el).getPropertyValue('--ssc').trim()), 'B has a different colour from A');
+  ok(await noHScroll(q), 'logger: no sideways scroll');
+  // Save: the group is stored with the workout
+  await q.locator('[data-act=finish]').click(); await q.waitForTimeout(400); await q.locator('[data-act=save]').click(); await q.waitForTimeout(800);
+  st = await state(q);
+  const last = st.sessions.find(x => x.id !== 's1');
+  ok(last.entries.find(e => e.exId === 'bench').ss === 'A' && last.entries.find(e => e.exId === 'bbrow').ss === 'A', 'saved workout keeps superset A on bench and row');
+  ok(st.profile.days[0].ex[2].ln === undefined, 'linking in the logger does not change the plan');
+  // Ghosts still per exercise: next time, row's ghost is row's own sets
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  const rs = last.entries.find(e => e.exId === 'bbrow').sets[0];
+  ok((await q.locator('.set[data-e="1"][data-s="0"] .g-txt').textContent()).replace(/\s/g, '') === `${rs.w}×${rs.r}`, `next workout: row's ghost is row's own set from the superset (${rs.w} × ${rs.r})`);
+  ok(q.errors.length === 0, 'no console errors ' + q.errors.join(' | '));
+  await q.context().close();
+}
+
+// ---------- share card ----------
+console.log('Share card');
+{
+  const day = Date.now() - 2 * 86400000;
+  const seed = (extra = {}) => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: false, theme: extra.theme || 'light', ...(extra.profile || {}),
+      days: [{ name: 'Push Day', ex: [{ id: 'bench', sets: 2, lo: 6, hi: 8 }, { id: 'ohp', sets: 2, lo: 6, hi: 8 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Push Day', date: day, dur: 50, entries: [
+      { exId: 'bench', sets: [{ w: 80, r: 8 }, { w: 80, r: 8 }] }, { exId: 'ohp', sets: [{ w: 40, r: 6 }, { w: 40, r: 6 }] }] }], active: null });
+  const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
+    set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
+  async function open(sd, opts = {}) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', acceptDownloads: true }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    await p.addInitScript(spy);
+    if (opts.share) await p.addInitScript(() => { window.__shared = []; navigator.canShare = () => true; navigator.share = d => { window.__shared.push(d.files.map(f => [f.name, f.type, f.size])); return Promise.resolve(); }; });
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(sd));
+    await p.goto(URL); await p.waitForTimeout(600);
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+    for (const [e, sI] of [[0, 0], [0, 1], [1, 0]]) { await p.locator(`.set[data-e="${e}"][data-s="${sI}"] [data-act=log]`).click(); await p.waitForTimeout(250); await p.locator('[data-act=restskip]').click().catch(() => {}); }
+    await p.locator('[data-act=finish]').click(); await p.waitForTimeout(500);
+    return p;
+  }
+  const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
+  // Pixel colour at (x, y) of the card image in the sheet
+  const px = (p, x, y) => p.evaluate(([x, y]) => { const im = document.querySelector('.share-prev'), c = document.createElement('canvas'); c.width = 1080; c.height = 1920; const g = c.getContext('2d'); g.drawImage(im, 0, 0); return [...g.getImageData(x, y, 1, 1).data].slice(0, 3); }, [x, y]);
+
+  const p = await open(seed({ profile: { dname: 'Sara Ahmed' } }));
+  ok(await p.locator('.sheet [data-act=share]').count() === 1, 'finish summary has a Share button');
+  const d = await p.evaluate(() => window.RivalShare.cardData(JSON.parse(localStorage.getItem('rival.v1')).active));
+  ok(d.day === 'Push Day' && d.sets === 3 && d.of === 3 && d.beat === 1 && d.prs.length === 1 && /Overhead Press/.test(d.prs[0].n) && Math.round(d.prs[0].d * 10) === 13 && d.muscles.chest > 0, 'card data: day, 1/3 ghosts beaten (the +1 rep), overhead press new best +1.3 kg, chest worked: ' + JSON.stringify({ ...d, muscles: undefined }));
+  await p.locator('.sheet [data-act=share]').click(); await p.waitForTimeout(1500);
+  ok(await p.locator('.share-prev').evaluate(im => im.complete && im.naturalWidth === 1080 && im.naturalHeight === 1920), 'card is a 1080 × 1920 image');
+  let cr = await ev(p, 'share_card_created');
+  ok(cr.length === 1 && cr[0].with_name === true, 'share_card_created (with_name: true)');
+  ok(await p.evaluate(() => document.fonts.check('800 40px Archivo')), 'Archivo (the app font) is loaded for the card');
+  const bgL = await px(p, 20, 20);
+  ok(bgL.join() === '236,238,233', 'light theme background (#ECEEE9): ' + bgL);
+  ok(/Sara, top right/.test(await p.locator('.sheet').textContent()), 'name toggle shows the first name only');
+  const withName = await p.locator('.share-prev').evaluate(im => im.src);
+  await p.locator('.sheet [data-act=sharename][data-v="0"]').click(); await p.waitForTimeout(1200);
+  ok((await state(p)).profile.shareName === false && (await ev(p, 'share_card_created')).pop().with_name === false, 'name switched off: card redrawn without it, choice saved');
+  ok(await p.evaluate(() => { const im = document.querySelector('.share-prev'), c = document.createElement('canvas'); c.width = 1080; c.height = 1920; const g = c.getContext('2d'); g.drawImage(im, 0, 0); const d = g.getImageData(700, 120, 284, 70).data; const bg = [d[0], d[1], d[2]]; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 30) return false; return true; }), 'no name drawn in the top right when off');
+  // Download fallback (headless Chromium has no file sharing)
+  const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }).catch(() => null), p.locator('.sheet [data-act=sharego]').click()]);
+  ok(dl && dl.suggestedFilename() === 'rival-workout.png', 'no Web Share: the PNG downloads');
+  let sh = await ev(p, 'share_card_shared');
+  ok(sh.length === 1 && sh[0].method === 'download', 'share_card_shared (download)');
+  await p.locator('.sheet [data-act=shareback]').click(); await p.waitForTimeout(500);
+  ok(await p.locator('.sheet [data-act=save]').count() === 1, 'Back returns to the summary');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // Web Share with files, dark theme, no name known
+  const q = await open(seed({ theme: 'dark' }), { share: true });
+  await q.locator('.sheet [data-act=share]').click(); await q.waitForTimeout(1500);
+  ok((await px(q, 20, 20)).join() === '13,15,19', 'dark theme background (#0D0F13)');
+  ok(await q.locator('.sheet [data-act=sharename]').count() === 0 && (await ev(q, 'share_card_created'))[0].with_name === false, 'no display name: no name and no toggle');
+  await q.locator('.sheet [data-act=sharego]').click(); await q.waitForTimeout(600);
+  const files = await q.evaluate(() => window.__shared);
+  ok(files.length === 1 && files[0][0][0] === 'rival-workout.png' && files[0][0][1] === 'image/png' && files[0][0][2] > 20000, 'navigator.share gets the PNG file: ' + JSON.stringify(files));
+  ok((await ev(q, 'share_card_shared'))[0].method === 'share', 'share_card_shared (share)');
+  await q.locator('.share-prev').screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/card-dark.png' : '/dev/null' }).catch(() => {});
+  ok(q.errors.length === 0, 'no console errors ' + q.errors.join(' | '));
+  await q.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {

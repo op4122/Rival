@@ -8,10 +8,13 @@ const URL = process.env.RIVAL_URL || 'http://localhost:8765/app/', PW = process.
 const A = 'rival-test-a@example.com', B = 'rival-test-b@example.com';
 if (!PW) { console.error('Set RIVAL_TEST_PW'); process.exit(2); }
 let failed = 0; const ok = (c, m) => { console.log((c ? '  ok   ' : '  FAIL ') + m); if (!c) failed++; };
-const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
+// Behind an HTTP proxy (e.g. a cloud sandbox) the browser goes through HTTPS_PROXY, which re-signs HTTPS.
+const launch = process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}, proxied = !!process.env.HTTPS_PROXY;
+if (proxied) { const u = new globalThis.URL(process.env.HTTPS_PROXY); launch.proxy = { server: `${u.protocol}//${u.host}`, username: decodeURIComponent(u.username), password: decodeURIComponent(u.password), bypass: 'localhost,127.0.0.1' }; }
+const browser = await chromium.launch(launch), px = proxied ? { ignoreHTTPSErrors: true } : {};
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function phone(email) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ...px });
   const p = await ctx.newPage(); p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
   await p.goto(URL); await p.waitForTimeout(800);
   const r = await p.evaluate(([e, pw]) => window.rivalDb.auth.signInWithPassword({ email: e, password: pw }).then(x => x.error ? x.error.message : 'ok'), [email, PW]);
@@ -27,7 +30,7 @@ const q = (p, table, sel = '*') => p.evaluate(([t, s]) => window.rivalDb.from(t)
 console.log('Phone 1 (user A)');
 // start clean: as user A (RLS allows deleting your own rows), remove anything an earlier run left
 {
-  const c = await browser.newContext({ serviceWorkers: 'block' }), x = await c.newPage();
+  const c = await browser.newContext({ serviceWorkers: 'block', ...px }), x = await c.newPage();
   await x.goto(URL); await x.waitForTimeout(600);
   await x.evaluate(async ([e, pw]) => {
     const db = window.rivalDb; await db.auth.signInWithPassword({ email: e, password: pw });

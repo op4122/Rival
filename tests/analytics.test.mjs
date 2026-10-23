@@ -6,7 +6,10 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const URL = process.env.RIVAL_URL || 'http://localhost:8765/app/', PW = process.env.RIVAL_TEST_PW, EMAIL = 'rival-test-a@example.com';
 let failed = 0; const ok = (c, m) => { console.log((c ? '  ok   ' : '  FAIL ') + m); if (!c) failed++; };
-const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
+// Behind an HTTP proxy (e.g. a cloud sandbox) the browser goes through HTTPS_PROXY, which re-signs HTTPS.
+const launch = process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}, proxied = !!process.env.HTTPS_PROXY;
+if (proxied) { const u = new globalThis.URL(process.env.HTTPS_PROXY); launch.proxy = { server: `${u.protocol}//${u.host}`, username: decodeURIComponent(u.username), password: decodeURIComponent(u.password), bypass: 'localhost,127.0.0.1' }; }
+const b = await chromium.launch(launch);
 function decode(req) {
   const buf = req.postDataBuffer(); if (!buf) return [];
   let txt;
@@ -16,8 +19,9 @@ function decode(req) {
 }
 async function app(surface) {
   // posthog-js ignores bots, and headless Chromium says so in its user agent; use an ordinary phone browser's.
-  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36' });
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', ...(proxied ? { ignoreHTTPSErrors: true } : {}), userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36' });
   await ctx.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false })); // posthog-js also skips automated browsers
+  await ctx.addInitScript(() => Object.defineProperty(navigator, 'userAgentData', { get: () => undefined })); // newer headless Chromium names itself "HeadlessChrome" here
   const p = await ctx.newPage(), sent = [], raw = [];
   p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
   await p.route('**/*.posthog.com/**', async route => {

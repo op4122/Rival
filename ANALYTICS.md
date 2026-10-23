@@ -42,6 +42,12 @@ marketing site (`/Rival/`) report to it, so a visit, a click on "Open the app" a
 | `plateau_action` | A button on the plateau card is tapped. Afterwards the card waits for 3 more stuck sessions | `exercise_id`, `action`: `'swap'` (opened the Swap sheet), `'lighter'` (this session's sets −10%) or `'dismiss'` |
 | `deload_suggested` | The Today tab offers a deload week: readiness averaged under 50 over the last 7 days (2+ days of scores) and 2+ exercises are stuck. At most once per 14 days | `avg_readiness` (0–100), `plateaued` (stuck exercises) |
 | `deload_accepted` | "Start deload week" is tapped (7 days, about 40% fewer sets, same weights) | `avg_readiness`, `plateaued` |
+| `superset_created` | Two exercises are linked as a superset, or a third joins one (plan editor or the logger's ⋯ menu) | `size` (2 or 3, after the link), `where`: `'plan'` or `'workout'` |
+| `rival_invite_created` | "Create invite link" in Settings → Rivals | none |
+| `rival_invite_accepted` | Someone signed in opens a friend's invite link and the two become rivals (sent by the person accepting) | none |
+| `rival_ghost_beaten` | Your best set today (e1RM) beats a rival's best from their last session of that exercise; once per exercise per workout, only while rival ghosts are on | `exercise_id` |
+| `share_card_created` | The share card is drawn (Share on the finish summary, or the name switched on or off) | `with_name` (the first name is on the card) |
+| `share_card_shared` | The card is shared or saved | `method`: `'share'` (the phone's share sheet) or `'download'` (saved as a PNG) |
 | `cta_clicked` | Marketing site: a link into the app is clicked | `location` (`nav`, `hero`, `closing` or the section id), `label` (button text) |
 
 PostHog's own events also arrive: `$pageview`, `$autocapture`, `$pageleave`, `$identify`, `$web_vitals`, and
@@ -56,6 +62,9 @@ session recordings.
 - **Plateaus:** `plateau_detected` → `plateau_action`, broken down by `action`. Then `ghost_set_beaten` on the same
   `exercise_id` within 2 weeks shows whether the hint helped.
 - **Deload:** `deload_suggested` → `deload_accepted`. A low rate means the suggestion fires when people don't feel they need it.
+- **Rivals:** `rival_invite_created` → `rival_invite_accepted` (on the friend's side) → `rival_ghost_beaten`.
+- **Sharing:** `workout_completed` → `share_card_created` → `share_card_shared`, broken down by `method`.
+- **Supersets:** `superset_created` by `where`. Plan links carry over to every workout of that day.
 - **Accounts:** `app_opened` (signed_in = false) → `signup_completed`, broken down by `method`.
 
 ## Housekeeping
