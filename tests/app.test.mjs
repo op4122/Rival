@@ -455,6 +455,287 @@ console.log('Suggested progression');
   await l.context().close();
 }
 
+// ---------- plateau and deload hints ----------
+console.log('Plateau and deload hints');
+{
+  const D = 86400000, now = Date.now(), today = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+  const s3 = (w, r) => [{ w, r }, { w, r }, { w, r }];
+  // bench ties its ghost 3 times (stuck), squat goes up every time. rowW: the row's weights (stuck when all the same).
+  const plSeed = ({ readiness = null, rq = null, rowW = [60, 62.5, 65, 67.5], profile = {} } = {}) => ({
+    profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: rq,
+      days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }, { id: 'squat', sets: 3, lo: 6, hi: 8 }, { id: 'bbrow', sets: 4, lo: 8, hi: 12 }] }], ...profile },
+    sessions: [10, 7, 4, 2].map((ago, i) => ({ id: 'p' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, readiness, entries: [
+      { exId: 'bench', sets: s3(80, 8) }, { exId: 'squat', sets: s3(100 + i * 5, 8) }, { exId: 'bbrow', sets: s3(rowW[i], 10) }] })), active: null });
+  const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
+    set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
+  async function open(seed, w = 390) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    await p.addInitScript(spy);
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(600);
+    return p;
+  }
+  const startW = async p => { await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800); };
+  const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
+
+  // The four events are allowed by the analytics helper and documented
+  { const fs = await import('node:fs'), js = fs.readFileSync('app/analytics.js', 'utf8'), md = fs.readFileSync('ANALYTICS.md', 'utf8');
+    for (const n of ['plateau_detected', 'plateau_action', 'deload_suggested', 'deload_accepted'])
+      ok(js.includes(`'${n}'`) && js.includes(`}} ${n}`) && md.includes('`' + n + '`'), n + ' is in analytics.js (list and types) and ANALYTICS.md'); }
+
+  // The rule itself
+  const p = await open(plSeed());
+  const R = (fn, ...a) => p.evaluate(([fn, a]) => window.RivalPlateau[fn](...a), [fn, a]);
+  const pts = (...b) => b.map((best, i) => ({ date: i + 1, best }));
+  ok(await R('stuckRun', pts(100, 100, 100, 100)) === 3, 'three ties in a row: stuck for 3');
+  ok(await R('stuckRun', pts(100, 99, 98, 97)) === 3, 'three losses in a row count too');
+  ok(await R('stuckRun', pts(100, 100, 100.5, 100)) === 1, 'any gain breaks the run');
+  ok(await R('stuckRun', pts(100, 100, 100)) === 2, 'needs 4 sessions (3 comparisons) to reach 3');
+  ok(await R('stuckRun', pts(100, 100, 100, 100), 2) === 2, 'sessions before a card was acted on are not counted again');
+  ok(await R('dlSets', 3) === 2 && await R('dlSets', 4) === 2 && await R('dlSets', 5) === 3 && await R('dlSets', 1) === 1, 'deload sets: about 60%, at least 1');
+  ok(await R('deloadDue', 49, 2) && !(await R('deloadDue', 50, 2)) && !(await R('deloadDue', 40, 1)) && !(await R('deloadDue', null, 3)), 'deload due only under 50 readiness with 2+ stuck lifts');
+  ok(await p.locator('.deload').count() === 0, 'no deload card without low readiness');
+
+  // Plateau card in the workout
+  await startW(p);
+  ok(await p.locator('.ex[data-e="0"] .plat').count() === 1 && /Stuck for 3 sessions\. Try a swap \(same muscles\) or a lighter week\./.test(await p.locator('.ex[data-e="0"] .plat').textContent()), 'bench shows the plateau card');
+  ok(await p.locator('.ex[data-e="1"] .plat').count() === 0, 'squat (still improving) has no card');
+  let det = await ev(p, 'plateau_detected');
+  ok(det.length === 1 && det[0].exercise_id === 'bench' && det[0].sessions === 3, 'plateau_detected once for bench: ' + JSON.stringify(det));
+  ok(await noHScroll(p), 'no sideways scroll with the card');
+  await p.locator('.ex[data-e="0"] [data-act=pllight]').click(); await p.waitForTimeout(300);
+  ok(await p.inputValue('#w-0-0') === '75' && await p.inputValue('#w-0-2') === '75', 'lighter: 82.5 suggested → 75 kg (−10%, rounded to a plate)');
+  ok((await p.locator('.set[data-e="0"][data-s="0"] .sug-b:not([hidden])').textContent()) === '−10%', 'labelled "−10%"');
+  ok(await p.locator('.plat').count() === 0, 'card gone after acting');
+  let act = await ev(p, 'plateau_action');
+  ok(act.length === 1 && act[0].action === 'lighter' && act[0].exercise_id === 'bench', 'plateau_action lighter');
+  let st = await state(p);
+  ok(st.profile.plateau.bench.light === true && st.profile.plateau.bench.at === st.active.startedAt, 'saved in the profile (syncs with settings)');
+  // Save the lighter session: it doesn't count, and the card waits for 3 new stuck sessions
+  await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(200);
+  await p.locator('[data-act=finish]').click(); await p.waitForTimeout(400); await p.locator('[data-act=save]').click(); await p.waitForTimeout(800);
+  await startW(p);
+  ok(await p.locator('.plat').count() === 0, 'next workout: no card again right after acting');
+  ok((await ev(p, 'plateau_detected')).length === 1, 'plateau_detected not sent again');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // Dismiss and Swap
+  const d = await open(plSeed()); await startW(d);
+  await d.locator('.ex[data-e="0"] [data-act=plx]').click(); await d.waitForTimeout(200);
+  ok(await d.locator('.plat').count() === 0 && (await ev(d, 'plateau_action'))[0].action === 'dismiss', 'dismiss hides the card, plateau_action dismiss');
+  ok(await d.inputValue('#w-0-0') === '82.5', 'dismiss leaves the weights alone');
+  await d.context().close();
+  const w = await open(plSeed()); await startW(w);
+  await w.locator('.ex[data-e="0"] [data-act=plswap]').click(); await w.waitForTimeout(500);
+  ok(/Swap Barbell Bench/.test(await w.locator('.sheet .h2').textContent()) && /Same muscles/.test(await w.locator('.sheet').textContent()), 'Swap opens the Swap sheet, same muscles first');
+  ok((await ev(w, 'plateau_action'))[0].action === 'swap', 'plateau_action swap');
+  await w.context().close();
+
+  // Deload: low readiness and 2 stuck lifts (bench and row)
+  const lowR = { readiness: 40, rq: { date: today, score: 40, sleep: 1, sore: 1, energy: 1 }, rowW: [60, 60, 60, 60] };
+  const q = await open(plSeed(lowR), 320);
+  ok(await q.locator('.deload [data-act=dlok]').count() === 1 && /averaged 40 over the last 7 days and 2 lifts are stuck/.test(await q.locator('.deload').textContent()), 'Today offers a deload week');
+  ok(await noHScroll(q), 'deload card: no sideways scroll at 320 px');
+  let sug = await ev(q, 'deload_suggested');
+  ok(sug.length === 1 && sug[0].avg_readiness === 40 && sug[0].plateaued === 2, 'deload_suggested with avg and count: ' + JSON.stringify(sug));
+  await q.reload(); await q.waitForTimeout(500);
+  ok((await ev(q, 'deload_suggested')).length === 0, 'not sent again on the next render');
+  await q.locator('[data-act=dlok]').click(); await q.waitForTimeout(300);
+  ok((await ev(q, 'deload_accepted')).length === 1, 'deload_accepted');
+  st = await state(q);
+  ok(Math.abs(st.profile.deload.end - st.profile.deload.start - 7 * D) < 1000, 'deload saved in the profile, 7 days');
+  ok(/Deload week/.test(await q.locator('.ovr.deload').textContent()) && await q.locator('[data-act=dlok]').count() === 0, 'banner replaces the offer');
+  await startW(q);
+  ok(await q.locator('.ex[data-e="0"] .set').count() === 2 && await q.locator('.ex[data-e="2"] .set').count() === 2, 'deload: bench 3 → 2 sets, row 4 → 2');
+  ok(await q.inputValue('#w-0-0') === '80' && await q.inputValue('#r-0-0') === '8', 'same weights as last time, no progression, no easing (80 × 8)');
+  ok(await q.locator('.plat').count() === 0 && await q.locator('.sug-b:not([hidden])').count() === 0, 'no plateau cards or badges during a deload');
+  ok(/Deload week/.test(await q.locator('.adjust-note').textContent()), 'workout says it is a deload week');
+  // Swapping inside a deload keeps the set count
+  await q.locator('.ex[data-e="1"] [data-act=swap]').click(); await q.waitForTimeout(400);
+  await q.locator('.sheet [data-act=swpick]').first().click(); await q.waitForTimeout(400);
+  ok(await q.locator('.ex[data-e="1"] .set').count() === 2, 'a swap mid-deload keeps the sets it had (2)');
+  await q.context().close();
+
+  // Deload ends after 7 days and the plan is back to normal
+  const e = await open(plSeed({ ...lowR, profile: { deload: { start: now - 8 * D, end: now - D } } }));
+  ok(await e.locator('.deload').count() === 0, 'ended deload: no banner, and no new offer for 2 weeks');
+  ok(/3 × 6–8/.test(await e.locator('.card.session .pv').first().textContent()), 'targets back to 3 sets');
+  await e.context().close();
+  // Not now
+  const n = await open(plSeed(lowR));
+  await n.locator('[data-act=dlno]').click(); await n.waitForTimeout(300);
+  ok(await n.locator('.deload').count() === 0 && (await state(n)).profile.deload.off > 0, '"Not now" hides it and is saved');
+  await n.reload(); await n.waitForTimeout(500);
+  ok(await n.locator('.deload').count() === 0, 'still hidden after a reload');
+  await n.context().close();
+  // One stuck lift is not enough
+  const one = await open(plSeed({ ...lowR, rowW: [60, 62.5, 65, 67.5] }));
+  ok(await one.locator('.deload').count() === 0, 'one stuck lift: no deload offer');
+  await one.context().close();
+}
+
+// ---------- supersets ----------
+console.log('Supersets');
+{
+  const day = Date.now() - 2 * 86400000;
+  const ssSeed = (ln) => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: false,
+      days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8, rest: 120, ...(ln ? { ln: 1 } : {}) }, { id: 'bbrow', sets: 2, lo: 8, hi: 12, rest: 90 }, { id: 'ezcurl', sets: 3, lo: 8, hi: 12 }, { id: 'squat', sets: 3, lo: 6, hi: 8 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: day, dur: 50, entries: [
+      { exId: 'bench', sets: [{ w: 80, r: 6 }, { w: 80, r: 6 }, { w: 80, r: 6 }] }, { exId: 'bbrow', sets: [{ w: 60, r: 9 }, { w: 60, r: 9 }] }] }], active: null });
+  const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
+    set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
+  async function open(seed, w = 390) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    await p.addInitScript(spy);
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(600);
+    return p;
+  }
+  const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
+  const labels = (p, root = '#view') => p.locator(root + ' .ss-l').allTextContents();
+
+  // The rule
+  const p = await open(ssSeed(false), 320);
+  const G = list => p.evaluate(l => window.RivalSuperset.ssGroups(l).map(g => g ? g.g + g.n : '-').join(' '), list);
+  ok(await G([{ ln: 1 }, {}, {}]) === 'A1 A2 -', 'a link joins an exercise to the next one');
+  ok(await G([{ ln: 1 }, { ln: 1 }, { ln: 1 }, { ln: 1 }, {}]) === 'A1 A2 A3 B1 B2', 'groups stop at 3; the rest start a new group');
+  ok(await G([{}, { ln: 1 }, {}, { ln: 1 }, {}]) === '- A1 A2 B1 B2', 'letters go in order');
+  ok(await G([{}, {}, { ln: 1 }]) === '- - -', 'a link on the last exercise does nothing');
+  ok(await p.evaluate(() => window.RivalSuperset.ssCanLink([{ ln: 1 }, { ln: 1 }, {}, {}], 2)) === 0, 'a 4th exercise cannot join');
+
+  // Plan editor
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="0"]').click(); await p.waitForTimeout(400);
+  ok(/Alternate sets with Barbell Row/.test(await p.locator('.sheet').textContent()), 'exercise sheet offers a superset with the next exercise');
+  await p.locator('.sheet [data-act=slotlink]').click(); await p.waitForTimeout(300);
+  ok(/A1 Barbell Bench Press, A2 Barbell Row/.test(await p.locator('.sheet').textContent()), 'sheet shows the group, with Unlink');
+  let ce = await ev(p, 'superset_created');
+  ok(ce.length === 1 && ce[0].size === 2 && ce[0].where === 'plan', 'superset_created size 2: ' + JSON.stringify(ce));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0 && await p.locator('.sheet [data-act=slotunlink]').count() === 1, 'A2 shows the group with Unlink');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  ok(JSON.stringify(await labels(p)) === JSON.stringify(['A1', 'A2']) && await p.locator('.day .ssg').count() === 1, 'plan shows A1 / A2 and one shared bar');
+  ok(await p.locator('.day .ssg').evaluate(el => getComputedStyle(el, '::before').backgroundColor !== 'rgba(0, 0, 0, 0)'), 'the bar is coloured');
+  ok(await noHScroll(p), 'plan: no sideways scroll at 320 px');
+  let st = await state(p);
+  ok(st.profile.days[0].ex[0].ln === 1 && !st.profile.days[0].ex[1].ln, 'saved in the plan (ln on A1)');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // Logger
+  const q = await open(ssSeed(true));
+  ok(JSON.stringify(await labels(q)) === JSON.stringify(['A1', 'A2']), 'Today targets show A1 / A2');
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  ok(await q.locator('#wo-list > .ssg .ex').count() === 2 && JSON.stringify(await labels(q, '#wo')) === JSON.stringify(['A1', 'A2']), 'logger: bench and row share one bar, A1 / A2');
+  ok(/then A2, no rest/.test(await q.locator('.ex[data-e="0"] .ex-meta').textContent()) && /rest 2:00 after the round/.test(await q.locator('.ex[data-e="1"] .ex-meta').textContent()), 'A1 says "then A2", A2 rests 2:00 (the longer of 2:00 and 1:30)');
+  ok(await q.inputValue('#w-1-0') === '60', 'row keeps its own ghost (60)');
+  const restOn = () => q.evaluate(() => document.querySelector('#rest').classList.contains('show'));
+  await q.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await q.waitForTimeout(700);
+  ok(!(await restOn()), 'after A1 set 1: no rest timer');
+  ok(await q.evaluate(() => { const r = document.activeElement && document.activeElement.closest('.set'); return !!r && r.dataset.e === '1' && r.dataset.s === '0'; }), 'focus moves to A2 set 1');
+  await q.locator('.set[data-e="1"][data-s="0"] [data-act=log]').click(); await q.waitForTimeout(700);
+  st = await state(q);
+  ok(await restOn() && st.active.rest.total === 120, 'after A2: rest starts, for the group rest (120 s)');
+  ok(await q.evaluate(() => { const r = document.activeElement && document.activeElement.closest('.set'); return !!r && r.dataset.e === '0' && r.dataset.s === '1'; }), 'focus goes back to A1 set 2');
+  await q.locator('[data-act=restskip]').click(); await q.waitForTimeout(300);
+  await q.locator('.set[data-e="0"][data-s="1"] [data-act=log]').click(); await q.waitForTimeout(500);
+  await q.locator('.set[data-e="1"][data-s="1"] [data-act=log]').click(); await q.waitForTimeout(500);
+  await q.locator('[data-act=restskip]').click(); await q.waitForTimeout(300);
+  await q.locator('.set[data-e="0"][data-s="2"] [data-act=log]').click(); await q.waitForTimeout(500);
+  ok(await restOn(), 'A2 has no sets left: A1 set 3 starts the rest');
+  // Link in the logger (⋯ menu): curl + squat
+  await q.locator('.ex[data-e="2"] [data-act=exmenu]').click(); await q.waitForTimeout(400);
+  await q.locator('.sheet [data-act=exlink]').click(); await q.waitForTimeout(300);
+  ce = await ev(q, 'superset_created');
+  ok(ce.length === 1 && ce[0].size === 2 && ce[0].where === 'workout', 'superset_created from the logger: ' + JSON.stringify(ce));
+  await q.keyboard.press('Escape'); await q.waitForTimeout(300);
+  ok(JSON.stringify(await labels(q, '#wo')) === JSON.stringify(['A1', 'A2', 'B1', 'B2']) && await q.locator('#wo-list > .ssg').count() === 2, 'curl + squat become B1 / B2, with their own bar');
+  ok(await q.locator('#wo-list > .ssg').nth(1).evaluate(el => getComputedStyle(el).getPropertyValue('--ssc').trim()) !== await q.locator('#wo-list > .ssg').nth(0).evaluate(el => getComputedStyle(el).getPropertyValue('--ssc').trim()), 'B has a different colour from A');
+  ok(await noHScroll(q), 'logger: no sideways scroll');
+  // Save: the group is stored with the workout
+  await q.locator('[data-act=finish]').click(); await q.waitForTimeout(400); await q.locator('[data-act=save]').click(); await q.waitForTimeout(800);
+  st = await state(q);
+  const last = st.sessions.find(x => x.id !== 's1');
+  ok(last.entries.find(e => e.exId === 'bench').ss === 'A' && last.entries.find(e => e.exId === 'bbrow').ss === 'A', 'saved workout keeps superset A on bench and row');
+  ok(st.profile.days[0].ex[2].ln === undefined, 'linking in the logger does not change the plan');
+  // Ghosts still per exercise: next time, row's ghost is row's own sets
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  const rs = last.entries.find(e => e.exId === 'bbrow').sets[0];
+  ok((await q.locator('.set[data-e="1"][data-s="0"] .g-txt').textContent()).replace(/\s/g, '') === `${rs.w}×${rs.r}`, `next workout: row's ghost is row's own set from the superset (${rs.w} × ${rs.r})`);
+  ok(q.errors.length === 0, 'no console errors ' + q.errors.join(' | '));
+  await q.context().close();
+}
+
+// ---------- share card ----------
+console.log('Share card');
+{
+  const day = Date.now() - 2 * 86400000;
+  const seed = (extra = {}) => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: false, theme: extra.theme || 'light', ...(extra.profile || {}),
+      days: [{ name: 'Push Day', ex: [{ id: 'bench', sets: 2, lo: 6, hi: 8 }, { id: 'ohp', sets: 2, lo: 6, hi: 8 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Push Day', date: day, dur: 50, entries: [
+      { exId: 'bench', sets: [{ w: 80, r: 8 }, { w: 80, r: 8 }] }, { exId: 'ohp', sets: [{ w: 40, r: 6 }, { w: 40, r: 6 }] }] }], active: null });
+  const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
+    set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
+  async function open(sd, opts = {}) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', acceptDownloads: true }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    await p.addInitScript(spy);
+    if (opts.share) await p.addInitScript(() => { window.__shared = []; navigator.canShare = () => true; navigator.share = d => { window.__shared.push(d.files.map(f => [f.name, f.type, f.size])); return Promise.resolve(); }; });
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(sd));
+    await p.goto(URL); await p.waitForTimeout(600);
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+    for (const [e, sI] of [[0, 0], [0, 1], [1, 0]]) { await p.locator(`.set[data-e="${e}"][data-s="${sI}"] [data-act=log]`).click(); await p.waitForTimeout(250); await p.locator('[data-act=restskip]').click().catch(() => {}); }
+    await p.locator('[data-act=finish]').click(); await p.waitForTimeout(500);
+    return p;
+  }
+  const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
+  // Pixel colour at (x, y) of the card image in the sheet
+  const px = (p, x, y) => p.evaluate(([x, y]) => { const im = document.querySelector('.share-prev'), c = document.createElement('canvas'); c.width = 1080; c.height = 1920; const g = c.getContext('2d'); g.drawImage(im, 0, 0); return [...g.getImageData(x, y, 1, 1).data].slice(0, 3); }, [x, y]);
+
+  const p = await open(seed({ profile: { dname: 'Sara Ahmed' } }));
+  ok(await p.locator('.sheet [data-act=share]').count() === 1, 'finish summary has a Share button');
+  const d = await p.evaluate(() => window.RivalShare.cardData(JSON.parse(localStorage.getItem('rival.v1')).active));
+  ok(d.day === 'Push Day' && d.sets === 3 && d.of === 3 && d.beat === 1 && d.prs.length === 1 && /Overhead Press/.test(d.prs[0].n) && Math.round(d.prs[0].d * 10) === 13 && d.muscles.chest > 0, 'card data: day, 1/3 ghosts beaten (the +1 rep), overhead press new best +1.3 kg, chest worked: ' + JSON.stringify({ ...d, muscles: undefined }));
+  await p.locator('.sheet [data-act=share]').click(); await p.waitForTimeout(1500);
+  ok(await p.locator('.share-prev').evaluate(im => im.complete && im.naturalWidth === 1080 && im.naturalHeight === 1920), 'card is a 1080 × 1920 image');
+  let cr = await ev(p, 'share_card_created');
+  ok(cr.length === 1 && cr[0].with_name === true, 'share_card_created (with_name: true)');
+  ok(await p.evaluate(() => document.fonts.check('800 40px Archivo')), 'Archivo (the app font) is loaded for the card');
+  const bgL = await px(p, 20, 20);
+  ok(bgL.join() === '236,238,233', 'light theme background (#ECEEE9): ' + bgL);
+  ok(/Sara, top right/.test(await p.locator('.sheet').textContent()), 'name toggle shows the first name only');
+  const withName = await p.locator('.share-prev').evaluate(im => im.src);
+  await p.locator('.sheet [data-act=sharename][data-v="0"]').click(); await p.waitForTimeout(1200);
+  ok((await state(p)).profile.shareName === false && (await ev(p, 'share_card_created')).pop().with_name === false, 'name switched off: card redrawn without it, choice saved');
+  ok(await p.evaluate(() => { const im = document.querySelector('.share-prev'), c = document.createElement('canvas'); c.width = 1080; c.height = 1920; const g = c.getContext('2d'); g.drawImage(im, 0, 0); const d = g.getImageData(700, 120, 284, 70).data; const bg = [d[0], d[1], d[2]]; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 30) return false; return true; }), 'no name drawn in the top right when off');
+  // Download fallback (headless Chromium has no file sharing)
+  const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 5000 }).catch(() => null), p.locator('.sheet [data-act=sharego]').click()]);
+  ok(dl && dl.suggestedFilename() === 'rival-workout.png', 'no Web Share: the PNG downloads');
+  let sh = await ev(p, 'share_card_shared');
+  ok(sh.length === 1 && sh[0].method === 'download', 'share_card_shared (download)');
+  await p.locator('.sheet [data-act=shareback]').click(); await p.waitForTimeout(500);
+  ok(await p.locator('.sheet [data-act=save]').count() === 1, 'Back returns to the summary');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // Web Share with files, dark theme, no name known
+  const q = await open(seed({ theme: 'dark' }), { share: true });
+  await q.locator('.sheet [data-act=share]').click(); await q.waitForTimeout(1500);
+  ok((await px(q, 20, 20)).join() === '13,15,19', 'dark theme background (#0D0F13)');
+  ok(await q.locator('.sheet [data-act=sharename]').count() === 0 && (await ev(q, 'share_card_created'))[0].with_name === false, 'no display name: no name and no toggle');
+  await q.locator('.sheet [data-act=sharego]').click(); await q.waitForTimeout(600);
+  const files = await q.evaluate(() => window.__shared);
+  ok(files.length === 1 && files[0][0][0] === 'rival-workout.png' && files[0][0][1] === 'image/png' && files[0][0][2] > 20000, 'navigator.share gets the PNG file: ' + JSON.stringify(files));
+  ok((await ev(q, 'share_card_shared'))[0].method === 'share', 'share_card_shared (share)');
+  await q.locator('.share-prev').screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/card-dark.png' : '/dev/null' }).catch(() => {});
+  ok(q.errors.length === 0, 'no console errors ' + q.errors.join(' | '));
+  await q.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {

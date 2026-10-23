@@ -60,5 +60,13 @@ backoff. Sets upsert on `client_id` and workouts on their own id, so retries nev
 phone are pulled into local history, so ghost sets and the heat map work offline. Sample workouts never upload, and a
 phone's workouts stay tied to the first account that signed in on it.
 
-Checks: `node tests/app.test.mjs` (UI), `node tests/offline.sw.mjs` (service worker), and
-`RIVAL_TEST_PW=… node tests/sync.live.mjs` (live, needs the two test users).
+Checks: `npm test` runs `tests/app.test.mjs` (UI), `tests/analytics.test.mjs` (PostHog events) and
+`tests/offline.sw.mjs` (service worker). Live checks against the real project need password test users
+(`rival-test-a/b/c@example.com`, one shared password), made for the run and deleted afterwards:
+`RIVAL_TEST_PW=… node tests/sync.live.mjs` (sync, users a and b), `tests/rivals.live.mjs` (invite, race, remove, revoke;
+users a, b and c) and `tests/supersets.live.mjs` (superset groups sync; user c). Behind an HTTP proxy the browser uses
+`HTTPS_PROXY`.
+
+Rivals security: `tests/rivals.rls.sql` makes three throwaway users inside one transaction, proves a non-rival gets
+nothing (tables and `get_rival_ghost`), and always rolls back. Paste it in the Supabase SQL editor; the message reads
+`RLS TEST PASSED: 25 checks` or names the check that failed.

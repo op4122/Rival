@@ -108,6 +108,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
       <li><b>If you sign in with Google:</b> Google shares your name and email address with Rival (Google's basic profile also includes a link to your profile picture, which Rival doesn't use). We ask for nothing else from your Google account.</li>
       <li><b>If you sign in with email:</b> your email address, so we can send you a sign-in link.</li>
       <li><b>Your training, if you're signed in:</b> workouts, sets (weight, reps, time), readiness check-in answers and score, your training plan, custom exercises and app settings.</li>
+      <li><b>Rivals, if you use them:</b> who you're connected to as rivals, your invite link code, and whether you've switched on "Let rivals see my lifts". You can set the first name rivals see in Settings.</li>
       <li><b>Usage analytics:</b> which screens you open and what you tap, events such as starting or finishing a workout, device and browser type, and an approximate location worked out from your IP address. See "Analytics and session replay" below.</li>
     </ul>
     <p>Without an account, your workouts and settings are stored only in your browser on your phone. They never reach us.</p>
@@ -119,6 +120,18 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
       <li>To understand how Rival is used, find bugs and decide what to improve.</li>
       <li>To reply when you contact us.</li>
     </ul>
+    <h2>Rivals: what friends can see</h2>
+    <p>Rivals is optional. You become rivals with someone only when one of you opens the other's invite link while signed in. Either of you can remove the connection at any time in <b>Settings → Rivals</b>, and you can revoke your invite link there so it stops working.</p>
+    <ul>
+      <li><b>Off by default.</b> Until you switch on <b>Settings → Rivals → Let rivals see my lifts</b>, your rivals see only your first name.</li>
+      <li><b>When it's on,</b> each of your rivals can see, for an exercise they're doing, the weight and reps of the sets from your last finished workout with that exercise, and when that workout was. Nothing else: not your other workouts, readiness check-ins, plan, custom exercises, email or full name.</li>
+      <li>People who aren't your rivals see nothing at all. The database enforces this, not just the app.</li>
+      <li>Switching it off, removing a rival or deleting your account stops sharing straight away.</li>
+    </ul>
+
+    <h2>Share cards</h2>
+    <p>After a workout you can make a picture to share (the day, date, duration, how many sets beat your ghost, new bests and the muscles you trained). It's drawn on your phone and only leaves it if you share or save it yourself. It shows your first name only if you leave that switched on, and never your email.</p>
+
     <p>We don't sell your data, we don't show ads, and we don't use your data to advertise to you anywhere else.</p>
 
     <h2>Where it's stored and who processes it</h2>
@@ -144,7 +157,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
     <p>Your account and training data are kept until you delete them or delete your account (in Settings, or by asking us). Deleting a workout in the app, or using <b>Delete all workouts</b> in Settings, also removes it from your account. Analytics events are kept by PostHog for as long as our plan allows, and recordings for 30 days.</p>
 
     <h2>Deleting your account</h2>
-    <p>You can delete your account yourself in the app: <b>Settings → Data → Delete account</b>. This immediately and permanently deletes your account and all training data stored with it (workouts, sets, check-ins, your plan and custom exercises), and clears Rival on that phone. It needs an internet connection. Analytics events already sent stay with PostHog as described above; they carry only an ID that no longer matches any account.</p>
+    <p>You can delete your account yourself in the app: <b>Settings → Data → Delete account</b>. This immediately and permanently deletes your account and all training data stored with it (workouts, sets, check-ins, your plan, custom exercises, rival connections and invite links), and clears Rival on that phone. It needs an internet connection. Analytics events already sent stay with PostHog as described above; they carry only an ID that no longer matches any account.</p>
     <p>If you can't use the app, email <a href="mailto:almahrouqiahmed6@gmail.com?subject=Delete%20my%20Rival%20account">almahrouqiahmed6@gmail.com</a> from the address you signed in with (or, for Google sign-in, the Gmail address you used), with the subject "Delete my Rival account". We'll delete your account and all training data stored with it within 30 days and confirm by email. Workouts kept only on your phone can be removed in the app at any time.</p>
 
     <h2>Your choices and rights</h2>
@@ -155,7 +168,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
     </ul>
 
     <h2>Security</h2>
-    <p>Data travels over encrypted connections. In the database, each account can only read and change its own rows. No service is perfectly secure, but we take reasonable care to protect your data.</p>
+    <p>Data travels over encrypted connections. In the database, each account can only read and change its own rows. The one exception is Rivals, as described above: a rival can read your first name, and your last sets for an exercise only if you allow it. No service is perfectly secure, but we take reasonable care to protect your data.</p>
 
     <h2>Children</h2>
     <p>Rival isn't meant for children under 13, and we don't knowingly collect their data. If you think a child has signed up, email us and we'll delete the account.</p>

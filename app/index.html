@@ -30,6 +30,7 @@ body{margin:0}
 :root{
   --bg:#ECEEE9; --surface:#FFFFFF; --surface-2:#F4F5F1; --ink:#14161B; --muted:#5F646D; --faint:#9EA3AB;
   --line:rgba(20,22,27,.09); --accent:#2747DB; --accent-ink:#FFFFFF; --accent-soft:rgba(39,71,219,.10);
+  --ss0:#7A3FD1; --ss1:#0B8478; --ss2:#C2570C; --ss3:#C2307A; --rv:#0B7FA8; --rv-bg:rgba(11,127,168,.12);
   --ghost:#686E7A; --win:#8A5D00; --win-bg:rgba(242,183,5,.22); --warn:#C63A25; --body:#D9DCD4; --skin:#E9EBE5; --mus0:#C9CEC4;
   --scrim:rgba(14,16,20,.38); --coach-scrim:rgba(14,16,20,.58); --glass:rgba(255,255,255,.78);
   --display:"Archivo","Arial Narrow",system-ui,sans-serif;
@@ -39,12 +40,14 @@ body{margin:0}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
   --line:rgba(255,255,255,.08); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
+  --ss0:#B08CFF; --ss1:#3FD0BF; --ss2:#FF9A55; --ss3:#FF7DB8; --rv:#5CC8F0; --rv-bg:rgba(92,200,240,.14);
   --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; --skin:#262B34; --mus0:#3A404D;
   --scrim:rgba(0,0,0,.55); --coach-scrim:rgba(0,0,0,.68); --glass:rgba(22,25,31,.78); color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#0D0F13; --surface:#16191F; --surface-2:#1E222A; --ink:#ECEEF2; --muted:#979DA8; --faint:#5C626D;
   --line:rgba(255,255,255,.08); --accent:#7C91FF; --accent-ink:#0D0F13; --accent-soft:rgba(124,145,255,.15);
+  --ss0:#B08CFF; --ss1:#3FD0BF; --ss2:#FF9A55; --ss3:#FF7DB8; --rv:#5CC8F0; --rv-bg:rgba(92,200,240,.14);
   --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; --skin:#262B34; --mus0:#3A404D;
   --scrim:rgba(0,0,0,.55); --coach-scrim:rgba(0,0,0,.68); --glass:rgba(22,25,31,.78); color-scheme:dark;
 }
@@ -502,6 +505,33 @@ body.gated .toasts{z-index:95}
 .ea-tag{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--tagc);font-size:11.5px;font-weight:650}
 .note-l{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-top:14px}
 .ex-note{display:inline-block;margin:0 4px 8px;padding:4px 10px;border-radius:9px;background:var(--win-bg);font-size:13px}
+/* Plateau and deload hints: same soft accent panel as the starter note */
+.plat{position:relative;margin:0 0 10px;padding:12px 12px 10px 14px;border-radius:14px;background:var(--accent-soft);font-size:13.5px;line-height:1.4}
+.plat p{padding-right:30px}.plat b{font-weight:700}
+.plat-a{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.plat-a .btn{flex:1;min-width:120px;height:40px;font-size:14px;background:var(--surface)}
+.plat .starter-x{top:2px;right:2px}
+.deload{margin-top:14px}
+/* Supersets: linked exercises share a coloured bar down the left and an A1 / A2 label */
+.ssg{position:relative;display:grid;gap:8px;padding-left:12px}
+.ssg::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:4px;background:var(--ssc)}
+.day .ssg{gap:0;padding-left:10px}
+.ss-l{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:7px;border-radius:7px;vertical-align:2px;
+  background:color-mix(in oklab,var(--ssc) 16%,transparent);color:var(--ssc);font:700 12px/1 var(--display);letter-spacing:.02em}
+.set.ss-next{animation:ssnext .9s var(--ease-out)}
+@keyframes ssnext{0%{box-shadow:0 0 0 0 color-mix(in oklab,var(--ssc,var(--accent)) 60%,transparent)}100%{box-shadow:0 0 0 10px transparent}}
+.share-prev{display:block;width:min(100%,280px);height:auto;margin:14px auto 6px;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+/* Rivals: a friend's ghost in its own colour */
+.set>.rv-g{grid-area:2/2/3/5;justify-self:start;display:inline-flex;align-items:center;gap:4px;height:24px;margin:-2px 0 2px;padding:0 9px;border-radius:8px;
+  background:var(--rv-bg);color:var(--rv);font:700 13px/1 var(--display);font-variant-numeric:tabular-nums;white-space:nowrap;max-width:100%;overflow:hidden}
+.set>.rv-g.won::after{content:"✓";margin-left:2px}
+.rv-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--rv-bg);font-size:13.5px}
+.rv-bar b{color:var(--rv)}
+.rv-lines div{background:var(--rv-bg)}
+.rv-lines div span:last-child{color:var(--rv);font-weight:700}
+.rv-link{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.rv-acts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 6px}.rv-acts .btn{flex:1;min-width:120px;height:42px;font-size:14.5px}
+.link.danger{color:var(--warn)}
 .sw-h{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 2px 8px}
 .sw-list{display:grid;gap:8px}
 .swr{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:10px 12px;border-radius:14px;background:var(--surface-2);text-align:left;transition:transform 140ms var(--ease-out),background-color 160ms ease}
@@ -711,8 +741,10 @@ body.gated .toasts{z-index:95}
 /* ================= data ================= */
 const KEY = 'rival.v1';
 let erasing = false; // set while an account is being deleted, so nothing is written back to the phone
-const NEWS_V = 1; // bump when there's a new "What's new" note for existing users
+const NEWS_V = 2; // bump when there's a new "What's new" note for existing users
 const DAY = 86400000;
+// Plateau and deload hints: stuck after 3 sessions; deload when readiness averages under 50 and 2+ lifts are stuck.
+const PLATEAU_N = 3, DL_DAYS = 7, DL_QUIET = 14, DL_READY = 50, DL_LIFTS = 2;
 const MUSCLES = {
   chest:'Chest', shoulders:'Shoulders', triceps:'Triceps', biceps:'Biceps', forearms:'Forearms', abs:'Abs',
   lats:'Upper back', traps:'Traps', lowerback:'Lower back', glutes:'Glutes', quads:'Quads', hamstrings:'Hamstrings', calves:'Calves'
@@ -1072,6 +1104,7 @@ function cleanSlot(sl) {
   const out = {id:sl.id, sets:clamp(Math.round(fin(sl.sets) ? sl.sets : 3), 1, 8), lo, hi:clamp(Math.round(fin(sl.hi) ? sl.hi : lo), lo, 40)};
   if (fin(sl.rest)) out.rest = clamp(Math.round(sl.rest), 30, 600);
   if (typeof sl.note === 'string' && sl.note) out.note = sl.note.slice(0, 80);
+  if (sl.ln) out.ln = 1; // superset: linked with the next exercise
   return out;
 }
 function cleanDay(d, i) {
@@ -1098,7 +1131,7 @@ function cleanSession(s) {
     const sets = en.sets.filter(x => isObj(x) && fin(x.r) && x.r > 0 && (fin(x.w) || x.w == null))
       .map(x => ({w:fin(x.w) ? clamp(x.w, 0, MAX_KG) : 0, r:clamp(Math.round(x.r), 1, MAX_REPS), res:x.res === 'beat' || x.res === 'match' ? x.res : null,
         ...(typeof x.cid === 'string' && UUID_RE.test(x.cid) ? {cid:x.cid} : {}), ...(fin(x.at) ? {at:x.at} : {})}));
-    return sets.length ? {exId:en.exId, sets} : null;
+    return sets.length ? {exId:en.exId, sets, ...(typeof en.ss === 'string' && /^[A-Z]$/.test(en.ss) ? {ss:en.ss} : {})} : null;
   }).filter(Boolean);
   if (!entries.length) return null;
   return {id:str(s.id, 60) || newId(), dayIdx:fin(s.dayIdx) ? s.dayIdx : 0, dayName:str(s.dayName, 40) || 'Workout', date:s.date,
@@ -1150,6 +1183,18 @@ function cleanProfile(p0) {
   out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
   out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped; out.restTip = !!out.restTip;
   if (typeof out.owner !== 'string' || !UUID_RE.test(out.owner)) delete out.owner; // the account this phone's workouts belong to
+  { const m = isObj(p.plateau) ? p.plateau : {}, o = {}; // plateau cards acted on, per exercise: {at, light, seen}
+    Object.keys(m).slice(0, 400).forEach(k => { const v = m[k]; if (/^[\w-]{1,80}$/.test(k) && isObj(v) && fin(v.at || 0))
+      o[k] = {...(fin(v.at) ? {at:v.at} : {}), ...(v.light === true ? {light:true} : {}), ...(fin(v.seen) ? {seen:v.seen} : {})}; });
+    out.plateau = o; }
+  { const d = isObj(p.deload) ? p.deload : {}, o = {}; // deload week: start/end when accepted, off when dismissed, sug when last suggested
+    ['start', 'end', 'off', 'sug'].forEach(k => { if (fin(d[k])) o[k] = d[k]; });
+    if (fin(o.end)) o.end = Math.min(o.end, Date.now() + (DL_DAYS + 1) * DAY);
+    if (fin(o.start) !== fin(o.end) || o.start > o.end) { delete o.start; delete o.end; }
+    out.deload = o; }
+  out.shareName = out.shareName !== false;
+  if (typeof out.dname === 'string' && out.dname.trim()) out.dname = out.dname.trim().slice(0, 60); else delete out.dname; // display name from the account, on this phone
+  out.shareLifts = out.shareLifts === true;
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
   // One-off sessions that sit on top of the program without changing it.
@@ -1284,7 +1329,14 @@ function tierOf(score) {
   if (score >= 35) return {key:'eased', label:'Eased', factor:.95, drop:false, note:'Loads eased 5% today.'};
   return {key:'recovery', label:'Recovery', factor:.9, drop:true, note:'Loads eased 10%, and one set dropped from lifts with 3 or more.'};
 }
-function curTier() { const r = todayR(); return tierOf(r && !r.skipped ? r.score : null); }
+function curTier() { if (deloadOn()) return DL_TIER; const r = todayR(); return tierOf(r && !r.skipped ? r.score : null); }
+// Deload week: about 40% fewer sets (cut), last time's weights and reps, no progression and no readiness easing on top.
+const DL_TIER = {key:'deload', label:'Deload', factor:1, drop:false, dl:true, cut:true, note:'Deload week: fewer sets, same weights.'};
+// The tier for changes inside a workout already running (swap, attachment, weight jump): never cuts sets again.
+function liveTier(a, keepDrop) {
+  if (a.dl) return Object.assign({}, DL_TIER, {cut:!!keepDrop});
+  const t = tierOf(a.readiness); return keepDrop ? t : Object.assign({}, t, {drop:false});
+}
 
 // Weight jump for one exercise: the user's own setting (⋯ menu), else its base lift's, else the library's
 // (2.5 kg barbell, 2 kg dumbbell, 1 kg small dumbbell, the machine's own step).
@@ -1319,6 +1371,13 @@ function planSlot0(slot, tier) {
   const ex = EX[slot.id] || {}, inc = incOf(slot.id);
   const last = lastWith(slot.id), g = last ? last.sets : [];
   let n = slot.sets; if (tier.drop && n >= 3) n -= 1;
+  if (tier.dl) {
+    if (tier.cut) n = dlSets(slot.sets);
+    return Array.from({length:n}, (_, i) => {
+      const gi = g[i] || null, gs = gi || g[g.length - 1]; if (!gs) return {w:null, r:slot.lo, g:gi};
+      return {w:gs.w > 0 && U() === 'lb' ? roundW(gs.w, inc) : gs.w, r:Math.min(Math.max(gs.r, slot.lo), MAX_REPS), g:gi};
+    });
+  }
   const pr = progression(g, slot.sets, slot.lo, slot.hi, stepKg(inc), !!ex.bw);
   const out = [];
   for (let i = 0; i < n; i++) {
@@ -1339,6 +1398,127 @@ const planSets = (slot, tier) => planSlot(slot, tier).map(x => ({w:x.w, r:x.r, g
 function trackSuggested(en) {
   const s = en.sets.find(x => x.sg); if (!s || en.sugT) return;
   en.sugT = 1; A.track('progression_suggested', {exercise_id:en.exId, type:s.sg.t, eased:en.sets.some(x => x.sg && x.sg.e)});
+}
+
+/* Supersets: a plan slot or workout entry with ln is linked to the one after it. A run of linked items is a group of
+   2 or 3 (a 4th never joins). Groups get letters A, B, C in order and members are A1, A2, A3. Each exercise keeps its
+   own ghost; the group only changes the order of sets and when the rest timer runs. Pure: window.RivalSuperset. */
+const SS_MAX = 3;
+function ssGroups(list) {
+  const out = list.map(() => null); let g = 0, i = 0;
+  while (i < list.length) {
+    let j = i; while (j < list.length - 1 && list[j].ln && j - i < SS_MAX - 1) j++;
+    if (j > i && g < 26) { const L = String.fromCharCode(65 + g), c = g++ % 4; for (let k = i; k <= j; k++) out[k] = {g:L, c, n:k - i + 1, size:j - i + 1, start:i, end:j}; }
+    i = j + 1;
+  }
+  return out;
+}
+// Can item i be linked to the one after it without making a group bigger than 3? Returns the new group size, or 0.
+function ssCanLink(list, i) {
+  if (i < 0 || i >= list.length - 1) return 0;
+  const g = ssGroups(list.map((x, k) => ({ln:k === i ? 1 : x.ln})));
+  return g[i] && g[i + 1] && g[i].g === g[i + 1].g ? g[i].size : 0;
+}
+window.RivalSuperset = {ssGroups, ssCanLink, MAX:SS_MAX};
+const ssLabel = gi => gi ? `<span class="ss-l">${gi.g}${gi.n}</span>` : '';
+// Wraps each group's items in one block with a shared coloured bar.
+function ssWrap(list, item) {
+  const gs = ssGroups(list); let html = '';
+  list.forEach((x, i) => {
+    const gi = gs[i];
+    if (gi && i === gi.start) html += `<div class="ssg" data-g="${gi.g}" style="--ssc:var(--ss${gi.c})" role="group" aria-label="Superset ${gi.g}">`;
+    html += item(x, i, gi);
+    if (gi && i === gi.end) html += '</div>';
+  });
+  return html;
+}
+// Rest after a round of a superset: the longest rest set on any of its exercises.
+const ssRest = (a, gi) => Math.max(...a.entries.slice(gi.start, gi.end + 1).map(e => e.rest || 0));
+
+/* Plateaus: an exercise ties or loses to its ghost (best-set e1RM against the session before) 3 sessions in a row.
+   pts: [{date, best}] oldest first, lighter and deload sessions already left out. after: only sessions later than this
+   count (set when a plateau card is acted on, so it waits for 3 new stuck sessions). Returns how many sessions in a row,
+   counting back from the latest, failed to beat the one before. Pure, like progression: window.RivalPlateau. */
+function stuckRun(pts, after) {
+  let k = 0;
+  for (let i = pts.length - 1; i > 0; i--) {
+    if (fin(after) && pts[i].date <= after) break;
+    if (pts[i].best > pts[i - 1].best + 1e-6) break;
+    k++;
+  }
+  return k;
+}
+const dlSets = n => Math.max(1, Math.round(n * 0.6));
+const deloadDue = (avg, stuck) => avg != null && avg < DL_READY && stuck >= DL_LIFTS;
+window.RivalPlateau = {stuckRun, dlSets, deloadDue, N:PLATEAU_N};
+
+function inDeload(t) { const d = S.profile.deload; return !!(d && fin(d.start) && fin(d.end) && t >= d.start && t < d.end); }
+function deloadOn() { return inDeload(Date.now()); }
+function plateauPts(exId) {
+  const ack = (S.profile.plateau || {})[exId];
+  return S.sessions.filter(s => !s.sample && !inDeload(s.date) && !(ack && ack.light && s.date === ack.at))
+    .map(s => { const en = s.entries.find(e => e.exId === exId); return en && en.sets.length ? {date:s.date, best:Math.max(...en.sets.map(x => e1(x.w || 0, x.r || 0)))} : null; })
+    .filter(Boolean).sort((a, b) => a.date - b.date);
+}
+// How many sessions in a row this exercise has been stuck (0 below 3). raw: ignore cards already acted on.
+function plateauOf(exId, raw) {
+  const pts = plateauPts(exId), ack = (S.profile.plateau || {})[exId];
+  const n = stuckRun(pts, raw || !ack ? null : ack.at);
+  return n >= PLATEAU_N ? {n, key:pts[pts.length - n].date} : null;
+}
+// Exercises trained in the last 3 weeks that are stuck right now (whatever was done with their cards).
+function stuckLifts() {
+  const from = Date.now() - 21 * DAY, ids = new Set();
+  S.sessions.forEach(s => { if (!s.sample && s.date >= from) s.entries.forEach(e => ids.add(e.exId)); });
+  return [...ids].filter(id => plateauOf(id, true));
+}
+// Average readiness over the last 7 days: one score per day (the latest), today's check-in included. Needs 2 days.
+function avgReadiness() {
+  const now = Date.now(), by = {};
+  S.sessions.filter(s => !s.sample && s.readiness != null && s.date >= now - 7 * DAY && s.date <= now).sort((a, b) => a.date - b.date).forEach(s => { by[dkey(s.date)] = s.readiness; });
+  const r = todayR(); if (r && !r.skipped) by[r.date] = r.score;
+  const v = Object.values(by); return v.length >= 2 ? Math.round(v.reduce((a, x) => a + x, 0) / v.length) : null;
+}
+// The deload suggestion for the Today tab: null unless it's due and wasn't dismissed or done in the last 2 weeks.
+function deloadOffer() {
+  const d = S.profile.deload || {}, now = Date.now();
+  if (deloadOn() || (fin(d.off) && now - d.off < DL_QUIET * DAY) || (fin(d.end) && now - d.end < DL_QUIET * DAY)) return null;
+  const avg = avgReadiness(); if (avg == null || avg >= DL_READY) return null;
+  const stuck = stuckLifts().length; return deloadDue(avg, stuck) ? {avg, stuck} : null;
+}
+// plateau_detected: once per plateau (keyed by the session it started on), when its card first shows.
+function markPlateaus(a) {
+  if (a.dl) return;
+  if (!isObj(S.profile.plateau)) S.profile.plateau = {};
+  a.entries.forEach(en => {
+    const pl = plateauOf(en.exId); if (!pl) return;
+    en.pl = pl.n;
+    const m = S.profile.plateau, e = m[en.exId] || {};
+    if (e.seen !== pl.key) { m[en.exId] = Object.assign(e, {seen:pl.key}); A.track('plateau_detected', {exercise_id:en.exId, sessions:pl.n}); touch(); }
+  });
+}
+// A plateau card was acted on: quiet until 3 more stuck sessions after this one.
+function plateauAct(en, action) {
+  if (!isObj(S.profile.plateau)) S.profile.plateau = {};
+  const m = S.profile.plateau, e = m[en.exId] || {};
+  m[en.exId] = {at:S.active.startedAt, ...(action === 'lighter' ? {light:true} : {}), ...(fin(e.seen) ? {seen:e.seen} : {})};
+  delete en.pl;
+  A.track('plateau_action', {exercise_id:en.exId, action});
+  touch();
+}
+function plateauCard(en, ei) {
+  if (!en.pl) return '';
+  return `<div class="plat" role="note"><p><b>Stuck for ${en.pl} sessions.</b> Try a swap (same muscles) or a lighter week.</p>
+    <div class="plat-a"><button class="btn press" data-act="plswap" data-e="${ei}">Swap</button><button class="btn press" data-act="pllight" data-e="${ei}">10% lighter today</button></div>
+    <button class="starter-x" data-act="plx" data-e="${ei}" aria-label="Dismiss this hint">×</button></div>`;
+}
+function deloadCard() {
+  const d = S.profile.deload || {};
+  if (deloadOn()) return `<div class="ovr deload"><span><b>Deload week</b> until ${fmtDate(d.end, {weekday:'short', day:'numeric', month:'short'})}. About 40% fewer sets, same weights. Then back to normal.</span><span class="acts"><button data-act="dlend">End early</button></span></div>`;
+  const o = deloadOffer(); if (!o) return '';
+  if (!(fin(d.sug) && Date.now() - d.sug < DL_QUIET * DAY)) { S.profile.deload = Object.assign({}, d, {sug:Date.now()}); A.track('deload_suggested', {avg_readiness:o.avg, plateaued:o.stuck}); touch(); }
+  return `<div class="starter deload"><div class="starter-t"><b>Time for a lighter week?</b> Readiness has averaged ${o.avg} over the last 7 days and ${o.stuck} lifts are stuck. A deload week means about 40% fewer sets at the same weights for 7 days, then back to normal.</div>
+    <div class="starter-a"><button class="btn primary press" data-act="dlok">Start deload week</button><button class="btn press" data-act="dlno">Not now</button></div></div>`;
 }
 
 /* ================= storage note =================
@@ -1388,7 +1568,7 @@ const Sync = (() => {
   }
   function settingsRow() {
     const p = S.profile;
-    const keep = ['days', 'program', 'nextDay', 'custom', 'exUnit', 'exInc', 'restC', 'restI', 'theme', 'bars', 'warmups', 'restSound', 'units', 'programPicked', 'starterSeen', 'tour'];
+    const keep = ['days', 'program', 'nextDay', 'custom', 'exUnit', 'exInc', 'restC', 'restI', 'theme', 'bars', 'warmups', 'restSound', 'units', 'programPicked', 'starterSeen', 'tour', 'plateau', 'deload', 'shareName'];
     const settings = {v:1, updatedAt:p.updatedAt || 0}; keep.forEach(k => { if (p[k] !== undefined) settings[k] = p[k]; });
     return {id:st.uid, units:p.units === 'lb' ? 'lb' : 'kg', settings};
   }
@@ -1399,18 +1579,20 @@ const Sync = (() => {
       if (rq) add('rq', rq.id, {id:rq.id, sleep_quality:rq.sleep + 1, energy:rq.energy + 1, soreness:rq.sore + 1, stress:null, score:rq.score, created_at:iso(start)});
       add('w', rid, {id:rid, day_name:(name || 'Workout').slice(0, 40), started_at:iso(start), ended_at:end ? iso(Math.max(end, start)) : null, notes:null, readiness_id:rq ? rq.id : null});
     };
-    const set = (cid, rid, slug, si, w, r, at) => add('s', cid, {client_id:cid, workout_id:rid, slug, set_index:Math.min(si, 99), weight:w > 0 ? Math.round(w * 100) / 100 : 0, reps:r, rpe:null, is_warmup:false, completed_at:iso(at)});
+    // superset_group ('A', 'B'…) only when the set was part of one, so rows saved before supersets keep their hash.
+    const set = (cid, rid, slug, si, w, r, at, ss) => add('s', cid, {client_id:cid, workout_id:rid, slug, set_index:Math.min(si, 99), weight:w > 0 ? Math.round(w * 100) / 100 : 0, reps:r, rpe:null, is_warmup:false, completed_at:iso(at), ...(ss ? {superset_group:ss} : {})});
     S.sessions.forEach(x => {
       if (x.sample) return;
       const rid = x.rid || detUuid('w:' + x.id + ':' + x.date);
       workout(rid, x.dayName, x.date, x.date + (x.dur || 0) * 60000, cleanRq(x.rq));
-      x.entries.forEach((en, ei) => en.sets.forEach((v, si) => set(v.cid || detUuid('s:' + rid + ':' + ei + ':' + si), rid, en.exId, si, v.w, v.r, v.at || x.date + (ei * 4 + si) * 60000)));
+      x.entries.forEach((en, ei) => en.sets.forEach((v, si) => set(v.cid || detUuid('s:' + rid + ':' + ei + ':' + si), rid, en.exId, si, v.w, v.r, v.at || x.date + (ei * 4 + si) * 60000, en.ss)));
     });
     const a = S.active;
     if (a && a.entries.some(en => en.sets.some(v => v.done))) { // a workout in progress syncs set by set
       const rid = activeRid(a);
       workout(rid, a.dayName, a.startedAt, null, cleanRq(a.rq));
-      a.entries.forEach((en, ei) => en.sets.forEach((v, si) => { if (v.done) set(v.cid || detUuid('s:' + rid + ':' + ei + ':' + si), rid, en.exId, si, v.w || 0, v.r, v.at || a.startedAt); }));
+      const gs = ssGroups(a.entries);
+      a.entries.forEach((en, ei) => en.sets.forEach((v, si) => { if (v.done) set(v.cid || detUuid('s:' + rid + ':' + ei + ':' + si), rid, en.exId, si, v.w || 0, v.r, v.at || a.startedAt, gs[ei] && gs[ei].g); }));
     }
     add('p', st.uid, settingsRow());
     want.forEach(o => { o.h = hash(o.row); });
@@ -1522,7 +1704,7 @@ const Sync = (() => {
         (S.profile.custom || []).forEach(c => { bySlugId[exUid(c.id)] = c.id; (c.att || []).forEach(a => { const sl = attId(c.id, a); bySlugId[exUid(sl)] = sl; }); });
       }
       const {data, error} = await db.from('workouts')
-        .select('id, day_name, started_at, ended_at, readiness_checkins(id, score, sleep_quality, energy, soreness), workout_sets(client_id, exercise_id, set_index, weight, reps, is_warmup, completed_at)')
+        .select('id, day_name, started_at, ended_at, readiness_checkins(id, score, sleep_quality, energy, soreness), workout_sets(client_id, exercise_id, set_index, weight, reps, is_warmup, completed_at, superset_group)')
         .order('started_at', {ascending:false}).limit(300);
       if (error) throw error;
       const have = new Set(S.sessions.map(x => x.rid || detUuid('w:' + x.id + ':' + x.date)));
@@ -1535,7 +1717,7 @@ const Sync = (() => {
         const entries = [];
         sets.forEach(x => {
           const slug = bySlugId[x.exercise_id]; let en = entries.find(e => e.exId === slug);
-          if (!en) { en = {exId:slug, sets:[]}; entries.push(en); }
+          if (!en) { en = {exId:slug, sets:[], ...(x.superset_group ? {ss:x.superset_group} : {})}; entries.push(en); }
           en.sets.push({w:+x.weight || 0, r:x.reps, res:null, cid:x.client_id, at:Date.parse(x.completed_at)});
         });
         const r = w.readiness_checkins, start = Date.parse(w.started_at), end = w.ended_at ? Date.parse(w.ended_at) : start;
@@ -1595,7 +1777,7 @@ const Sync = (() => {
   syncHook = soon;
   return {
     state:'local', init() {}, profile() {}, session() {}, remove() {}, // older call sites: persist() already schedules a sync
-    setUser, soon, push, pull, statusHTML, pillHTML, paint, on(f) { st.listeners.push(f); },
+    setUser, soon, push, pull, exMap, statusHTML, pillHTML, paint, on(f) { st.listeners.push(f); },
     get status() { return {uid:st.uid, pending:st.pending, failed:st.failed, phase:st.phase, blocked:st.blocked, last:st.last}; },
     _store:store,
   };
@@ -1606,6 +1788,7 @@ function touch() { S.profile.updatedAt = Date.now(); persist(); Sync.profile(); 
 
 /* ================= icons ================= */
 const I = {
+  share: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
   more:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></svg>',
@@ -1660,13 +1843,14 @@ function vToday() {
   const plans = day.ex.map(sl => planSlot(sl, tier));
   const sets = plans.reduce((a, x) => a + x.length, 0);
   const mins = Math.round(day.ex.reduce((a, sl, i) => a + plans[i].length * (restFor(sl) + 45), 0) / 60);
-  const adj = tier.factor < 1 ? `<span class="adj">${tier.label}</span>` : '';
+  const adj = tier.factor < 1 || tier.dl ? `<span class="adj">${tier.label}</span>` : '';
+  const tgs = ssGroups(day.ex);
   const rows = day.ex.map((sl, i) => {
     const ex = EX[sl.id], pp = plans[i];
     const eu = exU(sl.id), fw = kg => inU(sl.id, () => fmtW(kg));
     const tw = pp[0] && pp[0].w != null ? (ex.bw && !pp[0].w ? 'BW' : fw(pp[0].w) + ' ' + eu + (ex.ea ? ' each' : '')) : 'Pick a weight';
     const g = pp.filter(x => x.g).map(x => x.g);
-    return `<div class="pv"><span class="nm">${esc(ex.n)}</span><span class="sr num">${pp.length} × ${sl.lo}–${sl.hi}</span>
+    return `<div class="pv"${tgs[i] ? ` style="--ssc:var(--ss${tgs[i].c})"` : ''}><span class="nm">${ssLabel(tgs[i])}${esc(ex.n)}</span><span class="sr num">${pp.length} × ${sl.lo}–${sl.hi}</span>
       <span class="ln"><span class="tg">${tw}${pp[0] && pp[0].w != null ? ' × ' + pp.map(x => x.r).join(', ') : ''}</span>${g.length ? `<span class="gh">Ghost ${ex.bw && !g[0].w ? 'BW' : fw(g[0].w)} × ${g.map(x => x.r).join(', ')}</span>` : ''}</span></div>`;
   }).join('');
   // Start sits pinned above the tab bar so it's always in reach. A workout in progress has the Resume pill instead.
@@ -1685,6 +1869,7 @@ function vToday() {
       ${starterCard()}
     </section>
     ${readinessCard()}
+    ${deloadCard()}
     <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}</section>
     ${o ? '' : `<div class="tiles" role="group" aria-label="Change what you train">
       <button class="tile press" data-act="other"><b>${ICO.shuffle}Train something else</b><span>Swap today's session, or plan a different week. Your program waits.</span></button>
@@ -2060,7 +2245,7 @@ function readPlanFile(file) {
 function vPlan() {
   const p = S.profile;
   const days = p.days.map((d, di) => `<section class="card day"><div class="day-h"><h2 class="h2">${esc(d.name)}</h2><span class="dh-r"><span class="sub">${pl(d.ex.length, 'exercise')}</span><button class="link" data-act="dayedit" data-d="${di}" aria-label="Edit ${esc(d.name)}">Edit</button></span></div>
-    ${d.ex.map((sl, si) => `<button class="slot" data-act="slot" data-d="${di}" data-s="${si}"><span style="min-width:0"><span class="nm">${esc(EX[sl.id] ? EX[sl.id].n : sl.id)}</span>${EX[sl.id] ? musclesLine(EX[sl.id]) : ''}</span><span class="sr">${sl.sets} × ${sl.lo}–${sl.hi}</span>${I.chev}</button>`).join('')}
+    ${ssWrap(d.ex, (sl, si, gi) => `<button class="slot" data-act="slot" data-d="${di}" data-s="${si}"><span style="min-width:0"><span class="nm">${ssLabel(gi)}${esc(EX[sl.id] ? EX[sl.id].n : sl.id)}</span>${EX[sl.id] ? musclesLine(EX[sl.id]) : ''}</span><span class="sr">${sl.sets} × ${sl.lo}–${sl.hi}</span>${I.chev}</button>`)}
     <button class="add" data-act="addex" data-d="${di}"><span style="font-size:20px;line-height:1">+</span> Add exercise</button></section>`).join('');
   const st = planStats(p.days);
   return `<header><p class="date">${progLine()}</p><h1 class="title">Plan</h1></header>
@@ -2263,9 +2448,131 @@ async function authInit() {
   }
 }
 
+/* ================= rivals: race a friend's ghost =================
+   Invite a friend with a link (#rival=<code>). When they open it signed in, you're rivals (both ways; either can remove
+   it). A rival's sets come only from the get_rival_ghost database function, which checks the link exists and that they
+   switched on "Let rivals see my lifts" (off by default). Nothing else about them can be read. */
+const RV_KEY = 'rival.invite';
+const RV = {list:null, code:null, loading:false};
+const rvName = n => n || 'Rival';
+const inviteUrl = code => location.origin + location.pathname + '#rival=' + code;
+// An invite link opened: keep the code until the person is signed in, and tidy the address bar.
+function rvCapture() {
+  const m = /(?:^|[#&?])rival=([0-9a-fA-F]{32})(?:&|$)/.exec(location.hash.slice(1) + '&' + location.search.slice(1));
+  if (!m) return false; try { localStorage.setItem(RV_KEY, m[1].toLowerCase()); } catch (e) {} history.replaceState(null, '', location.origin + location.pathname); return true;
+}
+rvCapture();
+addEventListener('hashchange', () => { if (rvCapture()) rvAccept(); }); // a link opened while the app is already open
+const rvPending = () => { try { return localStorage.getItem(RV_KEY); } catch (e) { return null; } };
+async function rvLoad(force) {
+  if (!db || !authUid() || !navigator.onLine) return RV.list || [];
+  if (RV.list && !force) return RV.list;
+  try {
+    const me = authUid(), [r, c] = await Promise.all([db.from('rivals').select('user_a,user_b'), db.from('invite_codes').select('code').maybeSingle()]);
+    if (r.error) throw r.error;
+    const ids = (r.data || []).map(x => x.user_a === me ? x.user_b : x.user_a);
+    const names = await Promise.all(ids.map(id => db.rpc('get_rival_ghost', {p_rival_id:id, p_exercise_id:null}).then(x => x.data && x.data[0] ? x.data[0].display_name : null, () => null)));
+    RV.list = ids.map((id, i) => ({id, name:names[i]})); RV.code = c.data ? c.data.code : null;
+  } catch (e) { if (!RV.list) RV.list = null; }
+  return RV.list || [];
+}
+// Name and the sharing switch live in the profiles row (not in the synced settings).
+async function meLoad(quiet) {
+  if (!db || !authUid()) return;
+  try {
+    const {data} = await db.from('profiles').select('display_name, share_lifts').eq('id', authUid()).maybeSingle(); if (!data) return;
+    if (data.display_name) S.profile.dname = data.display_name; else delete S.profile.dname;
+    S.profile.shareLifts = !!data.share_lifts; persist(); if (!quiet && tab === 'settings' && !sheetEl) render();
+  } catch (e) {}
+}
+let rvAccepting = false;
+async function rvAccept() {
+  const code = rvPending(); if (!code || !db || rvAccepting) return;
+  if (!authUid()) { requireAuth(rvAccept, 'A friend invited you to be rivals. Sign in to accept.'); return; }
+  if (!navigator.onLine) { toast('Connect to the internet to accept the invite'); return; }
+  rvAccepting = true;
+  let res; try { res = await db.rpc('accept_rival_invite', {p_code:code}); } catch (e) { res = {error:e}; } finally { rvAccepting = false; }
+  const {data, error} = res;
+  if (error && !error.code) { toast("Couldn't reach Rival. The invite will be accepted next time you open the app."); return; }
+  try { localStorage.removeItem(RV_KEY); } catch (e) {}
+  if (error) { toast(/own invite/i.test(error.message) ? "That's your own invite link. Send it to a friend." : /not found/i.test(error.message) ? 'That invite link was revoked or is wrong.' : "Couldn't accept the invite."); return; }
+  A.track('rival_invite_accepted', {});
+  await rvLoad(true);
+  const r = (RV.list || []).find(x => x.id === data);
+  toast(`You and ${rvName(r && r.name)} are now rivals`);
+  if (tab === 'settings' && !sheetEl) render();
+}
+onAuth((user, event) => {
+  if (user) { meLoad(); RV.list = null; if (rvPending()) setTimeout(rvAccept, 300); }
+  else { RV.list = null; RV.code = null; if (S.profile.dname || S.profile.shareLifts) { delete S.profile.dname; S.profile.shareLifts = false; persist(); } }
+});
+function rivalsHTML() {
+  if (!db) return '';
+  if (!authUid()) return `<section class="section"><div class="section-head"><h2 class="h2">Rivals</h2></div><div class="card sheet-actions">
+    <p class="sub" style="padding:2px 4px 6px">Race a friend's ghost: their last session shows beside your sets. Sign in to invite a friend.</p><button class="btn press" data-act="rvsignin">Sign in</button></div></section>`;
+  // Refresh in the background (rivals, invite link, name and sharing switch can change on another phone).
+  if (!RV.loading && navigator.onLine && (!RV.list || Date.now() - (RV.at || 0) > 60000)) {
+    RV.loading = true; RV.at = Date.now();
+    Promise.all([rvLoad(true), meLoad(true)]).then(() => { RV.loading = false; if (tab === 'settings' && !sheetEl) { const y = scrollY; render(); scrollTo(0, y); } });
+  }
+  const p = S.profile;
+  const inv = RV.code ? `<p class="note-l" style="margin-top:6px">Your invite link</p><div class="fb-mail"><span class="rv-link">${esc(inviteUrl(RV.code))}</span><button class="link" data-act="rvcopy">Copy</button></div>
+      <div class="rv-acts"><button class="btn press" data-act="rvsend">Send link</button><button class="btn press" data-act="rvrevoke">Revoke link</button></div>`
+    : `<div class="rv-acts"><button class="btn primary press" data-act="rvinvite">Create invite link</button></div>`;
+  const list = RV.list == null ? `<p class="sub set-note">${navigator.onLine ? 'Loading…' : 'Connect to the internet to see your rivals.'}</p>` : RV.list.length
+    ? RV.list.map(r => `<div class="set-row"><span>${esc(rvName(r.name))}</span><button class="link danger" data-act="rvremove" data-id="${esc(r.id)}">Remove</button></div>`).join('')
+    : '<p class="sub set-note">None yet. Send your link to a friend. When they open it signed in, you are rivals.</p>';
+  return `<section class="section" id="rivals"><div class="section-head"><h2 class="h2">Rivals</h2></div><div class="card" style="padding:4px 16px 10px">
+    <div class="set-row"><span>Let rivals see my lifts<span class="menu-s" style="display:block">Your last session of each lift, only for your rivals' ghosts</span></span><div class="seg" style="width:140px"><button data-act="sharelifts" data-v="1" aria-pressed="${!!p.shareLifts}">On</button><button data-act="sharelifts" data-v="0" aria-pressed="${!p.shareLifts}">Off</button></div></div>
+    <div class="set-row"><span>Name rivals see<span class="menu-s" style="display:block">${p.dname ? esc(firstName(p.dname)) : 'Not set, so they see "Rival"'}</span></span><button class="link" data-act="rvname">${p.dname ? 'Change' : 'Set'}</button></div>
+    ${inv}
+    <p class="note-l">Your rivals</p>${list}</div></section>`;
+}
+// The rival ghost for one exercise in the workout, unless switched off for this workout.
+const rvFor = en => { const a = S.active; return a && !a.rvOff && a.rv && a.rv[en.exId] || null; };
+const bestE1 = sets => sets.length ? Math.max(...sets.map(x => e1(x.w || 0, x.r || 0))) : 0;
+const rvBeaten = (en, rv) => { const done = en.sets.filter(x => x.done); return !!done.length && bestE1(done) > bestE1(rv.sets) + 0.05; };
+let rvBusy = false;
+// Fetch rivals' ghosts for the exercises in this workout (signed in and online only). Per exercise: the rival who did it most recently.
+async function rvFetch(a) {
+  if (rvBusy || !db || !authUid() || !navigator.onLine || !a) return;
+  rvBusy = true;
+  try {
+    const list = await rvLoad(); if (!list.length) return;
+    const map = await Sync.exMap();
+    a.rv = isObj(a.rv) ? a.rv : {};
+    const want = [...new Set(a.entries.map(e => e.exId))].filter(id => !(id in a.rv) && map[id]);
+    if (!want.length) return;
+    await Promise.all(want.map(async id => {
+      const res = await Promise.all(list.map(r => db.rpc('get_rival_ghost', {p_rival_id:r.id, p_exercise_id:map[id]}).then(x => x.data || [], () => [])));
+      let best = null;
+      res.forEach(rows => { const sets = rows.filter(x => x.set_index != null && x.weight != null && x.reps > 0); if (!sets.length) return;
+        const at = Date.parse(sets[0].started_at); if (!best || at > best.at) best = {name:sets[0].display_name || null, at, sets:sets.map(x => ({w:+x.weight, r:x.reps}))}; });
+      a.rv[id] = best;
+    }));
+    if (S.active !== a) return;
+    persist();
+    if (!wo.classList.contains('open')) return;
+    const bar = $('#rv-bar'); if (bar) bar.innerHTML = rvBarHTML();
+    a.entries.forEach((en, ei) => { const sec = wo.querySelector(`.ex[data-e="${ei}"]`); if (a.rv[en.exId] && sec && !sec.contains(document.activeElement)) refreshEx(ei); });
+  } catch (e) {} finally { rvBusy = false; }
+}
+function rvBarHTML() {
+  const a = S.active; if (!a || !isObj(a.rv)) return '';
+  const names = [...new Set(Object.values(a.rv).filter(Boolean).map(r => rvName(r.name)))]; if (!names.length) return '';
+  return `<div class="rv-bar"><span>${a.rvOff ? 'Rival ghosts hidden' : `Racing <b>${esc(names.join(', '))}</b>`}</span><div class="seg" style="width:120px" role="group" aria-label="Rival ghosts"><button data-act="rvtoggle" data-v="1" aria-pressed="${!a.rvOff}">On</button><button data-act="rvtoggle" data-v="0" aria-pressed="${!!a.rvOff}">Off</button></div></div>`;
+}
+function rivalLinesHTML() {
+  const a = S.active; if (!a || a.rvOff || !isObj(a.rv)) return '';
+  const seen = new Set(), lines = [];
+  a.entries.forEach(en => { const rv = a.rv[en.exId]; if (!rv || seen.has(en.exId) || !rvBeaten(en, rv)) return; seen.add(en.exId);
+    lines.push(`<div><span>Beat ${esc(rvName(rv.name))} on ${esc(EX[en.exId] ? EX[en.exId].n : en.exId)}</span><span>✓</span></div>`); });
+  return lines.length ? `<div class="prs rv-lines">${lines.join('')}</div>` : '';
+}
+
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '28'; // matches the service worker cache, rival-v28
+const APP_VERSION = '29'; // matches the service worker cache, rival-v29
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2285,6 +2592,7 @@ function vSettings() {
   const p = S.profile;
   return `<header><p class="date">Rival version ${APP_VERSION}</p><h1 class="title">Settings</h1></header>
     ${accountHTML()}
+    ${rivalsHTML()}
     <section class="section" style="margin-top:20px"><div class="section-head"><h2 class="h2">Appearance</h2></div><div class="card" style="padding:4px 16px">
       <div class="set-row"><span>Theme</span><div class="seg" role="group" aria-label="Theme" style="width:216px">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-act="theme" data-v="${v}" aria-pressed="${(p.theme || 'system') === v}">${l}</button>`).join('')}</div></div>
     </div></section>
@@ -2461,11 +2769,12 @@ function startWorkout(idx, o) {
   const p = S.profile, day = (o ? o.days : p.days)[idx], r = todayR(), tier = curTier();
   S.active = {
     id:newId(), rid:uuid(), dayIdx:idx, dayName:day.name, startedAt:Date.now(), mode:o ? o.kind : 'program',
-    readiness: r && !r.skipped ? r.score : null, tierKey: tier.key,
+    readiness: r && !r.skipped ? r.score : null, tierKey: tier.key, ...(tier.dl ? {dl:1} : {}),
     rq: r && !r.skipped ? {id:uuid(), sleep:r.sleep, sore:r.sore, energy:r.energy, score:r.score} : null,
-    entries: day.ex.map(sl => ({exId:sl.id, lo:sl.lo, hi:sl.hi, rest:restFor(sl), note:sl.note || '',
+    entries: day.ex.map(sl => ({exId:sl.id, lo:sl.lo, hi:sl.hi, rest:restFor(sl), note:sl.note || '', ...(sl.ln ? {ln:1} : {}),
       sets: planSets(sl, tier)}))
   };
+  markPlateaus(S.active);
   persist(); openWorkout();
   A.track('workout_started', {mode:S.active.mode, exercise_count:S.active.entries.length});
   S.active.entries.forEach(trackSuggested); persist();
@@ -2494,6 +2803,12 @@ function minimizeWorkout() {
   render();
   try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null;
 }
+// A rival's set beside yours: their first name and what they did on this set last time.
+function rvChip(en, s, si, ex) {
+  const rv = rvFor(en), rs = rv && rv.sets[si]; if (!rs) return '';
+  const won = s.done && cmpGhost(s, rs) === 'beat', nm = esc(firstName(rvName(rv.name)));
+  return `<span class="rv-g${won ? ' won' : ''}" aria-label="${nm}: ${ex.bw && !rs.w ? 'bodyweight' : fmtW(rs.w) + ' ' + U()} × ${rs.r}${won ? ', beaten' : ''}">${nm} ${ex.bw && !rs.w ? 'BW' : fmtW(rs.w)} × ${rs.r}</span>`;
+}
 function setRow(en, s, ei, si) { return inU(en.exId, () => setRow0(en, s, ei, si)); }
 function setRow0(en, s, ei, si) {
   const ex = EX[en.exId] || {}, g = s.g;
@@ -2504,7 +2819,7 @@ function setRow0(en, s, ei, si) {
     <span class="ghost">${gtxt}<span class="g-win${s.res === 'match' ? ' match' : ''}">${esc(win)}</span></span>
     <input class="in-w" id="w-${ei}-${si}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Set ${si + 1} weight in ${U()}${ex.ea ? ', for each side' : ''}" placeholder="${ex.bw ? 'BW' : U()}" value="${s.w == null || (ex.bw && !s.w) ? '' : fmtW(s.w)}">
     <input class="in-r" id="r-${ei}-${si}" inputmode="numeric" enterkeyhint="done" autocomplete="off" aria-label="Set ${si + 1} reps" placeholder="reps" value="${s.r == null ? '' : s.r}">
-    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button>${sugHTML(ex, s, en.sets[si - 1])}</div></div>`;
+    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button>${sugHTML(ex, s, en.sets[si - 1])}${rvChip(en, s, si, ex)}</div></div>`;
 }
 /* Suggestion badges: the inputs start on the suggestion, and a badge on the corner of the box that moved on from the ghost
    says how ("+1" rep, "+2.5" kg, or a grey "Eased" on readiness days). Change the numbers and the badges give way to "↺ Reset"
@@ -2515,7 +2830,7 @@ function sugHTML(ex, s, prev) {
   const same = sugSame(s), b = [], h = same ? '' : 'hidden';
   // A weight badge only on the first of a run of sets with the same change, so a whole exercise doesn't repeat "+2.5".
   const quiet = !!(prev && !prev.done && prev.g && prev.sg && prev.sg.e === sg.e && prev.sg.t === sg.t && (sg.e || prev.sg.p === sg.p) && Math.abs((prev.sg.w || 0) - (sg.w || 0)) < 0.01);
-  if (sg.e && !quiet) b.push(`<span class="sug-b w eased" ${h}>Eased</span>`);
+  if (sg.e && !quiet) b.push(`<span class="sug-b w eased" ${h}>${sg.l ? '−10%' : 'Eased'}</span>`);
   else if (!sg.e && !quiet && sg.p && sg.t === 'weight' && sg.w > 0) { const d = +(parseFloat(fmtW(sg.w)) - parseFloat(fmtW(s.g.w))).toFixed(2); if (d > 0) b.push(`<span class="sug-b w" ${h}>+${d}</span>`); }
   if (sg.p && sg.r > s.g.r && !(sg.t === 'weight' && sg.w > 0)) b.push(`<span class="sug-b r" ${h}>+${sg.r - s.g.r}</span>`);
   const w = ex.bw && !sg.w ? 'BW' : fmtW(sg.w) + ' ' + U();
@@ -2528,11 +2843,12 @@ function exBlock0(en, ei) {
   const bt = barType(en.exId);
   const wu = warmups(en, ei); en.wdone = en.wdone || [];
   const wuHTML = wu.length ? `<div class="wu" role="group" aria-label="Warm-up sets"><span class="wu-l">Warm-up</span>${wu.map((x, i) => `<button class="wu-c${en.wdone[i] ? ' done' : ''}" data-act="wlog" data-e="${ei}" data-i="${i}" aria-pressed="${!!en.wdone[i]}">${x.bar ? 'Bar' : fmtW(x.w)} × ${x.r}</button>`).join('')}</div>` : '';
-  const atts = attsOf(en.exId), title = atts.length && ex.bn ? ex.bn : ex.n;
+  const atts = attsOf(en.exId), title = atts.length && ex.bn ? ex.bn : ex.n, gi = ssGroups(S.active.entries)[ei];
+  const restTxt = !gi ? `rest ${fmtClock(en.rest)}` : ei < gi.end ? `then ${gi.g}${gi.n + 1}, no rest` : `rest ${fmtClock(ssRest(S.active, gi))} after the round`;
   const attHTML = atts.length ? `<div class="att" role="group" aria-label="Attachment for ${esc(ex.bn || ex.n)}"><span class="att-l">Attachment</span><div class="att-o">${atts.map(a => `<button class="chip press" data-act="att" data-e="${ei}" data-id="${esc(a.id)}" aria-pressed="${a.id === en.exId}">${esc(a.n)}</button>`).join('')}</div></div>` : '';
-  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea || U() !== S.profile.units ? `<span class="tags">${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}${U() !== S.profile.units ? `<span class="ea-tag u-tag" title="This exercise uses ${U()}; your default is ${S.profile.units}">in ${U()}</span>` : ''}</span>` : ''}</div>
+  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${ssLabel(gi)}${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea || U() !== S.profile.units ? `<span class="tags">${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}${U() !== S.profile.units ? `<span class="ea-tag u-tag" title="This exercise uses ${U()}; your default is ${S.profile.units}">in ${U()}</span>` : ''}</span>` : ''}</div>
     <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button><button class="swap more press" data-act="exmenu" data-e="${ei}" aria-haspopup="dialog" aria-label="More for ${esc(ex.n)}">${I.more}</button></div></div>
-    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
+    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, ${restTxt}</p></div>${plateauCard(en, ei)}${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
     <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button></div></section>`;
@@ -2550,7 +2866,7 @@ function exMenuHTML(ei) {
   const inc = incOf(en.exId), ii = INC_STEPS.indexOf(inc), incTxt = inU(en.exId, () => `${U() === 'lb' ? lbStep(inc) : fmtW(inc)} ${U()}`);
   const jump = ex.bw && !en.sets.some(x => x.w > 0) ? '' : `<div class="set-row" style="margin-top:12px"><span>Weight jump<span class="menu-s" style="display:block">When every set hits ${en.hi} reps</span></span>
     <div class="stepper"><button data-act="exinc" data-e="${ei}" data-v="-1" aria-label="Smaller jump" ${ii === 0 ? 'disabled' : ''}>−</button><output>${incTxt}</output><button data-act="exinc" data-e="${ei}" data-v="1" aria-label="Bigger jump" ${ii === INC_STEPS.length - 1 ? 'disabled' : ''}>+</button></div></div>`;
-  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}${units}${jump}
+  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}${units}${jump}${ssRowHTML(S.active.entries, ei, 'ex', ei)}
     <div class="sheet-actions" style="margin-top:16px"><button class="btn danger press" data-act="rmex" data-e="${ei}">Remove exercise</button></div>
     <p class="sub" style="margin-top:10px;font-size:13px">Tip: swipe a set to the left to delete it.</p>`;
 }
@@ -2608,13 +2924,14 @@ wo.addEventListener('click', e => { if (Swipe.moved) { Swipe.moved = false; if (
 function renderWorkout() {
   const a = S.active; if (!a) return;
   const t = tierOf(a.readiness);
-  const note = a.readiness == null ? '' : t.factor < 1
+  const note = a.dl ? `<p class="adjust-note"><b>Deload week.</b> Fewer sets, the same weights as last time.</p>` : a.readiness == null ? '' : t.factor < 1
     ? `<p class="adjust-note">Readiness <b>${a.readiness}</b>, ${t.label.toLowerCase()}. ${esc(t.note)}</p>`
     : `<p class="adjust-note">Readiness <b>${a.readiness}</b>, ${t.label.toLowerCase()}. ${esc(t.note)}</p>`;
   wo.innerHTML = `<header class="wo-head"><button class="ic press" data-act="min" aria-label="Minimize workout">${I.down}</button>
     <div><p class="wo-t">${esc(a.dayName)}</p><p class="wo-s">${Sync.pillHTML()}<span class="num" data-elapsed>${fmtClock((Date.now() - a.startedAt) / 1000)}</span>, <span id="wo-count">${countDone()}</span></p></div>
     <button class="finish press" data-act="finish">Finish</button></header>
-    <div class="wo-body"><div class="wo-in">${note}<div id="wo-list" style="display:grid;gap:12px">${a.entries.map(exBlock).join('')}</div><button class="add-ex press" data-act="woadd"><span style="font-size:20px;line-height:1">+</span> Add an exercise</button></div></div>`;
+    <div class="wo-body"><div class="wo-in">${note}<div id="rv-bar">${rvBarHTML()}</div><div id="wo-list" style="display:grid;gap:12px">${ssWrap(a.entries, (en, ei) => exBlock(en, ei))}</div><button class="add-ex press" data-act="woadd"><span style="font-size:20px;line-height:1">+</span> Add an exercise</button></div></div>`;
+  rvFetch(a);
 }
 function countDone() { const a = S.active; let d = 0, n = 0; a.entries.forEach(e => e.sets.forEach(s => { n++; if (s.done) d++; })); return d + ' of ' + n + ' sets'; }
 function refreshEx(ei) {
@@ -2637,11 +2954,12 @@ function logSet0(row) {
     // progression_accepted: once per exercise per workout, the first time a set that moves on from its ghost is logged as suggested
     if (s.sg && s.sg.p && !en.accT && sugSame(s)) { en.accT = 1; A.track('progression_accepted', {exercise_id:en.exId, type:s.sg.t, via:s.sugTap ? 'tap' : 'prefill'}); }
     A.track('set_logged', {exercise_id:en.exId, weight_kg:s.w, reps:s.r, offline:!navigator.onLine});
+    { const rv = rvFor(en); if (rv && !en.rvT && rvBeaten(en, rv)) { en.rvT = 1; A.track('rival_ghost_beaten', {exercise_id:en.exId}); setTimeout(() => toast(`You beat ${rvName(rv.name)} on ${EX[en.exId] ? EX[en.exId].n : 'this lift'}`), 900); } }
     if (s.res === 'beat' && s.g) A.track('ghost_set_beaten', {exercise_id:en.exId, margin:Math.round((e1(s.w, s.r) - e1(s.g.w, s.g.r)) * 10) / 10});
     if (!navigator.onLine && authUid()) A.track('offline_set_queued', {exercise_id:en.exId, pending:Sync.status.pending + 1});
     // carry a changed weight forward to the next untouched sets
     for (let j = si + 1; j < en.sets.length; j++) if (!en.sets[j].done && en.sets[j].w !== s.w && en.sets[j]._auto !== false) { en.sets[j].w = s.w; const inp = wo.querySelector(`#w-${ei}-${j}`); if (inp) { inp.value = fmtW(s.w); sugRefresh(inp.closest('.set'), en.sets[j]); } }
-    startRest(en.rest);
+    ssAfterLog(ei);
   }
   persist();
   const tmp = document.createElement('div'); tmp.innerHTML = setRow(en, s, ei, si);
@@ -2651,10 +2969,143 @@ function logSet0(row) {
     requestAnimationFrame(() => requestAnimationFrame(() => fresh.classList.add(s.res)));
   } else row.replaceWith(fresh);
   const c = $('#wo-count'); if (c) c.textContent = countDone();
-  if (s.done && en.sets.every(x => x.done)) {
-    const next = wo.querySelector(`.ex[data-e="${ei + 1}"]`);
+  const gi = ssGroups(S.active.entries)[ei];
+  if (s.done && ssFocus != null) { const f = ssFocus; ssFocus = null; setTimeout(() => focusSet(f), reduced() ? 0 : 380); }
+  else if (s.done && (gi ? S.active.entries.slice(gi.start, gi.end + 1).every(e => e.sets.every(x => x.done)) : en.sets.every(x => x.done))) {
+    const next = wo.querySelector(`.ex[data-e="${gi ? gi.end + 1 : ei + 1}"]`);
     if (next) setTimeout(() => next.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block: 'start'}), 450);
   }
+}
+
+/* ================= share card =================
+   A 1080 × 1920 story image of the workout, drawn on a canvas in the app's fonts and current theme. The only personal
+   detail it can carry is the display name, and that can be switched off. Shared as a file where the phone supports it,
+   otherwise downloaded as a PNG. */
+const SITE = 'op4122.github.io/Rival';
+const hexRgb = h => { h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.replace(/./g, c => c + c); const n = parseInt(h.slice(0, 6), 16); return isNaN(n) ? [128, 128, 128] : [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const mixRgb = (a, b, t) => 'rgb(' + hexRgb(a).map((x, i) => Math.round(x * t + hexRgb(b)[i] * (1 - t))).join(',') + ')';
+// What the card shows, from the workout in progress (or a saved one). Pure enough to test: window.RivalShare.cardData.
+function cardData(a) {
+  const s = summary(), m = {};
+  Object.keys(MUSCLES).forEach(k => m[k] = 0);
+  let withGhost = 0;
+  a.entries.forEach(en => { const done = en.sets.filter(x => x.done), ex = EX[en.exId]; withGhost += done.filter(x => x.g).length;
+    if (ex) Object.entries(ex.m).forEach(([mu, f]) => { m[mu] += done.length * f; }); });
+  const prs = s.prs.slice().sort((x, y) => y.d - x.d).slice(0, 3);
+  return {day:a.dayName, date:a.startedAt, mins:s.mins, sets:s.sets, beat:s.beat, of:withGhost, prs, muscles:m};
+}
+let logoImg = null;
+function loadLogo() { return new Promise(res => { if (logoImg && logoImg.complete) return res(logoImg); const im = new Image(); im.onload = () => { logoImg = im; res(im); }; im.onerror = () => res(null); im.src = 'icons/icon-192.png'; }); }
+async function drawCard(d, name) {
+  const W = 1080, H = 1920, P = 96, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d'), cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
+  const T = {bg:v('--bg'), surface:v('--surface'), ink:v('--ink'), muted:v('--muted'), accent:v('--accent'), win:v('--win'), mus0:v('--mus0'), skin:v('--skin'), line:v('--line')};
+  const DISP = '"Archivo","Arial Narrow",sans-serif', TXT = '"Instrument Sans",system-ui,sans-serif';
+  try { await Promise.all([document.fonts.load(`800 120px ${DISP}`), document.fonts.load(`600 40px ${TXT}`), document.fonts.load(`400 40px ${TXT}`)]); } catch (e) {}
+  const logo = await loadLogo();
+  const fit = (txt, font, size, max) => { let z = size; c.font = font.replace('$', z); while (c.measureText(txt).width > max && z > size * .55) { z -= 2; c.font = font.replace('$', z); } return z; };
+  const rr = (x, y, w, h, r) => { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); };
+  c.fillStyle = T.bg; c.fillRect(0, 0, W, H);
+  c.textBaseline = 'alphabetic';
+  // header: logo and (optionally) whose workout it is
+  if (logo) { c.save(); rr(P, 110, 88, 88, 22); c.clip(); c.drawImage(logo, P, 110, 88, 88); c.restore(); }
+  c.fillStyle = T.ink; c.font = `800 46px ${DISP}`; c.fillText('Rival', P + 112, 168);
+  if (name) { c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.textAlign = 'right'; c.fillText(name, W - P, 168); c.textAlign = 'left'; }
+  // date, day name, duration
+  c.fillStyle = T.muted; c.font = `500 40px ${TXT}`; c.fillText(fmtDate(d.date, {weekday:'long', day:'numeric', month:'long'}) + ' · ' + d.mins + ' min', P, 330);
+  const dz = fit(d.day, `800 $px ${DISP}`, 168, W - 2 * P); c.fillStyle = T.ink; c.font = `800 ${dz}px ${DISP}`; c.fillText(d.day, P, 330 + dz * 0.95);
+  // ghost score
+  let y = 330 + dz * 0.95 + 70;
+  rr(P, y, W - 2 * P, 230, 40); c.fillStyle = T.surface; c.fill();
+  c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.fillText(d.of ? 'Beat my ghost' : 'First time on these lifts', P + 48, y + 78);
+  c.fillStyle = d.beat ? T.win : T.ink; c.font = `800 120px ${DISP}`;
+  const score = d.of ? `${d.beat}/${d.of}` : `${d.sets}`; c.fillText(score, P + 44, y + 192);
+  const sw = c.measureText(score).width; c.fillStyle = T.muted; c.font = `500 36px ${TXT}`; c.fillText(d.of ? 'sets' : (d.sets === 1 ? 'set logged' : 'sets logged'), P + 64 + sw, y + 190);
+  y += 230 + 40;
+  // new bests
+  d.prs.forEach(pr => {
+    rr(P, y, W - 2 * P, 120, 30); c.fillStyle = T.surface; c.fill();
+    c.fillStyle = T.muted; c.font = `600 28px ${TXT}`; c.fillText('NEW BEST', P + 40, y + 50);
+    const gain = '+' + fmtW(roundTo(pr.d, .5)) + ' ' + U() + ' e1RM';
+    c.font = `800 44px ${DISP}`; const gw = c.measureText(gain).width;
+    c.fillStyle = T.win; c.textAlign = 'right'; c.fillText(gain, W - P - 40, y + 76); c.textAlign = 'left';
+    const nz = fit(pr.n, `700 $px ${TXT}`, 40, W - 2 * P - 130 - gw); c.fillStyle = T.ink; c.font = `700 ${nz}px ${TXT}`; c.fillText(pr.n, P + 40, y + 96);
+    y += 140;
+  });
+  // mini heat map of today's work: front and back
+  const top = Math.max(y + 20, 1040), bh = 1700 - top, sc = bh / 428, bw = 200 * sc, gap = 70, x0 = (W - 2 * bw - gap) / 2;
+  const lvlToday = n => n <= 0 ? 0 : n < 2 ? 1 : n < 4 ? 2 : 3;
+  const fills = [T.mus0, mixRgb(T.accent, T.mus0, .26), mixRgb(T.accent, T.mus0, .55), T.accent];
+  ['front', 'back'].forEach((side, k) => {
+    const ox = x0 + k * (bw + gap), M = side === 'front' ? BODY.front : BODY.back;
+    const draw = (paths, fill) => { c.fillStyle = fill; paths.forEach(pd => { const p2 = new Path2D(pd); [false, true].forEach(mir => {
+      c.save(); c.translate(ox, top); c.scale(sc, sc); if (mir) { c.translate(200, 0); c.scale(-1, 1); } c.fill(p2); c.lineWidth = 1.2; c.strokeStyle = T.skin; c.stroke(p2); c.restore(); }); }); };
+    c.save();
+    const clip = new Path2D(); BODY.skin.forEach(pd => { const m1 = new DOMMatrix().translate(ox, top).scale(sc, sc), m2 = m1.translate(200, 0).scale(-1, 1); clip.addPath(new Path2D(pd), m1); clip.addPath(new Path2D(pd), m2); });
+    c.fillStyle = T.skin; c.fill(clip); c.clip(clip);
+    if (side === 'front') draw(BODY.frontNt, T.mus0);
+    Object.keys(M).forEach(mu => draw(M[mu], fills[lvlToday(d.muscles[mu] || 0)]));
+    c.restore();
+  });
+  c.fillStyle = T.muted; c.font = `500 30px ${TXT}`; c.textAlign = 'center'; c.fillText("Today's muscles", W / 2, 1748); c.textAlign = 'left';
+  // footer
+  c.fillStyle = T.line; c.fillRect(P, 1790, W - 2 * P, 2);
+  c.fillStyle = T.ink; c.font = `800 38px ${DISP}`; c.fillText('Rival', P, 1852);
+  c.fillStyle = T.muted; c.font = `500 34px ${TXT}`; c.textAlign = 'right'; c.fillText(SITE, W - P, 1852); c.textAlign = 'left';
+  return cv;
+}
+window.RivalShare = {cardData, drawCard};
+let shareCard = null; // {blob, url, data}
+async function shareSheet() {
+  if (!S.active) return;
+  const p = S.profile, name = p.dname && p.shareName !== false ? firstName(p.dname) : '';
+  const d = cardData(S.active), cv = await drawCard(d, name);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  if (shareCard && shareCard.url) URL.revokeObjectURL(shareCard.url);
+  shareCard = {blob, url:URL.createObjectURL(blob), w:cv.width, h:cv.height};
+  A.track('share_card_created', {with_name:!!name});
+  const nameRow = p.dname ? `<div class="set-row"><span>Show my name<span class="menu-s" style="display:block">${esc(firstName(p.dname))}, top right</span></span><div class="seg" style="width:140px"><button data-act="sharename" data-v="1" aria-pressed="${p.shareName !== false}">On</button><button data-act="sharename" data-v="0" aria-pressed="${p.shareName === false}">Off</button></div></div>` : '';
+  const html = `<h2 class="h2">Share your workout</h2><p class="sub">A story-sized picture. No weights per set, no email, nothing else about you${p.dname ? ' beyond your first name, if you keep it on' : ''}.</p>
+    <img class="share-prev" src="${shareCard.url}" width="1080" height="1920" alt="Workout card: ${esc(d.day)}, ${d.mins} minutes, beat the ghost on ${d.beat} of ${d.of} sets">
+    ${nameRow}
+    <div class="sheet-actions"><button class="btn primary big press" data-act="sharego">${I.share}Share</button><button class="btn press" data-act="sharesave">Save image</button><button class="btn press" data-act="shareback">Back</button></div>`;
+  if (sheetEl) setSheet(html); else openSheet(html);
+}
+const firstName = n => String(n || '').trim().split(/\s+/)[0].slice(0, 24);
+async function shareGo(download) {
+  if (!shareCard) return;
+  const file = new File([shareCard.blob], 'rival-workout.png', {type:'image/png'});
+  if (!download && navigator.canShare && navigator.share && navigator.canShare({files:[file]})) {
+    try { await navigator.share({files:[file], title:'My workout'}); A.track('share_card_shared', {method:'share'}); }
+    catch (e) { if (e && e.name !== 'AbortError') { toast("Couldn't open sharing. Saving the image instead."); shareGo(true); } }
+    return;
+  }
+  const a = document.createElement('a'); a.href = shareCard.url; a.download = 'rival-workout.png'; document.body.appendChild(a); a.click(); a.remove();
+  A.track('share_card_shared', {method:'download'}); toast('Image saved');
+}
+
+/* Supersets in the logger: after a set of A1 the next set to do is A2's (no rest). After the last exercise of the
+   round the rest timer runs for the group's rest, and the focus goes back to the first exercise with sets left. */
+let ssFocus = null;
+function ssAfterLog(ei) {
+  const a = S.active, en = a.entries[ei], gi = ssGroups(a.entries)[ei];
+  if (!gi) { startRest(en.rest); return; }
+  const left = k => a.entries[k].sets.findIndex(x => !x.done);
+  for (let k = ei + 1; k <= gi.end; k++) if (left(k) >= 0) { ssFocus = {ei:k, si:left(k)}; return; }
+  startRest(ssRest(a, gi));
+  for (let k = gi.start; k <= gi.end; k++) if (left(k) >= 0) { ssFocus = {ei:k, si:left(k)}; return; }
+}
+// superset_created: when a link makes a group or adds a third exercise to one. where: 'plan' or 'workout'.
+function ssLink(list, i, where) {
+  const size = ssCanLink(list, i); if (!size) return;
+  list[i].ln = 1; A.track('superset_created', {size, where}); toast(size === 2 ? 'Superset linked' : 'Added to the superset');
+}
+function ssUnlink(list, i) { const gi = ssGroups(list)[i]; if (!gi) return; for (let k = gi.start; k <= gi.end; k++) delete list[k].ln; toast('Superset unlinked'); }
+function focusSet({ei, si}) {
+  const row = wo.querySelector(`.set[data-e="${ei}"][data-s="${si}"]`); if (!row) return;
+  row.scrollIntoView({behavior:reduced() ? 'auto' : 'smooth', block:'center'});
+  row.classList.remove('ss-next'); void row.offsetWidth; row.classList.add('ss-next');
+  const b = row.querySelector('.check'); if (b) b.focus({preventScroll:true});
 }
 
 /* rest timer */
@@ -2762,7 +3213,8 @@ function finishSheet() {
   const html = `<h2 class="h2">Finish ${esc(S.active.dayName)}?</h2><p class="sub">${s.sets ? 'Here is how you did against your ghost.' : 'No sets logged yet. Log at least one set to save this workout.'}</p>
     <div class="sum"><div><b>${s.sets}</b><span>sets logged</span></div><div class="win"><b>${s.beat}</b><span>ghosts beaten</span></div><div><b>${s.mins}</b><span>${s.mins === 1 ? 'minute' : 'minutes'}</span></div><div><b>${nf.format(Math.round(U() === 'lb' ? s.vol * 2.20462 : s.vol))}</b><span>${U()} lifted</span></div></div>
     ${s.prs.length ? `<div class="prs">${s.prs.map(p => `<div><span>New best: ${esc(p.n)}</span><span class="num">+${fmtW(roundTo(p.d, .5))} ${U()} e1RM</span></div>`).join('')}</div>` : ''}
-    <div class="sheet-actions">${s.sets ? `<button class="btn primary big press" data-act="save">Save workout</button>` : ''}<button class="btn press" data-act="closesheet">Keep training</button><button class="btn danger press" data-act="discard">Discard workout</button></div>`;
+    ${rivalLinesHTML()}
+    <div class="sheet-actions">${s.sets ? `<button class="btn primary big press" data-act="save">Save workout</button><button class="btn press" data-act="share">${I.share}Share</button>` : ''}<button class="btn press" data-act="closesheet">Keep training</button><button class="btn danger press" data-act="discard">Discard workout</button></div>`;
   openSheet(html);
 }
 function saveWorkout() {
@@ -2770,7 +3222,7 @@ function saveWorkout() {
   const prog = !a.mode || a.mode === 'program';
   const rid = activeRid(a);
   const sess = {id:a.id, rid, dayIdx:prog ? a.dayIdx : -1, dayName:a.dayName, date:a.startedAt, dur:s.mins, readiness:a.readiness, ...(cleanRq(a.rq) ? {rq:cleanRq(a.rq)} : {}),
-    entries: a.entries.map((en, ei) => ({exId:en.exId, sets: en.sets.map((x, si) => ({x, si})).filter(o => o.x.done)
+    entries: a.entries.map((en, ei, all) => ({exId:en.exId, ...(ssGroups(all)[ei] ? {ss:ssGroups(all)[ei].g} : {}), sets: en.sets.map((x, si) => ({x, si})).filter(o => o.x.done)
       .map(({x, si}) => ({w:x.w, r:x.r, res:x.res, cid:x.cid || detUuid('s:' + rid + ':' + ei + ':' + si), at:x.at || a.startedAt}))})).filter(en => en.sets.length),
     updatedAt: Date.now()};
   S.sessions.push(sess);
@@ -2923,7 +3375,7 @@ function addToCtx(id) {
   if (libCtx && libCtx.imp && imp) { const r = imp.days[libCtx.imp.d].ex[libCtx.imp.i]; r.id = id; r.off = false; libCtx = null; openSheet(impReviewHTML()); return; }
   if (libCtx && libCtx.workout && S.active) {
     const lo = ex.c ? 6 : 10, hi = ex.c ? 10 : 15, slot = {id, sets:3, lo, hi};
-    S.active.entries.push({exId:id, lo, hi, rest:restFor(slot), note:'', sets: planSets(slot, tierOf(S.active.readiness))});
+    S.active.entries.push({exId:id, lo, hi, rest:restFor(slot), note:'', sets: planSets(slot, liveTier(S.active, true))});
     trackSuggested(S.active.entries[S.active.entries.length - 1]);
     persist(); closeSheet();
     const ei = S.active.entries.length - 1, tmp = document.createElement('div'); tmp.innerHTML = exBlock(S.active.entries[ei], ei);
@@ -2944,7 +3396,8 @@ function slotHTML(d, s) {
   return `<h2 class="h2">${esc(ex.n)}</h2><p class="sub">${ex.kind === 'free' ? 'Free weight' : 'Machine'}, ${esc(day.name)} exercise ${s + 1} of ${day.ex.length}</p>
     <div class="mv-box"><p class="mv-m"><span>Primary</span> ${ex.prim.join(', ')}</p>${ex.sec.length ? `<p class="mv-m sec"><span>Secondary</span> ${ex.sec.join(', ')}</p>` : ''}</div>
     <div>${st('sets', sl.sets, 'Sets')}${st('lo', sl.lo, 'Reps, low end')}${st('hi', sl.hi, 'Reps, high end')}${st('rest', fmtClock(restFor(sl)), 'Rest')}
-      <div class="set-row"><span>Order</span><div class="stepper"><button data-act="slotmove" data-v="-1" aria-label="Move up" ${s === 0 ? 'disabled' : ''}>↑</button><button data-act="slotmove" data-v="1" aria-label="Move down" ${s === day.ex.length - 1 ? 'disabled' : ''}>↓</button></div></div></div>
+      <div class="set-row"><span>Order</span><div class="stepper"><button data-act="slotmove" data-v="-1" aria-label="Move up" ${s === 0 ? 'disabled' : ''}>↑</button><button data-act="slotmove" data-v="1" aria-label="Move down" ${s === day.ex.length - 1 ? 'disabled' : ''}>↓</button></div></div>
+      ${ssRowHTML(day.ex, s, 'slot')}</div>
     ${attsOf(sl.id).length ? `<div class="att inplan" role="group" aria-label="Attachment"><span class="att-l">Attachment</span><div class="att-o">${attsOf(sl.id).map(a => `<button class="chip press" data-act="slotatt" data-id="${esc(a.id)}" aria-pressed="${a.id === sl.id}">${esc(a.n)}</button>`).join('')}</div></div>
     <p class="sub" style="font-size:12.5px;margin-top:6px">Each attachment keeps its own weights and ghost. You can also switch during a workout.</p>` : ''}
     <label class="note-l" for="slotnote">Note for the gym floor</label>
@@ -2955,6 +3408,13 @@ function slotHTML(d, s) {
       <button class="btn danger press" data-act="rmslot">Remove from ${esc(day.name)}</button></div>`;
 }
 let slotCtx = null, noteT = 0, wuT = 0;
+// The Superset row in the plan's exercise sheet and the logger's ⋯ menu. kind: 'slot' (plan) or 'ex' (logger).
+function ssRowHTML(list, i, kind, ei) {
+  const gi = ssGroups(list)[i], nm = x => esc(EX[x.id || x.exId] ? EX[x.id || x.exId].n : (x.id || x.exId)), de = ei != null ? ` data-e="${ei}"` : '';
+  if (gi) return `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">${list.slice(gi.start, gi.end + 1).map((x, k) => gi.g + (k + 1) + ' ' + nm(x)).join(', ')}</span></span><button class="link" data-act="${kind}unlink"${de}>Unlink</button></div>`;
+  const nx = ssCanLink(list, i) ? list[i + 1] : null;
+  return nx ? `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">Alternate sets with ${nm(nx)}, rest after each round</span></span><button class="link" data-act="${kind}link"${de}>Link</button></div>` : '';
+}
 
 
 /* ================= lift & session detail ================= */
@@ -3079,9 +3539,10 @@ function goCoach(i, dir) {
 function newsSheet() {
   openSheet(`<h2 class="h2">New in Rival</h2><p class="sub">A few things people asked for.</p>
     <ul class="news">
-      <li><span>${ICO.shuffle}</span><span><b>Your plan bends.</b> On Today, tap <b>Train something else</b> to swap just today's session or plan a different week. Your program waits.</span></li>
-      <li><span>${ICO.edit}</span><span><b>Import your own plan.</b> Paste it from Notes or a spreadsheet on the Plan tab and Rival matches every exercise.</span></li>
-      <li><span>${ICO.att}</span><span><b>Attachments.</b> Rope, straight bar or V-bar on cable lifts. Each keeps its own weights.</span></li>
+      <li><span>${ICO.shuffle}</span><span><b>Supersets.</b> Tap an exercise on the Plan tab (or ⋯ in a workout) and link it with the next one. Rival takes you from A1 to A2 and rests after the round.</span></li>
+      <li><span>${ICO.ring}</span><span><b>Rival a friend.</b> In Settings → Rivals, send a friend your link and race their ghost. Your lifts stay hidden unless you switch sharing on.</span></li>
+      <li><span>${I.share}</span><span><b>Share your workout.</b> Tap Share when you finish for a story-sized picture of your session.</span></li>
+      <li><span>${ICO.edit}</span><span><b>Stuck on a lift?</b> After 3 sessions without beating your ghost, Rival suggests a swap or a lighter day, and a deload week when you're worn down.</span></li>
     </ul>
     <div class="sheet-actions"><button class="btn primary big press" data-act="newsok">Got it</button></div>`, () => { S.profile.tour.n = NEWS_V; persist(); });
 }
@@ -3120,6 +3581,74 @@ addEventListener('resize', () => placeCoach(true));
 document.addEventListener('scroll', () => placeCoach(true), {capture:true, passive:true});
 
 const acts = {
+  rvsignin() { requireAuth(() => render(), 'Sign in to race a friend.'); },
+  rvtoggle(el) { if (!S.active) return; S.active.rvOff = el.dataset.v === '0'; persist(); const b = wo.querySelector('.wo-body'), y = b ? b.scrollTop : 0; renderWorkout(); const b2 = wo.querySelector('.wo-body'); if (b2) b2.scrollTop = y; },
+  async sharelifts(el) {
+    const on = el.dataset.v === '1', before = !!S.profile.shareLifts; if (on === before) return;
+    S.profile.shareLifts = on; persist(); render();
+    const {error} = await db.from('profiles').update({share_lifts:on}).eq('id', authUid());
+    if (error) { S.profile.shareLifts = before; persist(); render(); toast("Couldn't change that. Check your connection."); }
+    else toast(on ? 'Rivals can now see your lifts' : 'Your lifts are hidden from rivals');
+  },
+  rvname() {
+    openSheet(`<h2 class="h2">Name rivals see</h2><p class="sub">Only your first name shows, to your rivals and on share cards if you choose.</p>
+      <input class="search" id="rvnamein" type="text" maxlength="40" autocomplete="given-name" placeholder="First name" value="${esc(S.profile.dname ? firstName(S.profile.dname) : '')}">
+      <div class="sheet-actions" style="margin-top:12px"><button class="btn primary big press" data-act="rvnamesave">Save</button></div>`);
+  },
+  async rvnamesave() {
+    const v = ($('#rvnamein') ? $('#rvnamein').value : '').trim().slice(0, 40);
+    const {error} = await db.from('profiles').update({display_name:v || null}).eq('id', authUid());
+    if (error) { toast("Couldn't save the name. Check your connection."); return; }
+    if (v) S.profile.dname = v; else delete S.profile.dname; persist(); closeSheet(); render(); toast('Name saved');
+  },
+  async rvinvite() {
+    if (!navigator.onLine) { toast('Connect to the internet to create a link'); return; }
+    const {data, error} = await db.from('invite_codes').insert({}).select('code').single();
+    if (error) { toast("Couldn't create a link. Try again."); return; }
+    RV.code = data.code; A.track('rival_invite_created', {}); render(); toast('Invite link ready');
+  },
+  async rvcopy() { try { await navigator.clipboard.writeText(inviteUrl(RV.code)); toast('Link copied'); } catch (e) { toast("Couldn't copy. Press and hold the link instead."); } },
+  async rvsend() {
+    const url = inviteUrl(RV.code);
+    if (navigator.share) { try { await navigator.share({title:'Be my rival on Rival', text:'Race my ghost on Rival:', url}); } catch (e) {} return; }
+    acts.rvcopy();
+  },
+  async rvrevoke() {
+    const {error} = await db.from('invite_codes').delete().eq('user_id', authUid());
+    if (error) { toast("Couldn't revoke the link. Try again."); return; }
+    RV.code = null; render(); toast('Link revoked. Your rivals stay.');
+  },
+  async rvremove(el) {
+    const id = el.dataset.id, me = authUid(), [ua, ub] = me < id ? [me, id] : [id, me];
+    const {error} = await db.from('rivals').delete().eq('user_a', ua).eq('user_b', ub);
+    if (error) { toast("Couldn't remove. Try again."); return; }
+    RV.list = (RV.list || []).filter(r => r.id !== id); render(); toast('Rival removed');
+  },
+  share() { shareSheet(); },
+  sharego() { shareGo(false); },
+  sharesave() { shareGo(true); },
+  shareback() { finishSheet(); },
+  sharename(el) { S.profile.shareName = el.dataset.v === '1'; touch(); shareSheet(); },
+  slotlink() { ssLink(S.profile.days[slotCtx.d].ex, slotCtx.s, 'plan'); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
+  slotunlink() { ssUnlink(S.profile.days[slotCtx.d].ex, slotCtx.s); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
+  exlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; ssLink(S.active.entries, ei, 'workout'); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
+  exunlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; ssUnlink(S.active.entries, ei); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
+  plswap(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'swap'); refreshEx(+el.dataset.e); acts.swap(el); },
+  plx(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'dismiss'); refreshEx(+el.dataset.e); },
+  pllight(el) {
+    const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
+    const inc = incOf(en.exId);
+    inU(en.exId, () => en.sets.forEach(x => { if (x.done || !(x.w > 0)) return;
+      x.w = roundW(x.w * 0.9, inc); if (x.sg) x.sg = Object.assign({}, x.sg, {w:x.w, r:x.r, e:true, l:true}); }));
+    plateauAct(en, 'lighter'); persist(); refreshEx(ei); toast('10% lighter for this session');
+  },
+  dlok() {
+    const o = deloadOffer() || {avg:avgReadiness(), stuck:stuckLifts().length}, now = Date.now();
+    S.profile.deload = Object.assign({}, S.profile.deload, {start:now, end:now + DL_DAYS * DAY}); delete S.profile.deload.off;
+    A.track('deload_accepted', {avg_readiness:o.avg, plateaued:o.stuck}); touch(); render(); toast('Deload week started');
+  },
+  dlno() { S.profile.deload = Object.assign({}, S.profile.deload, {off:Date.now()}); touch(); render(); },
+  dlend() { const d = S.profile.deload; if (d && fin(d.end)) d.end = Date.now(); touch(); render(); toast('Back to normal training'); },
   export() { exportBackup(); },
   importpick() { $('#importfile').click(); },
   restore() {
@@ -3267,7 +3796,7 @@ const acts = {
     S.profile.exInc = isObj(S.profile.exInc) ? S.profile.exInc : {};
     if (nx === ((EX[id] && EX[id].inc) || 2.5) && !S.profile.exInc[baseOf(id)]) delete S.profile.exInc[id]; else S.profile.exInc[id] = nx;
     // Re-plan sets not logged yet; sets still on the old suggestion move to the new one, edited sets keep what was typed.
-    const tier = Object.assign({}, tierOf(S.active.readiness), {drop:false}), fresh = planSets({id, sets:en.sets.length, lo:en.lo, hi:en.hi}, tier);
+    const tier = liveTier(S.active), fresh = planSets({id, sets:en.sets.length, lo:en.lo, hi:en.hi}, tier);
     en.sets.forEach((x, k) => { if (x.done || !fresh[k] || !fresh[k].sg) return; if (!x.sg || inU(id, () => sugSame(x))) { x.w = fresh[k].w; x.r = fresh[k].r; } x.sg = fresh[k].sg; });
     touch(); refreshEx(ei); setSheet(exMenuHTML(ei));
   },
@@ -3298,12 +3827,12 @@ const acts = {
   swpick(el) {
     const id = el.dataset.id, ctx = swapCtx; if (!S.active || !ctx || !EX[id]) return;
     const ei = ctx.ei, en = S.active.entries[ei]; if (!en || en.exId !== ctx.from) { closeSheet(); return; }
-    const before = clone(S.active.entries), done = en.sets.filter(x => x.done), tier = Object.assign({}, tierOf(S.active.readiness), {drop:false});
+    const before = clone(S.active.entries), done = en.sets.filter(x => x.done), tier = liveTier(S.active);
     const mk = n => planSets({id, sets:n, lo:en.lo, hi:en.hi}, tier);
     let ni = ei;
     if (!done.length) Object.assign(en, {exId:id, note:'', wdone:[], rest:restFor({id}), sets:mk(en.sets.length)});
     else { const n = Math.max(1, en.sets.length - done.length); en.sets = done;
-      S.active.entries.splice(ei + 1, 0, {exId:id, lo:en.lo, hi:en.hi, rest:restFor({id}), note:'', sets:mk(n)}); ni = ei + 1; }
+      S.active.entries.splice(ei + 1, 0, {exId:id, lo:en.lo, hi:en.hi, rest:restFor({id}), note:'', ...(en.ln ? {ln:1} : {}), sets:mk(n)}); delete en.ln; ni = ei + 1; }
     if (!done.length) delete en.sugT; trackSuggested(S.active.entries[ni]);
     persist(); swapCtx = null; closeSheet();
     const body = wo.querySelector('.wo-body'), y = body ? body.scrollTop : 0; renderWorkout();
@@ -3316,7 +3845,7 @@ const acts = {
     const a = S.active, ei = +el.dataset.e, en = a && a.entries[ei], picked = el.dataset.id; if (!en || !EX[picked]) return;
     const from = en.exId, to = from === picked ? baseOf(picked) : picked; // tap the chosen one again to clear it
     if (!EX[to] || to === from) return;
-    const before = clone(a.entries), tier = Object.assign({}, tierOf(a.readiness), {drop:false});
+    const before = clone(a.entries), tier = liveTier(a);
     const known = !!lastWith(to);
     // Weights come from the last time you used this attachment. Never used it? Keep what's on the card as a starting point.
     const mk = old => planSlot({id:to, sets:Math.max(1, old.length), lo:en.lo, hi:en.hi}, tier).map((x, i) => {
@@ -3586,6 +4115,7 @@ $('#planfile').addEventListener('change', e => { const f = e.target.files && e.t
 render();
 authInit().then(() => {
   A.track('app_opened', {standalone:isStandalone(), signed_in:!!authUid(), surface:'app'}); A.screen(tab); if (gateNeeded() && !S.active) openGate(); else startIntro();
+  if (rvPending() && db && !authUid() && !gateEl) setTimeout(() => { if (!coach && !gateEl) rvAccept(); }, 700);
   let gone = false; try { gone = !!sessionStorage.getItem('rival.deleted'); sessionStorage.removeItem('rival.deleted'); } catch (e) {}
   if (gone) setTimeout(() => toast('Your account was deleted'), 400); });
 document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('acct-mail')) Auth.mailOpen = e.target.open; }, true);
