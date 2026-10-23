@@ -885,6 +885,80 @@ console.log('Remove a rival (BUG-7)');
   await ctx.close();
 }
 
+// ---------- Rivals with the fake Supabase: ask email sign-ups for a first name, keep ghosts for offline workouts ----------
+// Both use tests/fake-supabase.js (an in-memory Supabase client), so they run offline.
+const ME = '00000000-0000-4000-8000-000000000001', SARA = '00000000-0000-4000-8000-0000000000aa';
+const iso = ago => new Date(Date.now() - ago).toISOString();
+const SARA_SETS = [{ set_index: 0, weight: 85, reps: 6, started_at: iso(2 * 86400000) }, { set_index: 1, weight: 85, reps: 5, started_at: iso(2 * 86400000) }];
+async function fakePhone({ meName = 'Omar Test', rivals = true, profile = {}, cache = null } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+  p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.addInitScript(sd => { window.__fakeSeed = sd; }, { me: { id: ME, display_name: meName }, users: [{ id: SARA, display_name: 'Sara Test', share_lifts: true }], rivals: rivals ? [[ME, SARA]] : [], ghosts: { [SARA]: SARA_SETS } });
+  await p.addInitScript({ path: new globalThis.URL('./fake-supabase.js', import.meta.url).pathname });
+  await p.addInitScript(([s, c]) => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); if (c) localStorage.setItem('rival.rvcache', c); sessionStorage.setItem('seeded', '1'); } },
+    [JSON.stringify({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, sampleCleared: true, warmups: false, days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }] }], ...profile }, sessions: [], active: null }), cache ? JSON.stringify(cache) : null]);
+  await p.goto(URL); await p.waitForTimeout(800);
+  return p;
+}
+const rvCache = p => p.evaluate(() => JSON.parse(localStorage.getItem('rival.rvcache') || 'null'));
+const sheetH = p => p.locator('.sheet .h2').first().textContent({ timeout: 200 }).catch(() => '');
+const chips = p => p.locator('.set .rv-g').allTextContents().then(a => a.map(t => t.replace(/\s+/g, ' ').trim()));
+const askedName = async (p, ms) => { for (let t = 0; t < ms; t += 250) { if (/What should rivals call you\?/.test(await sheetH(p))) return true; await p.waitForTimeout(250); } return false; };
+
+console.log('Name for email sign-ups');
+{
+  const p = await fakePhone({ meName: null });
+  ok(await askedName(p, 3000), 'an account with no name is asked "What should rivals call you?"');
+  ok(await p.locator('.sheet [data-act=rvnamesave]').count() === 1 && /^Skip$/.test(await p.locator('.sheet [data-act=closesheet]').textContent()), 'the sheet has Save and Skip');
+  ok((await state(p)).profile.nameAsked[ME] === true, 'asked flag stored in the profile, per account');
+  await p.locator('.sheet button:text-is("Skip")').click(); await p.waitForTimeout(500);
+  ok(await p.locator('.sheet').count() === 0 && !(await state(p)).profile.dname, 'Skip closes it without a name');
+  await p.reload(); await p.waitForTimeout(4500);
+  ok(await p.locator('.sheet').count() === 0, 'not asked again on this phone');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+{
+  const p = await fakePhone({ meName: null });
+  ok(await askedName(p, 3000), 'asked');
+  await p.fill('#rvnamein', 'Omar'); await p.locator('[data-act=rvnamesave]').click(); await p.waitForTimeout(500);
+  ok(await p.evaluate(() => window.__fake.tables.profiles.find(x => x.id === window.__fake.me.id).display_name) === 'Omar' && (await state(p)).profile.dname === 'Omar', 'Save uses the existing path: profile row and phone both have "Omar"');
+  ok(/Name saved/.test(await p.locator('#toasts').textContent()), 'toast: Name saved');
+  await p.reload(); await p.waitForTimeout(4500);
+  ok(await p.locator('.sheet').count() === 0, 'not asked again once named');
+  await p.locator('[data-act=tab][data-tab=settings]').click(); await p.waitForTimeout(500);
+  await p.locator('[data-act=rvname]').click(); await p.waitForTimeout(500);
+  ok(/Name rivals see/.test(await sheetH(p)) && await p.locator('.sheet button:text-is("Skip")').count() === 0, 'Settings → Name rivals see: same sheet, original title, no Skip');
+  await p.context().close();
+}
+{
+  const p = await fakePhone({ meName: 'Omar Test' });
+  await p.waitForTimeout(4000);
+  ok(await p.locator('.sheet').count() === 0, 'an account that already has a name (Google) is never asked');
+  await p.context().close();
+}
+{ // never in a workout
+  const p = await fakePhone({ meName: null });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(5500);
+  ok(await p.locator('#wo.open').count() === 1 && await p.locator('.sheet').count() === 0, 'a workout is open: no question');
+  await p.locator('[data-act=min]').click(); await p.waitForTimeout(4000);
+  ok(await p.locator('.sheet').count() === 0, 'workout minimized but still running: still no question');
+  await p.evaluate(() => document.querySelector('#resume').click()); await p.waitForTimeout(600);
+  await p.locator('[data-act=finish]').click(); await p.waitForTimeout(500);
+  await p.locator('[data-act=discard]').click(); await p.waitForTimeout(200); await p.locator('[data-act=discard]').click(); await p.waitForTimeout(600);
+  ok(await p.evaluate(() => JSON.parse(localStorage.getItem('rival.v1')).active) === null, 'workout over');
+  ok(await askedName(p, 5000), 'asked once the workout is over');
+  await p.context().close();
+}
+{ // never during the tour
+  const p = await fakePhone({ meName: null, profile: { tour: { done: false, wo: true, n: 0 } } });
+  await p.waitForTimeout(4500);
+  ok(await p.locator('.coach').count() === 1 && await p.locator('.sheet').count() === 0, 'the tour is running: no question');
+  while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
+  ok(await askedName(p, 5000), 'asked once the tour is over');
+  await p.context().close();
+}
+
 // ---------- BUG-8: plateau cards only where they help ----------
 console.log('Plateau rules (BUG-8)');
 {

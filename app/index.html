@@ -1205,6 +1205,9 @@ function cleanProfile(p0) {
   out.shareName = out.shareName !== false;
   if (typeof out.dname === 'string' && out.dname.trim()) out.dname = out.dname.trim().slice(0, 60); else delete out.dname; // display name from the account, on this phone
   out.shareLifts = out.shareLifts === true;
+  { const m = isObj(p.nameAsked) ? p.nameAsked : {}, o = {}; // accounts already asked "What should rivals call you?" on this phone (not synced)
+    Object.keys(m).slice(0, 20).forEach(k => { if (UUID_RE.test(k) && m[k] === true) o[k] = true; });
+    if (Object.keys(o).length) out.nameAsked = o; else delete out.nameAsked; }
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
   // One-off sessions that sit on top of the program without changing it.
@@ -2528,7 +2531,23 @@ async function meLoad(quiet) {
     const {data} = await db.from('profiles').select('display_name, share_lifts').eq('id', authUid()).maybeSingle(); if (!data) return;
     if (data.display_name) S.profile.dname = data.display_name; else delete S.profile.dname;
     S.profile.shareLifts = !!data.share_lifts; persist(); if (!quiet && tab === 'settings' && !sheetEl) render();
+    rvAskName(1500); // after the tour and "What's new" have had their turn at start-up
   } catch (e) {}
+}
+// Email accounts arrive with no name (Google gives one), so rivals would see "Rival". Ask once per account per phone, and only
+// when nothing else has the screen: never during a workout, the tour, the sign-in screen or another sheet.
+let rvAskT = 0;
+function rvAskName(delay) {
+  clearTimeout(rvAskT);
+  const uid = authUid(); if (!uid || S.profile.dname || (S.profile.nameAsked || {})[uid]) return;
+  if (delay || S.active || coach || sheetEl || gateEl || !S.profile.tour.done || !navigator.onLine) { rvAskT = setTimeout(rvAskName, delay || 3000); return; }
+  S.profile.nameAsked = Object.assign({}, S.profile.nameAsked, {[uid]: true}); persist();
+  rvNameSheet(true);
+}
+function rvNameSheet(ask) {
+  openSheet(`<h2 class="h2">${ask ? 'What should rivals call you?' : 'Name rivals see'}</h2><p class="sub">Only your first name shows, to your rivals and on share cards if you choose.</p>
+    <input class="search" id="rvnamein" type="text" maxlength="40" autocomplete="given-name" placeholder="First name" value="${esc(S.profile.dname ? firstName(S.profile.dname) : '')}">
+    <div class="sheet-actions" style="margin-top:12px"><button class="btn primary big press" data-act="rvnamesave">Save</button>${ask ? '<button class="btn press" data-act="closesheet">Skip</button>' : ''}</div>`);
 }
 let rvAccepting = false;
 async function rvAccept() {
@@ -3716,11 +3735,7 @@ const acts = {
     if (error) { S.profile.shareLifts = before; persist(); render(); toast("Couldn't change that. Check your connection."); }
     else toast(on ? 'Rivals can now see your lifts' : 'Your lifts are hidden from rivals');
   },
-  rvname() {
-    openSheet(`<h2 class="h2">Name rivals see</h2><p class="sub">Only your first name shows, to your rivals and on share cards if you choose.</p>
-      <input class="search" id="rvnamein" type="text" maxlength="40" autocomplete="given-name" placeholder="First name" value="${esc(S.profile.dname ? firstName(S.profile.dname) : '')}">
-      <div class="sheet-actions" style="margin-top:12px"><button class="btn primary big press" data-act="rvnamesave">Save</button></div>`);
-  },
+  rvname() { rvNameSheet(false); },
   async rvnamesave() {
     const v = ($('#rvnamein') ? $('#rvnamein').value : '').trim().slice(0, 40);
     const {error} = await db.from('profiles').update({display_name:v || null}).eq('id', authUid());
