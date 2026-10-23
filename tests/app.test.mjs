@@ -465,7 +465,7 @@ console.log('Plateau and deload hints');
     profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: rq,
       days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }, { id: 'squat', sets: 3, lo: 6, hi: 8 }, { id: 'bbrow', sets: 4, lo: 8, hi: 12 }] }], ...profile },
     sessions: [10, 7, 4, 2].map((ago, i) => ({ id: 'p' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, readiness, entries: [
-      { exId: 'bench', sets: s3(80, 8) }, { exId: 'squat', sets: s3(100 + i * 5, 8) }, { exId: 'bbrow', sets: s3(rowW[i], 10) }] })), active: null });
+      { exId: 'bench', sets: s3(80, 7) }, { exId: 'squat', sets: s3(100 + i * 5, 8) }, { exId: 'bbrow', sets: s3(rowW[i], 10) }] })), active: null });
   const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
     set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
   async function open(seed, w = 390) {
@@ -505,7 +505,8 @@ console.log('Plateau and deload hints');
   ok(det.length === 1 && det[0].exercise_id === 'bench' && det[0].sessions === 3, 'plateau_detected once for bench: ' + JSON.stringify(det));
   ok(await noHScroll(p), 'no sideways scroll with the card');
   await p.locator('.ex[data-e="0"] [data-act=pllight]').click(); await p.waitForTimeout(300);
-  ok(await p.inputValue('#w-0-0') === '75' && await p.inputValue('#w-0-2') === '75', 'lighter: 82.5 suggested → 75 kg (−10%, rounded to a plate)');
+  ok(await p.inputValue('#w-0-0') === '72.5' && await p.inputValue('#w-0-2') === '72.5', 'lighter: 80 → 72.5 kg (−10%, rounded to a plate)');
+  ok(await p.inputValue('#r-0-0') === '7' && await p.inputValue('#r-0-2') === '7', "BUG-8: lighter keeps the ghost's reps (7), not the progression's +1 (8)");
   ok((await p.locator('.set[data-e="0"][data-s="0"] .sug-b:not([hidden])').textContent()) === '−10%', 'labelled "−10%"');
   ok(await p.locator('.plat').count() === 0, 'card gone after acting');
   let act = await ev(p, 'plateau_action');
@@ -525,7 +526,7 @@ console.log('Plateau and deload hints');
   const d = await open(plSeed()); await startW(d);
   await d.locator('.ex[data-e="0"] [data-act=plx]').click(); await d.waitForTimeout(200);
   ok(await d.locator('.plat').count() === 0 && (await ev(d, 'plateau_action'))[0].action === 'dismiss', 'dismiss hides the card, plateau_action dismiss');
-  ok(await d.inputValue('#w-0-0') === '82.5', 'dismiss leaves the weights alone');
+  ok(await d.inputValue('#w-0-0') === '80' && await d.inputValue('#r-0-0') === '8', 'dismiss leaves the suggestion alone (80 × 8)');
   await d.context().close();
   const w = await open(plSeed()); await startW(w);
   await w.locator('.ex[data-e="0"] [data-act=plswap]').click(); await w.waitForTimeout(500);
@@ -549,7 +550,7 @@ console.log('Plateau and deload hints');
   ok(/Deload week/.test(await q.locator('.ovr.deload').textContent()) && await q.locator('[data-act=dlok]').count() === 0, 'banner replaces the offer');
   await startW(q);
   ok(await q.locator('.ex[data-e="0"] .set').count() === 2 && await q.locator('.ex[data-e="2"] .set').count() === 2, 'deload: bench 3 → 2 sets, row 4 → 2');
-  ok(await q.inputValue('#w-0-0') === '80' && await q.inputValue('#r-0-0') === '8', 'same weights as last time, no progression, no easing (80 × 8)');
+  ok(await q.inputValue('#w-0-0') === '80' && await q.inputValue('#r-0-0') === '7', 'same weights as last time, no progression, no easing (80 × 7)');
   ok(await q.locator('.plat').count() === 0 && await q.locator('.sug-b:not([hidden])').count() === 0, 'no plateau cards or badges during a deload');
   ok(/Deload week/.test(await q.locator('.adjust-note').textContent()), 'workout says it is a deload week');
   // Swapping inside a deload keeps the set count
@@ -882,6 +883,26 @@ console.log('Remove a rival (BUG-7)');
   ok(/Rival removed\. Your old invite link no longer works\./.test(await p.locator('#toasts').textContent()), 'toast: "Rival removed. Your old invite link no longer works."');
   ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
   await ctx.close();
+}
+
+// ---------- BUG-8: plateau cards only where they help ----------
+console.log('Plateau rules (BUG-8)');
+{
+  const D = 86400000, now = Date.now(), s3 = (w, r) => [{ w, r }, { w, r }, { w, r }];
+  const sd = (ex, sets) => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: false, days: [{ name: 'Upper', ex }] },
+    sessions: [10, 7, 4, 2].map((ago, i) => ({ id: 'p' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, entries: sets(i) })), active: null });
+  // Bench ties at the top of its range (80 × 8, range 6–8): progression will add weight, so no plateau card.
+  const p = await page({}, sd([{ id: 'bench', sets: 3, lo: 6, hi: 8 }], () => [{ exId: 'bench', sets: s3(80, 8) }]));
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+  ok(await p.locator('.plat').count() === 0 && await p.inputValue('#w-0-0') === '82.5', 'ties at the top of the rep range: no plateau card, progression suggests 82.5');
+  await p.context().close();
+  // Three stuck lifts in one workout: cards on the first two only.
+  const q = await page({}, sd([{ id: 'bench', sets: 3, lo: 6, hi: 8 }, { id: 'bbrow', sets: 3, lo: 8, hi: 12 }, { id: 'ohp', sets: 3, lo: 6, hi: 8 }],
+    () => [{ exId: 'bench', sets: s3(80, 7) }, { exId: 'bbrow', sets: s3(60, 10) }, { exId: 'ohp', sets: s3(40, 6) }]));
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  ok(await q.locator('.ex[data-e="0"] .plat').count() === 1 && await q.locator('.ex[data-e="1"] .plat').count() === 1 && await q.locator('.ex[data-e="2"] .plat').count() === 0, '3 stuck lifts: cards on the first 2 exercises only');
+  ok(!(await state(q)).profile.plateau.ohp, 'the third is not marked as seen, so it can show another day');
+  await q.context().close();
 }
 
 // ---------- settings tab: appearance, help, feedback ----------

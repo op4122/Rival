@@ -1480,20 +1480,29 @@ function deloadOn() { return inDeload(Date.now()); }
 function plateauPts(exId) {
   const ack = (S.profile.plateau || {})[exId];
   return S.sessions.filter(s => !s.sample && !inDeload(s.date) && !(ack && ack.light && s.date === ack.at))
-    .map(s => { const en = s.entries.find(e => e.exId === exId); return en && en.sets.length ? {date:s.date, best:Math.max(...en.sets.map(x => e1(x.w || 0, x.r || 0)))} : null; })
+    .map(s => { const en = s.entries.find(e => e.exId === exId); return en && en.sets.length ? {date:s.date, best:Math.max(...en.sets.map(x => e1(x.w || 0, x.r || 0))), sets:en.sets} : null; })
     .filter(Boolean).sort((a, b) => a.date - b.date);
 }
 // How many sessions in a row this exercise has been stuck (0 below 3). raw: ignore cards already acted on.
-function plateauOf(exId, raw) {
-  const pts = plateauPts(exId), ack = (S.profile.plateau || {})[exId];
+// hi: top of the rep range. If the latest session hit it on every working set, it isn't a plateau: progression
+// already puts the weight up next time.
+function plateauOf(exId, raw, hi) {
+  const pts = plateauPts(exId), ack = (S.profile.plateau || {})[exId], last = pts[pts.length - 1];
+  if (last && fin(hi) && last.sets.every(x => x.r >= hi)) return null;
   const n = stuckRun(pts, raw || !ack ? null : ack.at);
   return n >= PLATEAU_N ? {n, key:pts[pts.length - n].date} : null;
+}
+// The top of the rep range for an exercise in the plan (or this week's / today's plan), if it's there.
+function hiFor(exId) {
+  const p = S.profile, days = p.days.concat(p.today ? [p.today.day] : [], p.week ? p.week.days : []);
+  for (const d of days) { const sl = d.ex.find(x => x.id === exId); if (sl) return sl.hi; }
+  return null;
 }
 // Exercises trained in the last 3 weeks that are stuck right now (whatever was done with their cards).
 function stuckLifts() {
   const from = Date.now() - 21 * DAY, ids = new Set();
   S.sessions.forEach(s => { if (!s.sample && s.date >= from) s.entries.forEach(e => ids.add(e.exId)); });
-  return [...ids].filter(id => plateauOf(id, true));
+  return [...ids].filter(id => plateauOf(id, true, hiFor(id)));
 }
 // Average readiness over the last 7 days: one score per day (the latest), today's check-in included. Needs 2 days.
 function avgReadiness() {
@@ -1513,9 +1522,12 @@ function deloadOffer() {
 function markPlateaus(a) {
   if (a.dl) return;
   if (!isObj(S.profile.plateau)) S.profile.plateau = {};
+  let shown = 0;
   a.entries.forEach(en => {
-    const pl = plateauOf(en.exId); if (!pl) return;
-    en.pl = pl.n;
+    // At most 2 plateau cards per workout (the first two stuck exercises); the rest wait for another day.
+    if (shown >= 2) return;
+    const pl = plateauOf(en.exId, false, en.hi); if (!pl) return;
+    en.pl = pl.n; shown++;
     const m = S.profile.plateau, e = m[en.exId] || {};
     if (e.seen !== pl.key) { m[en.exId] = Object.assign(e, {seen:pl.key}); A.track('plateau_detected', {exercise_id:en.exId, sessions:pl.n}); touch(); }
   });
@@ -3683,7 +3695,9 @@ const acts = {
     const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
     const inc = incOf(en.exId);
     inU(en.exId, () => en.sets.forEach(x => { if (x.done || !(x.w > 0)) return;
-      x.w = roundW(x.w * 0.9, inc); if (x.sg) x.sg = Object.assign({}, x.sg, {w:x.w, r:x.r, e:true, l:true}); }));
+      // 10% less weight, the same reps as the ghost (not the progression's reps for a heavier weight)
+      x.w = roundW(x.w * 0.9, inc); if (x.g && x.g.r > 0) x.r = Math.min(x.g.r, MAX_REPS);
+      if (x.sg) x.sg = Object.assign({}, x.sg, {w:x.w, r:x.r, e:true, l:true}); }));
     plateauAct(en, 'lighter'); persist(); refreshEx(ei); toast('10% lighter for this session');
   },
   dlok() {
