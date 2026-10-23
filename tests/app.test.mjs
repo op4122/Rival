@@ -352,6 +352,74 @@ console.log('Account');
   await ctx.close();
 }
 
+// ---------- delete account: typed confirmation, offline guard, server first, then the phone is cleared ----------
+console.log('Delete account');
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const p = await ctx.newPage(); p.errors = [];
+  p.on('pageerror', e => p.errors.push(String(e)));
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const uid = '0b9c2f2e-0000-4000-8000-00000000dddd', exp = Math.floor(Date.now() / 1000) + 3600;
+  const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: uid, exp, aud: 'authenticated', role: 'authenticated' })}.sig`;
+  const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'del@example.com', created_at: '2026-01-01T00:00:00Z', app_metadata: { provider: 'email' }, user_metadata: {} };
+  const session = { access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r1', user };
+  await p.route('**/auth/v1/**', route => {
+    const u = new globalThis.URL(route.request().url());
+    if (u.pathname.endsWith('/token')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) });
+    if (u.pathname.endsWith('/user')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) });
+    if (u.pathname.endsWith('/logout')) return route.fulfill({ status: 204, body: '' });
+    return route.fulfill({ status: 404, body: '{}' });
+  });
+  await p.route('**/rest/v1/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  let fnStatus = 500; const fnCalls = [];
+  await p.route('**/functions/v1/delete-account', route => {
+    fnCalls.push(route.request().headers()['authorization'] || '');
+    route.fulfill({ status: fnStatus, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(fnStatus === 200 ? { deleted: true } : { error: 'delete_failed' }) });
+  });
+  const events = [];
+  await p.addInitScript(() => { window.__ev = []; });
+  await p.goto(URL); await p.waitForTimeout(600);
+  await p.locator('[data-act=gateskip]').click(); await p.waitForTimeout(400);
+  while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  ok(await p.locator('[data-act=delacct]').count() === 0, 'no "Delete account" button without an account');
+  await p.evaluate(s => localStorage.setItem('rival.auth', s), JSON.stringify(session)); // signed in, as supabase-js saves it
+  await p.reload(); await p.waitForTimeout(1200);
+  while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  const order = await p.evaluate(() => [...document.querySelectorAll('.sheet-actions .btn')].map(b => b.dataset.act));
+  ok(order.indexOf('delacct') === order.indexOf('wipe') + 1, 'signed in: "Delete account" sits right below "Delete all workouts"');
+  await p.locator('[data-act=delacct]').click(); await p.waitForTimeout(400);
+  const go = p.locator('[data-act=delacctgo]');
+  ok(/Delete your account\?/.test(await p.locator('.sheet').textContent()) && await go.isDisabled(), 'confirmation sheet opens, button off until DELETE is typed');
+  await p.fill('#delconfirm', 'delete'); ok(await go.isDisabled(), 'lower-case "delete" does not count');
+  await p.fill('#delconfirm', 'DELETE'); ok(!(await go.isDisabled()), 'typing DELETE turns the button on');
+  await ctx.setOffline(true); await p.waitForTimeout(200);
+  ok(await go.isDisabled() && /Needs a connection/.test(await p.locator('.sheet').textContent()), 'offline: button off with "Needs a connection"');
+  await ctx.setOffline(false); await p.waitForTimeout(200);
+  // Server says no: nothing on the phone is touched
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('rival.v1')); s.sessions.push({ id: 'keep-me', dayIdx: 0, dayName: 'Upper', date: new Date().toISOString(), dur: 30, readiness: null, entries: [] }); localStorage.setItem('rival.v1', JSON.stringify(s)); });
+  await go.click(); await p.waitForTimeout(800);
+  ok(fnCalls.length === 1 && fnCalls[0] === 'Bearer ' + jwt, 'calls delete-account with the login token');
+  ok(/Couldn't delete your account/.test(await p.locator('.sheet').textContent()) && await p.evaluate(() => localStorage.getItem('rival.v1').includes('keep-me')), 'server error: friendly message, phone data kept');
+  // Server says yes: phone cleared, signed out, sign-in screen with the toast
+  fnStatus = 200;
+  await Promise.all([p.waitForEvent('load'), go.click()]); await p.waitForTimeout(1200);
+  ok(await p.locator('.gate').count() === 1, 'back at the sign-in screen');
+  ok(await p.locator('.toast', { hasText: 'Your account was deleted' }).count() === 1, '"Your account was deleted" toast');
+  const left = await p.evaluate(async () => ({ keep: (localStorage.getItem('rival.v1') || '').includes('keep-me'), auth: !!localStorage.getItem('rival.auth'), dbs: indexedDB.databases ? (await indexedDB.databases()).map(d => d.name) : [] }));
+  ok(!left.keep && !left.auth, 'workouts and login removed from this phone');
+  ok(!left.dbs.includes('rival-sync'), 'sync database deleted (' + left.dbs.join(',') + ')');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const p = await (await browser.newContext({ serviceWorkers: 'block' })).newPage();
+  await p.goto(URL.replace(/app\/$/, '') + 'privacy.html');
+  ok(/Settings → Data → Delete account/.test(await p.locator('main').textContent()) && /Delete my Rival account/.test(await p.locator('main').textContent()), 'privacy: in-app deletion, email kept as a backup');
+  await p.context().close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nAll passed');
 process.exit(failed ? 1 : 0);

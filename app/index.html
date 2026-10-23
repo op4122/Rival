@@ -463,6 +463,7 @@ body.has-start .view{padding-bottom:calc(196px + env(safe-area-inset-bottom,0px)
 body.has-start .toasts{bottom:calc(156px + env(safe-area-inset-bottom,0px))}
 body.wo-open .startbar,body.has-resume .startbar{display:none}
 .card.session + .tiles{margin-top:12px}
+body.gated .toasts{z-index:95}
 .toasts{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.2);
   transform:translateY(16px);opacity:0;transition:transform 240ms var(--ease-out),opacity 200ms ease}
@@ -649,6 +650,7 @@ body.wo-open .startbar,body.has-resume .startbar{display:none}
 
 /* ================= data ================= */
 const KEY = 'rival.v1';
+let erasing = false; // set while an account is being deleted, so nothing is written back to the phone
 const NEWS_V = 1; // bump when there's a new "What's new" note for existing users
 const DAY = 86400000;
 const MUSCLES = {
@@ -1107,6 +1109,7 @@ function load() {
 }
 let saveWarned = false, syncHook = null;
 function persist() {
+  if (erasing) return;
   try { localStorage.setItem(KEY, JSON.stringify(S)); saveWarned = false; }
   catch (e) { if (!saveWarned) { saveWarned = true; try { toast("Couldn't save on this phone. Export a backup so you don't lose your workouts."); } catch (e2) {} } }
   if (syncHook) syncHook(); // tell the sync engine something changed (it waits a moment, then queues the rows)
@@ -1449,6 +1452,7 @@ const Sync = (() => {
         if (changed) keys.add('p:' + st.uid);
         keys.forEach(k => { const o = want.get(k); if (o) { marks.push({key:k, uid:st.uid, h:o.h}); synced.set(k, o.h); } });
         await store.put('synced', marks);
+        if (erasing) return;
         localStorage.setItem(KEY, JSON.stringify(S));
         render(); if (wo.classList.contains('open')) renderWorkout();
         if (pulled.length) toast(`${pl(pulled.length, 'workout')} from your other devices added`);
@@ -1481,7 +1485,7 @@ const Sync = (() => {
     if (!st.uid) { paint(); return; }
     const owner = S.profile.owner;
     if (owner && owner !== st.uid) { st.blocked = true; paint(); return; } // never mix two accounts' workouts
-    if (!owner) { S.profile.owner = st.uid; localStorage.setItem(KEY, JSON.stringify(S)); }
+    if (!owner && !erasing) { S.profile.owner = st.uid; localStorage.setItem(KEY, JSON.stringify(S)); }
     await push(); await pull(true); push();
   }
   function soon() { if (!st.uid) return; clearTimeout(st.soonT); st.soonT = setTimeout(push, 800); }
@@ -2045,6 +2049,51 @@ function rerenderAuth() {
   if (gateEl) { const a = gateEl.querySelector('.acct'); if (a) a.innerHTML = authFormHTML(); return; }
   if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML()); else if (tab === 'settings') { const y = scrollY; render(); scrollTo(0, y); }
 }
+/* Delete account. The server part is the Supabase Edge Function supabase/functions/delete-account: it checks the
+   login token, deletes this user's rows and then the login itself. Only after it says yes is the phone cleared. */
+const DelAcct = {typed:'', busy:false, err:''};
+function delAcctHTML() {
+  const off = !navigator.onLine, ready = DelAcct.typed.trim() === 'DELETE' && !off && !DelAcct.busy;
+  return `<h2 class="h2">Delete your account?</h2>
+    <p class="sub">This permanently deletes your Rival account and everything saved to it: workouts, check-ins, your plan and custom exercises. Rival on this phone is cleared too. This can't be undone.</p>
+    <p class="sub" style="margin-top:8px">Want to keep your workouts? Export a backup first in Settings → Data.</p>
+    <label class="note-l" for="delconfirm">Type DELETE to confirm</label>
+    <input class="search" id="delconfirm" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(DelAcct.typed)}"${DelAcct.busy ? ' disabled' : ''}>
+    ${off ? '<p class="acct-err" role="alert">Needs a connection. Try again when you are online.</p>' : ''}
+    ${DelAcct.err ? `<p class="acct-err" role="alert">${esc(DelAcct.err)}</p>` : ''}
+    <div class="sheet-actions" style="margin-top:14px">
+      <button class="btn danger armed big press" data-act="delacctgo"${ready ? '' : ' disabled'}>${DelAcct.busy ? 'Deleting…' : 'Delete account'}</button>
+      <button class="btn press" data-act="closesheet"${DelAcct.busy ? ' disabled' : ''}>Cancel</button>
+    </div>`;
+}
+function refreshDelAcct() {
+  const b = sheetEl && sheetEl.querySelector('[data-act=delacctgo]'); if (!b) return;
+  const i = sheetEl.querySelector('#delconfirm'), focused = document.activeElement === i, pos = i && i.selectionStart;
+  setSheet(delAcctHTML());
+  const j = sheetEl.querySelector('#delconfirm'); if (focused && j) { j.focus({preventScroll:true}); try { j.setSelectionRange(pos, pos); } catch (e) {} }
+}
+async function deleteAccount() {
+  if (!db || !authUid() || DelAcct.busy || !navigator.onLine) return;
+  DelAcct.busy = true; DelAcct.err = ''; refreshDelAcct();
+  A.track('account_deleted', {}); // no properties: nothing personal
+  let res;
+  try { res = await db.functions.invoke('delete-account', {method:'POST', body:{}}); } catch (e) { res = {error:e}; }
+  if (res.error || !res.data || !res.data.deleted) {
+    DelAcct.busy = false;
+    DelAcct.err = !navigator.onLine ? 'You went offline. Nothing was deleted yet; try again when you are online.' : `Couldn't delete your account. Try again, or email ${SUPPORT_EMAIL} and we'll do it for you.`;
+    refreshDelAcct(); return;
+  }
+  // The account is gone on the server. Now clear this phone and start fresh at the sign-in screen.
+  erasing = true;
+  try { A.reset(); } catch (e) {}
+  try { await db.auth.signOut({scope:'local'}); } catch (e) {}
+  try { if (window.Dexie) await Dexie.delete('rival-sync'); } catch (e) {}
+  try { if (indexedDB.databases) for (const d of await indexedDB.databases()) if (d.name && /^rival/i.test(d.name)) indexedDB.deleteDatabase(d.name); } catch (e) {}
+  try { localStorage.clear(); } catch (e) {}
+  try { sessionStorage.setItem('rival.deleted', '1'); } catch (e) {}
+  location.replace(location.pathname);
+}
+
 /* Route guard: the sign-in screen is the first thing a signed-out person sees. Signing in is optional,
    so it also offers "Continue without an account" (remembered, so it doesn't nag). */
 let gateEl = null;
@@ -2153,6 +2202,7 @@ function vSettings() {
       <button class="btn press" data-act="importpick">Import backup</button>
       ${hasSamples() ? '<button class="btn press" data-act="clearsample">Clear sample workouts</button>' : ''}
       <button class="btn danger press" data-act="wipe">Delete all workouts</button>
+      ${authUid() ? '<button class="btn danger press" data-act="delacct">Delete account</button>' : ''}
     </div></section>
     <section class="section"><div class="section-head"><h2 class="h2">Help</h2></div><div class="card help" style="padding:2px 16px">
       ${HELP.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${a}</p></details>`).join('')}
@@ -2990,6 +3040,8 @@ const acts = {
   clearsample() {
     S.sessions = S.sessions.filter(s => !s.sample); S.profile.sampleCleared = true; S.profile.nextDay = 0; touch(); render(); toast('Sample workouts cleared');
   },
+  delacct() { if (!authUid()) return; DelAcct.typed = ''; DelAcct.busy = false; DelAcct.err = ''; openSheet(delAcctHTML(), () => { DelAcct.typed = ''; }); setTimeout(() => { const i = sheetEl && sheetEl.querySelector('#delconfirm'); if (i) i.focus({preventScroll:true}); }, 300); },
+  delacctgo() { deleteAccount(); },
   wipe(el) {
     if (!el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to delete everything'; return; }
     S.sessions.forEach(s => Sync.remove(s.id)); S.sessions = []; S.profile.sampleCleared = true; S.profile.nextDay = 0; touch(); render(); toast('All workouts deleted');
@@ -3280,6 +3332,7 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'authemail') { Auth.email = e.target.value; Auth.mailOpen = true; return; }
+  if (e.target.id === 'delconfirm') { const was = DelAcct.typed.trim() === 'DELETE'; DelAcct.typed = e.target.value; if (was !== (DelAcct.typed.trim() === 'DELETE')) { const b = sheetEl.querySelector('[data-act=delacctgo]'); if (b) b.disabled = !(DelAcct.typed.trim() === 'DELETE' && navigator.onLine && !DelAcct.busy); } return; }
   if (e.target.id === 'cxname' && cx) {
     cx.n = e.target.value; const b = sheetEl && sheetEl.querySelector('[data-act=cxsave]'); const ok = cx.n.trim() && cx.prim.length;
     if (b) b.disabled = !ok; return;
@@ -3320,10 +3373,12 @@ $('#importfile').addEventListener('change', e => { const f = e.target.files && e
 $('#planfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readPlanFile(f); e.target.value = ''; });
 render();
 authInit().then(() => {
-  A.track('app_opened', {standalone:isStandalone(), signed_in:!!authUid(), surface:'app'}); A.screen(tab); if (gateNeeded() && !S.active) openGate(); else startIntro(); });
+  A.track('app_opened', {standalone:isStandalone(), signed_in:!!authUid(), surface:'app'}); A.screen(tab); if (gateNeeded() && !S.active) openGate(); else startIntro();
+  let gone = false; try { gone = !!sessionStorage.getItem('rival.deleted'); sessionStorage.removeItem('rival.deleted'); } catch (e) {}
+  if (gone) setTimeout(() => toast('Your account was deleted'), 400); });
 document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('acct-mail')) Auth.mailOpen = e.target.open; }, true);
-addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
-addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
+addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); refreshDelAcct(); });
+addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); refreshDelAcct(); });
 if (S.active) updateResume();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
