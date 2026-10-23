@@ -521,8 +521,15 @@ body.gated .toasts{z-index:95}
 .resume .rn{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .title.long{font-size:34px}
 .wo-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.ex-act .rm{margin-left:auto;color:var(--muted)}
-.ex-act button.armed{color:var(--warn)}
+.set-wrap{position:relative;border-radius:14px;overflow:hidden}
+.set-wrap .set{position:relative;z-index:1;background:var(--surface);touch-action:pan-y;transition:transform 220ms var(--ease-out),background-color 200ms ease}
+.set-del{position:absolute;right:1px;top:1px;bottom:1px;width:90px;visibility:hidden;border-radius:14px;background:var(--warn);color:#fff;font-weight:700;font-size:15px}
+.set-wrap.sw .set-del{visibility:visible}
+.swap.more{width:44px;padding:0;display:grid;place-items:center;color:var(--ink)}
+.swap.more svg{width:20px;height:20px}
+.menu-list{display:grid;gap:6px;margin-top:8px}
+.menu-i{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:0 14px;border-radius:14px;background:var(--surface-2);font-weight:650;text-align:left}
+.menu-s{font-family:var(--display);font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted);font-weight:600}
 @media (max-width:380px){
   .cols,.set{grid-template-columns:20px minmax(0,1fr) 64px 48px 42px;gap:6px}
   .lift{grid-template-columns:minmax(0,1fr) 64px 64px;gap:8px}
@@ -636,6 +643,7 @@ body.gated .toasts{z-index:95}
   .check{width:44px}
 }
 @media (prefers-reduced-motion: reduce){
+  .set-wrap .set{transition:background-color 200ms ease!important}
   .press:active,.check:active,.tab:active .press-in{transform:none}
   .sheet,.wo,.rest,.toast,.g-win,.g-txt{transition-property:opacity,visibility!important}
   .sheet{transform:none;opacity:0}
@@ -1539,6 +1547,7 @@ function touch() { S.profile.updatedAt = Date.now(); persist(); Sync.profile(); 
 
 /* ================= icons ================= */
 const I = {
+  more:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></svg>',
   chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6l6 6-6 6"/></svg>',
@@ -2430,12 +2439,12 @@ function setRow0(en, s, ei, si) {
   const ex = EX[en.exId] || {}, g = s.g;
   const gtxt = g ? `<span class="g-txt">${ex.bw && !g.w ? 'BW' : fmtW(g.w)}<i> </i>×<i> </i>${g.r}</span>` : `<span class="g-txt none">New</span>`;
   const win = s.done && s.res === 'beat' && g ? beatLabel(s, g) : s.done && s.res === 'match' ? 'Matched' : '';
-  return `<div class="set${s.done ? ' done' : ''}${s.done && s.res ? ' ' + s.res : ''}" data-e="${ei}" data-s="${si}">
+  return `<div class="set-wrap"><button class="set-del" data-act="swdel" data-e="${ei}" data-s="${si}" tabindex="-1" aria-hidden="true">Delete</button><div class="set${s.done ? ' done' : ''}${s.done && s.res ? ' ' + s.res : ''}" data-e="${ei}" data-s="${si}">
     <span class="n">${si + 1}</span>
     <span class="ghost">${gtxt}<span class="g-win${s.res === 'match' ? ' match' : ''}">${esc(win)}</span></span>
     <input class="in-w" id="w-${ei}-${si}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Set ${si + 1} weight in ${U()}${ex.ea ? ', for each side' : ''}" placeholder="${ex.bw ? 'BW' : U()}" value="${s.w == null || (ex.bw && !s.w) ? '' : fmtW(s.w)}">
     <input class="in-r" id="r-${ei}-${si}" inputmode="numeric" enterkeyhint="done" autocomplete="off" aria-label="Set ${si + 1} reps" placeholder="reps" value="${s.r == null ? '' : s.r}">
-    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button></div>`;
+    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button></div></div>`;
 }
 function exBlock(en, ei) { return inU(en.exId, () => exBlock0(en, ei)); }
 function exBlock0(en, ei) {
@@ -2446,12 +2455,74 @@ function exBlock0(en, ei) {
   const atts = attsOf(en.exId), title = atts.length && ex.bn ? ex.bn : ex.n;
   const attHTML = atts.length ? `<div class="att" role="group" aria-label="Attachment for ${esc(ex.bn || ex.n)}"><span class="att-l">Attachment</span><div class="att-o">${atts.map(a => `<button class="chip press" data-act="att" data-e="${ei}" data-id="${esc(a.id)}" aria-pressed="${a.id === en.exId}">${esc(a.n)}</button>`).join('')}</div></div>` : '';
   return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}</div>
-    <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button></div></div>
+    <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button><button class="swap more press" data-act="exmenu" data-e="${ei}" aria-haspopup="dialog" aria-label="More for ${esc(ex.n)}">${I.more}</button></div></div>
     <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
-    <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button>${en.sets.length > 1 ? `<button data-act="delset" data-e="${ei}">Remove last set</button>` : ''}<button class="rm" data-act="rmex" data-e="${ei}" aria-label="Remove ${esc(ex.n)} from this workout">Remove</button></div></section>`;
+    <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button></div></section>`;
 }
+/* Exercise ⋯ menu: delete any set, remove the exercise (more items join it later). Both can be undone for 5 s. */
+let menuCtx = null;
+function exMenuHTML(ei) {
+  const en = S.active.entries[ei], ex = EX[en.exId] || {n:en.exId};
+  const sets = en.sets.length > 1 ? `<p class="note-l" style="margin-top:4px">Delete a set</p><div class="menu-list">${inU(en.exId, () => en.sets.map((x, si) => {
+    const what = x.w != null || x.r != null ? `${ex.bw && !x.w ? 'BW' : x.w != null ? fmtW(x.w) + ' ' + U() : '–'} × ${x.r != null ? x.r : '–'}` : 'Empty';
+    return `<button class="menu-i press" data-act="menudelset" data-e="${ei}" data-s="${si}"><span>Delete set ${si + 1}</span><span class="menu-s">${what}${x.done ? ', logged' : ''}</span></button>`; }).join(''))}</div>` : '';
+  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}
+    <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="rmex" data-e="${ei}">Remove exercise</button></div>
+    <p class="sub" style="margin-top:10px;font-size:13px">Tip: swipe a set to the left to delete it.</p>`;
+}
+function deleteSet(ei, si) {
+  const en = S.active && S.active.entries[ei]; if (!en || !en.sets[si] || en.sets.length < 2) return;
+  const [gone] = en.sets.splice(si, 1), exId = en.exId;
+  persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
+  toast(`Set ${si + 1} deleted`, {label:'Undo', fn: () => {
+    const e2 = S.active && S.active.entries[ei]; if (!e2 || e2.exId !== exId) return;
+    e2.sets.splice(Math.min(si, e2.sets.length), 0, gone); persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
+  }}, 5000);
+}
+/* Swipe a set row left to show Delete. Rows only move sideways; vertical scrolling is untouched. */
+const Swipe = {row:null, x0:0, y0:0, dx:0, on:false, open:null, moved:false};
+const SW_OPEN = 92;
+function swClose(instant) {
+  const r = Swipe.open; if (!r) return; Swipe.open = null;
+  r.style.transition = instant || reduced() ? 'none' : ''; r.style.transform = '';
+  const w = r.parentElement; if (w) setTimeout(() => { if (Swipe.open !== r && Swipe.row !== r) w.classList.remove('sw'); }, instant || reduced() ? 0 : 240);
+  const d = r.parentElement && r.parentElement.querySelector('.set-del'); if (d) { d.tabIndex = -1; d.setAttribute('aria-hidden', 'true'); }
+}
+wo.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const row = e.target.closest('.set'); 
+  if (Swipe.open && row !== Swipe.open && !e.target.closest('.set-del')) swClose();
+  if (!row || !S.active || S.active.entries[+row.dataset.e].sets.length < 2) return;
+  Swipe.row = row; Swipe.x0 = e.clientX; Swipe.y0 = e.clientY; Swipe.dx = 0; Swipe.on = false; Swipe.moved = false;
+});
+wo.addEventListener('pointermove', e => {
+  const row = Swipe.row; if (!row) return;
+  const dx = e.clientX - Swipe.x0, dy = e.clientY - Swipe.y0, base = Swipe.open === row ? -SW_OPEN : 0;
+  if (!Swipe.on) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { Swipe.row = null; return; } // a scroll
+    if (Math.abs(dx) < 10) return;
+    Swipe.on = true; Swipe.moved = true; row.style.transition = 'none'; row.parentElement.classList.add('sw');
+    try { row.setPointerCapture(e.pointerId); } catch (err) {}
+    if (document.activeElement && row.contains(document.activeElement)) document.activeElement.blur();
+  }
+  Swipe.dx = Math.max(-SW_OPEN - 40, Math.min(0, base + dx));
+  row.style.transform = `translateX(${Swipe.dx}px)`;
+});
+function swEnd() {
+  const row = Swipe.row; Swipe.row = null; if (!row || !Swipe.on) return;
+  row.style.transition = reduced() ? 'none' : '';
+  if (Swipe.dx < -SW_OPEN / 2) {
+    if (Swipe.open && Swipe.open !== row) swClose(true);
+    row.style.transform = `translateX(${-SW_OPEN}px)`; Swipe.open = row;
+    const d = row.parentElement.querySelector('.set-del'); d.tabIndex = 0; d.removeAttribute('aria-hidden');
+  } else { row.style.transform = ''; if (Swipe.open === row) swClose(); else setTimeout(() => { if (Swipe.open !== row) row.parentElement && row.parentElement.classList.remove('sw'); }, reduced() ? 0 : 240); }
+}
+wo.addEventListener('pointerup', swEnd);
+wo.addEventListener('pointercancel', swEnd);
+// A swipe is not a tap: don't log the set or focus an input when the finger lifts.
+wo.addEventListener('click', e => { if (Swipe.moved) { Swipe.moved = false; if (e.target.closest('.set')) { e.stopPropagation(); e.preventDefault(); } } }, true);
 function renderWorkout() {
   const a = S.active; if (!a) return;
   const t = tierOf(a.readiness);
@@ -2490,7 +2561,7 @@ function logSet0(row) {
   }
   persist();
   const tmp = document.createElement('div'); tmp.innerHTML = setRow(en, s, ei, si);
-  const fresh = tmp.firstElementChild;
+  const fresh = tmp.querySelector('.set'); // replace the row itself; its swipe wrapper stays
   if (s.done && s.res) { // render pre-state, then flip, so the ghost dissolves
     fresh.classList.remove(s.res); row.replaceWith(fresh);
     requestAnimationFrame(() => requestAnimationFrame(() => fresh.classList.add(s.res)));
@@ -3037,14 +3108,12 @@ const acts = {
     en.sets.push({w: last ? last.w : null, r: last ? last.r : en.lo, g: g ? {w:g.w, r:g.r} : null, done:false, res:null});
     persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
   },
-  delset(el) {
-    const ei = +el.dataset.e, en = S.active.entries[ei]; if (en.sets.length < 2) return;
-    if (en.sets[en.sets.length - 1].done && !el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again: it\'s logged'; return; }
-    en.sets.pop(); persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
-  },
+  exmenu(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; menuCtx = {ei}; openSheet(exMenuHTML(ei), () => { menuCtx = null; }); },
+  menudelset(el) { const ei = +el.dataset.e, si = +el.dataset.s; closeSheet(); setTimeout(() => deleteSet(ei, si), reduced() ? 0 : 120); },
+  swdel(el) { deleteSet(+el.dataset.e, +el.dataset.s); },
   rmex(el) {
-    const ei = +el.dataset.e, en = S.active.entries[ei];
-    if (en.sets.some(x => x.done) && !el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to remove'; return; }
+    const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
+    if (sheetEl) closeSheet(true);
     const [gone] = S.active.entries.splice(ei, 1); persist();
     const y = wo.querySelector('.wo-body') ? wo.querySelector('.wo-body').scrollTop : 0;
     renderWorkout(); const body = wo.querySelector('.wo-body'); if (body) body.scrollTop = y;

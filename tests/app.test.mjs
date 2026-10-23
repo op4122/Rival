@@ -277,6 +277,58 @@ for (const [w, dark] of [[360, false], [390, true]]) {
   await p.context().close();
 }
 
+console.log('Safer set removal');
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true, isMobile: true });
+  const p = await ctx.newPage(); p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.goto(URL); await p.waitForTimeout(500);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  const sets = () => p.locator('.ex[data-e="0"] .set').count();
+  ok(await p.locator('.ex-act [data-act=delset], .ex-act [data-act=rmex]').count() === 0 && await p.locator('.ex-act button').count() === await p.locator('.ex').count(), 'only "Add set" left under each exercise');
+  ok(await p.locator('.ex[data-e="0"] .ex-tools [data-act=exmenu]').count() === 1, '⋯ button after Swap');
+  const swipe = async (si, dist = 140) => {
+    const b = await p.locator(`.set[data-e="0"][data-s="${si}"] .ghost`).boundingBox(), y = b.y + b.height / 2; let x = b.x + 220;
+    const cdp = await ctx.newCDPSession(p);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let i = 0; i < 10; i++) { x -= dist / 10; await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] }); await p.waitForTimeout(16); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await p.waitForTimeout(350);
+  };
+  await p.fill('#w-0-1', '80'); await p.fill('#r-0-1', '8'); await p.locator('.set[data-e="0"][data-s="1"] [data-act=log]').click(); await p.waitForTimeout(300);
+  await swipe(1, 40);
+  ok(!(await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.style.transform)), 'a short swipe springs back');
+  await swipe(1);
+  ok(/-9\d/.test(await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.style.transform)) && await p.locator('.set-wrap.sw .set-del').isVisible(), 'swipe left shows Delete');
+  ok(await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.classList.contains('done')), 'swiping does not toggle the logged set');
+  await p.locator('.set-del[data-e="0"][data-s="1"]').tap(); await p.waitForTimeout(300);
+  ok(await sets() === 2 && /Set 2 deleted/.test(await p.locator('.toast').textContent()), 'Delete removes the set, with an Undo toast');
+  await p.locator('.toast button').tap(); await p.waitForTimeout(300);
+  ok(await sets() === 3 && await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.classList.contains('done')) && (await state(p)).active.entries[0].sets[1].w === 80, 'Undo puts the logged set back where it was');
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').tap(); await p.waitForTimeout(450);
+  ok(await p.locator('.sheet [data-act=menudelset]').count() === 3 && /80 kg × 8, logged/.test(await p.locator('.sheet').textContent()), '⋯ menu lists each set with its weight');
+  await p.locator('.sheet [data-act=menudelset][data-s="0"]').tap(); await p.waitForTimeout(500);
+  ok(await sets() === 2 && (await state(p)).active.entries[0].sets[0].w === 80, '"Delete set 1" from the menu');
+  const toastMs = await p.evaluate(() => new Promise(r => { const t0 = Date.now(); const iv = setInterval(() => { if (!document.querySelector('.toast.show')) { clearInterval(iv); r(Date.now() - t0); } }, 100); }));
+  ok(toastMs > 4000 && toastMs < 6000, `Undo stays for about 5 s (${toastMs} ms)`);
+  const name = await p.locator('.ex .h3').first().textContent();
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').tap(); await p.waitForTimeout(450);
+  await p.locator('.sheet [data-act=rmex]').tap(); await p.waitForTimeout(450);
+  ok(await p.locator('.ex .h3').first().textContent() !== name && /Removed/.test(await p.locator('.toast').textContent()), '"Remove exercise" lives in the ⋯ menu');
+  await p.locator('.toast button').tap(); await p.waitForTimeout(300);
+  ok(await p.locator('.ex .h3').first().textContent() === name, 'and can be undone');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true, reducedMotion: 'reduce' });
+  const p = await ctx.newPage();
+  await p.goto(URL); await p.waitForTimeout(500);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  ok(await p.locator('.set').first().evaluate(e => !/transform/.test(getComputedStyle(e).transitionProperty)), 'reduced motion: rows snap instead of sliding');
+  await ctx.close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
