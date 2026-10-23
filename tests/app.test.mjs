@@ -55,9 +55,9 @@ console.log('Fresh install');
   ok(sb && sb.bottom <= sb.tabsTop && sb.top > 0 && sb.bottom < sb.vh, 'Start button is on screen, just above the tab bar');
   ok(sb && !sb.inCard, 'Start is no longer inside the targets card');
   ok(await p.evaluate(() => { const t = document.querySelector('.tiles'), c = document.querySelector('.card.session'); return !!t && !!c && (c.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) > 0; }), 'Train something else / Edit your plan sit below the targets');
-  await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(200);
+  await p.evaluate(() => { const v = document.querySelector('#view'); v.scrollTop = v.scrollHeight; }); await p.waitForTimeout(200);
   ok(await p.evaluate(() => { const last = [...document.querySelectorAll('#view .tile')].pop().getBoundingClientRect(), b = document.querySelector('#startbar .btn').getBoundingClientRect(); return last.bottom <= b.top; }), 'content scrolls fully clear of the pinned button');
-  await p.evaluate(() => window.scrollTo(0, 0));
+  await p.evaluate(() => { document.querySelector('#view').scrollTop = 0; });
   ok(await p.locator('.starter').count() === 1, 'starter plan card on Today');
   ok(await p.locator('.tiles .tile').count() === 2, 'two plan tiles on Today');
   ok(await noHScroll(p), 'no sideways scroll at 390 px');
@@ -948,6 +948,123 @@ console.log('Share card design');
   ok(await p.locator('.sheet [data-act=sharesession]').count() === 1, 'Back returns to the saved workout');
   ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
   await p.context().close();
+}
+
+// ---------- App shell: #view is the only scroller (iOS keyboard / visualViewport bug) ----------
+// iPhone safe areas emulated with CDP: top 59, bottom 34. The document must never scroll; the tab bar sits flush with
+// the bottom on every tab at every scroll position; the Today content clears the Start button.
+console.log('App shell scrolling');
+{
+  const D = 86400000, now = Date.now();
+  const sl = id => ({ id, sets: 3, lo: 8, hi: 12 });
+  const many = ['bench', 'bbrow', 'ohp', 'ezcurl', 'squat', 'pushdown__rope', 'lat', 'facepull'].map(sl);
+  const sessions = [1, 3, 5, 8].map((ago, i) => ({ id: 'h' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, entries: [{ exId: 'bench', sets: [{ w: 80, r: 8 }] }, { exId: 'squat', sets: [{ w: 100, r: 5 }] }] }));
+  const seed = theme => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, theme, sampleCleared: true,
+    days: [{ name: 'Upper', ex: many }, { name: 'Lower', ex: many.slice(0, 5) }, { name: 'Push', ex: many.slice(2) }, { name: 'Pull', ex: many.slice(1, 6) }] }, sessions, active: null });
+  async function open(w, theme, sd = seed(theme)) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, serviceWorkers: 'block', colorScheme: theme }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+    const cdp = await ctx.newCDPSession(p); await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59, bottom: 34 } });
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(sd));
+    await p.goto(URL); await p.waitForTimeout(700);
+    return p;
+  }
+  const geo = p => p.evaluate(() => { const t = document.querySelector('.tabs').getBoundingClientRect(), v = document.querySelector('#view'), vr = v.getBoundingClientRect(), se = document.scrollingElement;
+    return { tabsBottom: t.bottom, tabsTop: t.top, ih: innerHeight, viewBottom: vr.bottom, docScroll: se.scrollTop, docH: se.scrollHeight, max: v.scrollHeight - v.clientHeight, st: v.scrollTop }; });
+  const scrollView = (p, f) => p.evaluate(f => { const v = document.querySelector('#view'); v.scrollTop = (v.scrollHeight - v.clientHeight) * f; }, f);
+  for (const w of [320, 360, 390, 430]) for (const theme of ['light', 'dark']) {
+    const p = await open(w, theme);
+    let bad = [];
+    for (const t of ['today', 'progress', 'plan', 'settings']) {
+      await p.locator(`nav .tab[data-tab=${t}]`).click(); await p.waitForTimeout(250);
+      for (const f of [0, 0.5, 1]) {
+        await scrollView(p, f); await p.waitForTimeout(120);
+        const g = await geo(p);
+        if (Math.abs(g.tabsBottom - g.ih) > 0.5 || Math.abs(g.viewBottom - g.tabsTop) > 0.5 || g.docScroll !== 0 || g.docH > g.ih) bad.push(`${t}@${f}: ${JSON.stringify(g)}`);
+        if (f === 1 && g.max <= 0 && t !== 'today') bad.push(`${t}: nothing to scroll (test data too short)`);
+      }
+    }
+    ok(!bad.length, `${w} px ${theme}: tab bar flush with the bottom (== innerHeight) on all 4 tabs at top/middle/end; the document never scrolls ${bad.join(' | ')}`);
+    await p.locator('nav .tab[data-tab=today]').click(); await p.waitForTimeout(250); await scrollView(p, 1); await p.waitForTimeout(150);
+    const clear = await p.evaluate(() => { const b = document.querySelector('#startbar .btn').getBoundingClientRect(), kids = [...document.querySelector('#view').children].filter(e => e.id !== 'startbar' && e.offsetHeight);
+      const last = kids[kids.length - 1].getBoundingClientRect(); return { lastBottom: last.bottom, startTop: b.top, viewTop: document.querySelector('#view').getBoundingClientRect().top }; });
+    ok(clear.lastBottom <= clear.startTop - 6, `${w} px ${theme}: Today scrolled to the end, the last card ends above the Start button (${Math.round(clear.lastBottom)} ≤ ${Math.round(clear.startTop) - 6})`);
+    const top = await p.evaluate(() => { const v = document.querySelector('#view'); v.scrollTop = 0; return [parseFloat(getComputedStyle(v).paddingTop), v.firstElementChild.getBoundingClientRect().top, parseFloat(getComputedStyle(document.querySelector('.tabs')).paddingBottom)]; });
+    ok(top[0] === 71 && top[1] >= 71 && top[2] === 40, `${w} px ${theme}: safe areas respected (content starts below the 59 px status bar; tab bar pads the 34 px home indicator)`);
+    ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+    await p.context().close();
+  }
+  // Muscle tap keeps the scroll position; Settings re-render keeps it too
+  {
+    const p = await open(390, 'light');
+    await p.locator('nav .tab[data-tab=progress]').click(); await p.waitForTimeout(300);
+    await p.evaluate(() => { document.querySelector('#view').scrollTop = 120; }); await p.waitForTimeout(150);
+    const before = (await geo(p)).st;
+    await p.locator('.map-card g.m').first().dispatchEvent('click'); await p.waitForTimeout(300);
+    ok(before > 0 && Math.abs((await geo(p)).st - before) <= 1, `muscle tap keeps the scroll position (${before} → ${(await geo(p)).st})`);
+    await p.locator('nav .tab[data-tab=settings]').click(); await p.waitForTimeout(300);
+    ok((await geo(p)).st === 0, 'switching tabs starts at the top');
+    // Logger, sheets and the share sheet still cover the whole screen
+    await p.locator('nav .tab[data-tab=today]').click(); await p.waitForTimeout(300);
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+    const wo = await p.evaluate(() => { const r = document.querySelector('#wo').getBoundingClientRect(); return [r.top, r.bottom, innerHeight]; });
+    ok(wo[0] === 0 && wo[1] === wo[2], 'logger still covers the full screen');
+    await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(500);
+    const rest = await p.evaluate(() => { const r = document.querySelector('#rest').getBoundingClientRect(); return [r.bottom, innerHeight]; });
+    ok(rest[0] <= rest[1] - 34 && rest[0] > rest[1] - 80, `rest bar sits just above the home indicator (${Math.round(rest[0])} of ${rest[1]})`);
+    await p.locator('[data-act=finish]').click(); await p.waitForTimeout(500);
+    const sh = await p.evaluate(() => { const r = document.querySelector('.sheet').getBoundingClientRect(); return [r.bottom, innerHeight]; });
+    ok(Math.abs(sh[0] - sh[1]) <= 1, 'finish sheet rises from the screen bottom');
+    await p.locator('.sheet [data-act=share]').click(); await p.waitForTimeout(1200);
+    ok(await p.locator('.share-prev').count() === 1, 'share sheet opens');
+    ok((await geo(p)).docScroll === 0, 'document still not scrolled');
+    await p.context().close();
+  }
+  // First-run tour still spotlights the tab bar and the Start button
+  {
+    const p = await open(390, 'light', { profile: { units: 'kg', gateSkipped: true, readiness: null, theme: 'light', days: [{ name: 'Upper', ex: many }] }, sessions: [], active: null });
+    const seen = {};
+    for (let i = 0; i < 20 && await p.locator('.coach').count(); i++) {
+      const h = await p.locator('#coach-h').textContent().catch(() => '');
+      const m = await p.evaluate(() => { const hole = document.querySelector('.coach-hole').getBoundingClientRect(), rr = s => { const e = document.querySelector(s); return e && e.getBoundingClientRect(); };
+        const t = rr('.tabs-in'), b = rr('#startbar .btn'), inside = (x, r) => r && x.height > 10 && x.top <= r.top + 2 && x.bottom >= r.bottom - 2 && x.left <= r.left + 2 && x.right >= r.right - 2;
+        return { tabs: inside(hole, t), start: inside(hole, b), onScreen: hole.top >= 0 && hole.bottom <= innerHeight }; });
+      if (/Four tabs/.test(h)) seen.tabs = m.tabs && m.onScreen;
+      if (/Start when you/.test(h)) seen.start = m.start && m.onScreen;
+      const next = p.locator('[data-act=coachnext]');
+      if (await next.count()) await next.click(); else await p.locator('[data-act=coachskip]').first().click();
+      await p.waitForTimeout(300);
+    }
+    ok(seen.tabs === true, 'tour spotlights the whole tab bar');
+    ok(seen.start === true, 'tour spotlights the Start button');
+    await p.context().close();
+  }
+  // Gate (sign-in screen) unchanged: full screen over the app
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    await p.goto(URL); await p.waitForTimeout(800);
+    const g = await p.evaluate(() => { const e = document.querySelector('.gate'); if (!e) return null; const r = e.getBoundingClientRect(); return [r.top, r.bottom, innerHeight]; });
+    ok(g && g[0] === 0 && g[1] === g[2], 'sign-in screen still covers the full screen');
+    await ctx.close();
+  }
+  // Hidden viewport readout: 5 taps on the version line
+  {
+    const p = await open(390, 'dark');
+    await p.locator('nav .tab[data-tab=settings]').click(); await p.waitForTimeout(300);
+    for (let i = 0; i < 5; i++) await p.locator('[data-act=vertap]').click();
+    await p.waitForTimeout(200);
+    const txt = await p.locator('#vvdiag').textContent().catch(() => '');
+    ok(/vv\.offsetTop/.test(txt) && /vv\.height/.test(txt) && /innerHeight\s+844/.test(txt) && /view\.scroll/.test(txt) && /tabs\.bottom\s+844/.test(txt), 'readout shows offsetTop, vv height, innerHeight, view scrollTop and tab bar bottom: ' + JSON.stringify(txt));
+    await p.evaluate(() => { document.querySelector('#view').scrollTop = 200; }); await p.waitForTimeout(200);
+    ok(/view\.scroll\s+[1-9]/.test(await p.locator('#vvdiag').textContent()), 'updates on scroll');
+    await p.reload(); await p.waitForTimeout(700);
+    ok(await p.locator('#vvdiag').count() === 1, 'remembered after a reload');
+    await p.locator('nav .tab[data-tab=settings]').click(); await p.waitForTimeout(300);
+    for (let i = 0; i < 5; i++) await p.locator('[data-act=vertap]').click();
+    await p.waitForTimeout(200);
+    ok(await p.locator('#vvdiag').count() === 0, '5 more taps switch it off');
+    await p.context().close();
+  }
 }
 
 // ---------- settings tab: appearance, help, feedback ----------
