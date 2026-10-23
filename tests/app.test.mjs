@@ -918,6 +918,38 @@ console.log('Share card day name (BUG-6)');
   await p.context().close();
 }
 
+// ---------- Share card design: light-theme map, map position, "N sets logged", Share from history ----------
+console.log('Share card design');
+{
+  const day = Date.now() - 4 * 86400000;
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, theme: 'light', days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 2, lo: 6, hi: 8 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: day, dur: 50, entries: [{ exId: 'bench', sets: [{ w: 80, r: 8 }, { w: 80, r: 8 }] }] },
+      { id: 's2', dayIdx: 0, dayName: 'Upper', date: day + 2 * 86400000, dur: 47, entries: [{ exId: 'bench', sets: [{ w: 85, r: 8, res: 'beat' }, { w: 80, r: 8, res: 'match' }, { w: 70, r: 10 }] }, { exId: 'squat', sets: [{ w: 100, r: 5 }] }] }], active: null });
+  const lay = d => p.evaluate(async d => (await window.RivalShare.drawCard({ day: 'Upper', date: Date.now(), mins: 50, muscles: { chest: 3 }, ...d }, '')).layout, d);
+  const pr = n => ({ n, v: 100, d: 2.5 });
+  const lum = c => { const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(c) || [0, ...c.replace('#', '').match(/../g).map(h => parseInt(h, 16))]; return [1, 2, 3].map(i => { const v = +m[i] / 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0); };
+  const l0 = await lay({ sets: 9, beat: 3, of: 9, prs: [] }), l3 = await lay({ sets: 9, beat: 3, of: 9, prs: [pr('Bench'), pr('Row'), pr('Squat')] });
+  const contrast = (lum(l0.bg) + .05) / (lum(l0.mapBase) + .05);
+  ok(contrast >= 1.6, `light theme: the map's base stands out from the background (contrast ${contrast.toFixed(2)}, was 1.25)`);
+  ok(l0.mapTop < l3.mapTop && l0.mapTop < 1040, `map moves up with fewer new bests (top ${Math.round(l0.mapTop)} with none, ${Math.round(l3.mapTop)} with 3)`);
+  ok(l3.mapTop + l3.mapH < 1720, 'with 3 new bests the map still ends above the footer');
+  const z = await lay({ sets: 9, beat: 0, of: 9, prs: [] });
+  ok(z.score === '9' && z.unit === 'sets logged' && z.head === 'Logged today', 'no ghost beaten: "9 sets logged", not "0/9"');
+  ok(l0.score === '3/9' && l0.head === 'Beat my ghost', 'ghosts beaten: still "Beat my ghost 3/9"');
+  // Share a saved workout from history
+  await p.locator('[data-act=tab][data-tab=progress]').click(); await p.waitForTimeout(400);
+  await p.locator('.hist[data-id="s2"]').click(); await p.waitForTimeout(500);
+  ok(await p.locator('.sheet [data-act=sharesession]').count() === 1, 'saved workout sheet has Share');
+  await p.locator('.sheet [data-act=sharesession]').click(); await p.waitForTimeout(1500);
+  ok(await p.locator('.share-prev').evaluate(im => im.complete && im.naturalWidth === 1080), 'the card is drawn for the saved workout');
+  const d = await p.evaluate(() => window.RivalShare.cardDataSaved(JSON.parse(localStorage.getItem('rival.v1')).sessions.find(x => x.id === 's2')));
+  ok(d.day === 'Upper' && d.mins === 47 && d.sets === 4 && d.beat === 1 && d.of === 2 && d.prs.length === 1 && /Bench/.test(d.prs[0].n) && d.muscles.quads > 0, 'saved data: 4 sets, 1 of 2 ghosts beaten, bench new best, squat counted: ' + JSON.stringify({ ...d, muscles: undefined }));
+  await p.locator('.sheet [data-act=shareback]').click(); await p.waitForTimeout(500);
+  ok(await p.locator('.sheet [data-act=sharesession]').count() === 1, 'Back returns to the saved workout');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {

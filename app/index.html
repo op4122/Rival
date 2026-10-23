@@ -3017,7 +3017,7 @@ function logSet0(row) {
    detail it can carry is the display name, and that can be switched off. Shared as a file where the phone supports it,
    otherwise downloaded as a PNG. */
 const SITE = 'op4122.github.io/Rival';
-const hexRgb = h => { h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.replace(/./g, c => c + c); const n = parseInt(h.slice(0, 6), 16); return isNaN(n) ? [128, 128, 128] : [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const hexRgb = h => { const m = /rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(String(h)); if (m) return [+m[1], +m[2], +m[3]]; h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.replace(/./g, c => c + c); const n = parseInt(h.slice(0, 6), 16); return isNaN(n) ? [128, 128, 128] : [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const mixRgb = (a, b, t) => 'rgb(' + hexRgb(a).map((x, i) => Math.round(x * t + hexRgb(b)[i] * (1 - t))).join(',') + ')';
 // What the card shows, from the workout in progress (or a saved one). Pure enough to test: window.RivalShare.cardData.
 function cardData(a) {
@@ -3035,6 +3035,10 @@ async function drawCard(d, name) {
   const W = 1080, H = 1920, P = 96, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d'), cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
   const T = {bg:v('--bg'), surface:v('--surface'), ink:v('--ink'), muted:v('--muted'), accent:v('--accent'), win:v('--win'), mus0:v('--mus0'), skin:v('--skin'), line:v('--line')};
+  // Light theme: the app's body colours are made for a white card and almost vanish on the chalk background, so the
+  // map's base and outline are darkened, with background-coloured gaps between muscles.
+  const light = hexRgb(T.bg).reduce((a, x) => a + x, 0) / 3 > 128;
+  const mapC = light ? {base:mixRgb(T.ink, T.mus0, .24), skin:mixRgb(T.ink, T.skin, .12), gap:T.bg} : {base:T.mus0, skin:T.skin, gap:T.skin};
   const DISP = '"Archivo","Arial Narrow",sans-serif', TXT = '"Instrument Sans",system-ui,sans-serif';
   try { await Promise.all([document.fonts.load(`800 120px ${DISP}`), document.fonts.load(`600 40px ${TXT}`), document.fonts.load(`400 40px ${TXT}`)]); } catch (e) {}
   const logo = await loadLogo();
@@ -3065,10 +3069,13 @@ async function drawCard(d, name) {
   // ghost score
   let y = 330 + dz * 0.95 + (lines.length - 1) * dz * 1.02 + 70;
   rr(P, y, W - 2 * P, 230, 40); c.fillStyle = T.surface; c.fill();
-  c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.fillText(d.of ? 'Beat my ghost' : 'First time on these lifts', P + 48, y + 78);
-  c.fillStyle = d.beat ? T.win : T.ink; c.font = `800 120px ${DISP}`;
-  const score = d.of ? `${d.beat}/${d.of}` : `${d.sets}`; c.fillText(score, P + 44, y + 192);
-  const sw = c.measureText(score).width; c.fillStyle = T.muted; c.font = `500 36px ${TXT}`; c.fillText(d.of ? 'sets' : (d.sets === 1 ? 'set logged' : 'sets logged'), P + 64 + sw, y + 190);
+  // "Beat my ghost 3/9 sets"; with no ghost beaten (or none to beat) it's just "9 sets logged", never "0/9".
+  const won = d.of && d.beat > 0, head = won ? 'Beat my ghost' : d.of ? 'Logged today' : 'First time on these lifts';
+  const score = won ? `${d.beat}/${d.of}` : `${d.sets}`, unit = won ? 'sets' : d.sets === 1 ? 'set logged' : 'sets logged';
+  c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.fillText(head, P + 48, y + 78);
+  c.fillStyle = won ? T.win : T.ink; c.font = `800 120px ${DISP}`; c.fillText(score, P + 44, y + 192);
+  const sw = c.measureText(score).width; c.fillStyle = T.muted; c.font = `500 36px ${TXT}`; c.fillText(unit, P + 64 + sw, y + 190);
+  Object.assign(cv.layout, {head, score, unit});
   y += 230 + 40;
   // new bests
   d.prs.forEach(pr => {
@@ -3081,33 +3088,56 @@ async function drawCard(d, name) {
     y += 140;
   });
   // mini heat map of today's work: front and back
-  const top = Math.max(y + 20, 1040), bh = 1700 - top, sc = bh / 428, bw = 200 * sc, gap = 70, x0 = (W - 2 * bw - gap) / 2;
+  // Sits right under the last block (higher with fewer new bests), at most 700 px tall.
+  const top = y + 20, bh = Math.min(1700 - top, 700), sc = bh / 428, bw = 200 * sc, gap = 70, x0 = (W - 2 * bw - gap) / 2;
   const lvlToday = n => n <= 0 ? 0 : n < 2 ? 1 : n < 4 ? 2 : 3;
-  const fills = [T.mus0, mixRgb(T.accent, T.mus0, .26), mixRgb(T.accent, T.mus0, .55), T.accent];
+  const fills = [mapC.base, mixRgb(T.accent, mapC.base, .3), mixRgb(T.accent, mapC.base, .6), T.accent];
+  Object.assign(cv.layout, {mapTop:top, mapH:bh, mapBase:mapC.base, bg:T.bg});
   ['front', 'back'].forEach((side, k) => {
     const ox = x0 + k * (bw + gap), M = side === 'front' ? BODY.front : BODY.back;
     const draw = (paths, fill) => { c.fillStyle = fill; paths.forEach(pd => { const p2 = new Path2D(pd); [false, true].forEach(mir => {
-      c.save(); c.translate(ox, top); c.scale(sc, sc); if (mir) { c.translate(200, 0); c.scale(-1, 1); } c.fill(p2); c.lineWidth = 1.2; c.strokeStyle = T.skin; c.stroke(p2); c.restore(); }); }); };
+      c.save(); c.translate(ox, top); c.scale(sc, sc); if (mir) { c.translate(200, 0); c.scale(-1, 1); } c.fill(p2); c.lineWidth = 1.2; c.strokeStyle = mapC.gap; c.stroke(p2); c.restore(); }); }); };
     c.save();
     const clip = new Path2D(); BODY.skin.forEach(pd => { const m1 = new DOMMatrix().translate(ox, top).scale(sc, sc), m2 = m1.translate(200, 0).scale(-1, 1); clip.addPath(new Path2D(pd), m1); clip.addPath(new Path2D(pd), m2); });
-    c.fillStyle = T.skin; c.fill(clip); c.clip(clip);
-    if (side === 'front') draw(BODY.frontNt, T.mus0);
+    c.fillStyle = mapC.skin; c.fill(clip); c.clip(clip);
+    if (side === 'front') draw(BODY.frontNt, mapC.base);
     Object.keys(M).forEach(mu => draw(M[mu], fills[lvlToday(d.muscles[mu] || 0)]));
     c.restore();
   });
-  c.fillStyle = T.muted; c.font = `500 30px ${TXT}`; c.textAlign = 'center'; c.fillText("Today's muscles", W / 2, 1748); c.textAlign = 'left';
+  c.fillStyle = T.muted; c.font = `500 30px ${TXT}`; c.textAlign = 'center'; c.fillText('Muscles worked', W / 2, top + bh + 48); c.textAlign = 'left';
   // footer
   c.fillStyle = T.line; c.fillRect(P, 1790, W - 2 * P, 2);
   c.fillStyle = T.ink; c.font = `800 38px ${DISP}`; c.fillText('Rival', P, 1852);
   c.fillStyle = T.muted; c.font = `500 34px ${TXT}`; c.textAlign = 'right'; c.fillText(SITE, W - P, 1852); c.textAlign = 'left';
   return cv;
 }
-window.RivalShare = {cardData, drawCard};
+// The same card for a saved workout (from history). Saved sets don't keep their ghost, so a set counts as having one
+// when the previous workout with that exercise had a set at that position; new bests compare with earlier workouts only.
+function cardDataSaved(s) {
+  const m = {}; Object.keys(MUSCLES).forEach(k => m[k] = 0);
+  const before = S.sessions.filter(x => x.date < s.date && x.id !== s.id).sort((a, b) => b.date - a.date);
+  let sets = 0, beat = 0, of = 0; const prs = [];
+  s.entries.forEach(en => {
+    const ex = EX[en.exId]; sets += en.sets.length; beat += en.sets.filter(x => x.res === 'beat').length;
+    const prev = before.map(x => x.entries.find(e => e.exId === en.exId && e.sets.length)).find(Boolean);
+    if (prev) of += Math.min(en.sets.length, prev.sets.length);
+    if (ex) Object.entries(ex.m).forEach(([mu, f]) => { m[mu] += en.sets.length * f; });
+    if (ex && !ex.bw && en.sets.length) {
+      const best = bestE1(en.sets), pb = Math.max(0, ...before.flatMap(x => x.entries.filter(e => e.exId === en.exId).flatMap(e => e.sets.map(z => e1(z.w, z.r)))));
+      if (pb && best > pb + 0.05) prs.push({n:ex.n, v:best, d:best - pb});
+    }
+  });
+  return {day:s.dayName, date:s.date, mins:s.dur, sets, beat, of, prs:prs.sort((x, y) => y.d - x.d).slice(0, 3), muscles:m};
+}
+window.RivalShare = {cardData, cardDataSaved, drawCard};
 let shareCard = null; // {blob, url, data}
-async function shareSheet() {
-  if (!S.active) return;
+let shareSrc = null; // null: the workout in progress; a session id: a saved workout from history
+async function shareSheet(src) {
+  shareSrc = src === undefined ? shareSrc : src;
+  const saved = shareSrc ? S.sessions.find(x => x.id === shareSrc) : null;
+  if (shareSrc ? !saved : !S.active) return;
   const p = S.profile, name = p.dname && p.shareName !== false ? firstName(p.dname) : '';
-  const d = cardData(S.active), cv = await drawCard(d, name);
+  const d = saved ? cardDataSaved(saved) : cardData(S.active), cv = await drawCard(d, name);
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
   if (shareCard && shareCard.url) URL.revokeObjectURL(shareCard.url);
   shareCard = {blob, url:URL.createObjectURL(blob), w:cv.width, h:cv.height};
@@ -3492,7 +3522,7 @@ function sessionSheet(id) {
     return `<div class="set-row" style="align-items:flex-start"><span class="h3" style="font-size:15px">${esc(ex.n)}${ex.ea ? '<span class="sub" style="font-size:12px;font-weight:500"> (per side)</span>' : ''}</span><span class="num" style="text-align:right">${en.sets.map(x => `<span style="${x.res === 'beat' ? 'color:var(--win);font-weight:700' : ''}">${ex.bw && !x.w ? 'BW' : inU(en.exId, () => fmtW(x.w))}×${x.r}</span>`).join('<br>')}</span></div>`;
   }).join('');
   openSheet(`<h2 class="h2">${esc(s.dayName)}${s.sample ? '<span class="tag-sample">Sample</span>' : ''}</h2><p class="sub">${fmtDate(s.date)}, ${s.dur} min${s.readiness != null ? ', readiness ' + s.readiness : ''}. Sets that beat the ghost are highlighted.</p><div style="margin-top:6px">${body}</div>
-    <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="delsession" data-id="${esc(s.id)}">Delete this workout</button></div>`);
+    <div class="sheet-actions" style="margin-top:14px"><button class="btn press" data-act="sharesession" data-id="${esc(s.id)}">${I.share}Share</button><button class="btn danger press" data-act="delsession" data-id="${esc(s.id)}">Delete this workout</button></div>`);
 }
 
 /* ================= actions ================= */
@@ -3693,10 +3723,11 @@ const acts = {
     if (fresh.error) { RV.code = del.error ? RV.code : null; render(); toast("Rival removed. Couldn't reset your invite link: revoke it below."); return; }
     RV.code = fresh.data.code; render(); toast('Rival removed. Your old invite link no longer works.');
   },
-  share() { shareSheet(); },
+  share() { shareSheet(null); },
+  sharesession(el) { shareSheet(el.dataset.id); },
   sharego() { shareGo(false); },
   sharesave() { shareGo(true); },
-  shareback() { finishSheet(); },
+  shareback() { if (shareSrc) sessionSheet(shareSrc); else finishSheet(); },
   sharename(el) { S.profile.shareName = el.dataset.v === '1'; touch(); shareSheet(); },
   slotlink() { ssLink(S.profile.days[slotCtx.d].ex, slotCtx.s, 'plan'); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
   slotunlink() { if (ssUnlink(S.profile.days[slotCtx.d].ex, slotCtx.s)) toast('Removed from superset'); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
