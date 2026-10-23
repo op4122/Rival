@@ -3048,9 +3048,22 @@ async function drawCard(d, name) {
   if (name) { c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.textAlign = 'right'; c.fillText(name, W - P, 168); c.textAlign = 'left'; }
   // date, day name, duration
   c.fillStyle = T.muted; c.font = `500 40px ${TXT}`; c.fillText(fmtDate(d.date, {weekday:'long', day:'numeric', month:'long'}) + ' · ' + d.mins + ' min', P, 330);
-  const dz = fit(d.day, `800 $px ${DISP}`, 168, W - 2 * P); c.fillStyle = T.ink; c.font = `800 ${dz}px ${DISP}`; c.fillText(d.day, P, 330 + dz * 0.95);
+  // Day name: one line, shrinking to 120 px; if it still doesn't fit, two balanced lines that keep shrinking until
+  // both fit. It never runs past the margins (W − 2P).
+  const maxW = W - 2 * P, dw = (t, z) => { c.font = `800 ${z}px ${DISP}`; return c.measureText(t).width; };
+  let dz = 168, lines = [d.day];
+  while (dz > 120 && dw(d.day, dz) > maxW) dz -= 4;
+  if (dw(d.day, dz) > maxW) {
+    const words = d.day.split(/\s+/).filter(Boolean); let best = null;
+    for (let k = 1; k < words.length; k++) { const l = [words.slice(0, k).join(' '), words.slice(k).join(' ')], m = Math.max(dw(l[0], 120), dw(l[1], 120)); if (!best || m < best.m) best = {m, l}; }
+    lines = best ? best.l : [d.day]; dz = 140;
+    while (dz > 24 && Math.max(...lines.map(l => dw(l, dz))) > maxW) dz -= 2;
+  }
+  c.fillStyle = T.ink; c.font = `800 ${dz}px ${DISP}`;
+  lines.forEach((l, k) => c.fillText(l, P, 330 + dz * 0.95 + k * dz * 1.02));
+  cv.layout = {dayLines:lines, daySize:dz, dayWidth:Math.max(...lines.map(l => dw(l, dz))), maxW};
   // ghost score
-  let y = 330 + dz * 0.95 + 70;
+  let y = 330 + dz * 0.95 + (lines.length - 1) * dz * 1.02 + 70;
   rr(P, y, W - 2 * P, 230, 40); c.fillStyle = T.surface; c.fill();
   c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.fillText(d.of ? 'Beat my ghost' : 'First time on these lifts', P + 48, y + 78);
   c.fillStyle = d.beat ? T.win : T.ink; c.font = `800 120px ${DISP}`;

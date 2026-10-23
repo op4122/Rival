@@ -905,6 +905,19 @@ console.log('Plateau rules (BUG-8)');
   await q.context().close();
 }
 
+// ---------- BUG-6: share card day name never runs past the margins ----------
+console.log('Share card day name (BUG-6)');
+{
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, theme: 'light', days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 1, lo: 6, hi: 8 }] }] }, sessions: [], active: null });
+  const lay = day => p.evaluate(async day => { const cv = await window.RivalShare.drawCard({ day, date: Date.now(), mins: 50, sets: 9, beat: 3, of: 9, prs: [], muscles: {} }, ''); return cv.layout; }, day);
+  for (const day of ['Push', 'Upper Hypertrophy', 'Full Body Strength Day B', 'Upper Body Hypertrophy Push And Pull Day', 'Supercalifragilisticexpialidocious Legs']) {
+    const l = await lay(day);
+    ok(l.dayWidth <= l.maxW && l.dayLines.length <= 2 && l.dayLines.join(' ') === day, `"${day}": ${l.dayLines.length} line(s) at ${l.daySize} px, ${Math.round(l.dayWidth)} ≤ ${l.maxW}`);
+  }
+  ok((await lay('Push')).daySize === 168 && (await lay('Push')).dayLines.length === 1, 'a short name stays big on one line');
+  await p.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
