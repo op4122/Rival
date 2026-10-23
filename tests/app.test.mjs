@@ -215,6 +215,40 @@ console.log('Rest sound');
   await ctx.close();
 }
 
+console.log('Rest when the phone locks');
+{
+  const p = await page();
+  await p.clock.install();
+  await p.reload(); await p.clock.runFor(600);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; });
+  await p.clock.runFor(600);
+  await p.locator('#startbar [data-act=start]').click(); await p.clock.runFor(900);
+  await p.fill('#w-0-0', '60'); await p.fill('#r-0-0', '8'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click();
+  await p.clock.runFor(300);
+  const r = (await state(p)).active.rest;
+  ok(r && r.end > Date.now() - 1e12 && r.total > 0, 'rest end time saved with the workout');
+  ok(parseFloat(await p.evaluate(() => getComputedStyle(document.querySelector('#rt')).fontSize)) >= 40, 'remaining time is large');
+  ok(await p.locator('#resttip').count() === 1 && /Keep Rival open on screen for the rest alert/.test(await p.locator('#resttip').textContent()), 'one-time tip above the rest bar');
+  await p.locator('[data-act=resttipok]').click(); await p.clock.runFor(200);
+  ok(await p.locator('#resttip').count() === 0 && (await state(p)).profile.restTip === true, '"Got it" hides the tip for good');
+  // The app is closed in the background for 50 s, then opened again
+  await p.reload(); await p.clock.runFor(50000);
+  await p.locator('#resume').click(); await p.clock.runFor(700);
+  const left = await p.locator('#rt').textContent();
+  const [m, sec] = left.split(':').map(Number);
+  ok(Math.abs((m * 60 + sec) - (r.total - 51)) <= 2, `after reopening, the timer shows the real time left (${left})`);
+  ok(await p.locator('#resttip').count() === 0, 'tip not shown again');
+  await p.locator('[data-act=rest15]').click(); await p.clock.runFor(100);
+  ok(Math.abs((await state(p)).active.rest.end - r.end - 15000) < 50, '+15s moves the saved end time');
+  // Back long after the rest ended: nothing stale is shown
+  await p.reload(); await p.clock.runFor(300000);
+  await p.locator('#resume').click(); await p.clock.runFor(700);
+  ok(!(await p.locator('#rest').getAttribute('class')).includes('show') && !(await state(p)).active.rest, 'a rest that ended minutes ago is cleared, not shown');
+  ok(await noHScroll(p), 'no sideways scroll');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {

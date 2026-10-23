@@ -441,9 +441,17 @@ body.gated{overflow:hidden}
   box-shadow:0 14px 40px rgba(0,0,0,.22);overflow:hidden}
 .rest.show{transform:translate(-50%,0);opacity:1}
 .rest.hide{transition-duration:180ms,160ms}
-.rest .rt{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;line-height:1}
-.rest .rl{font-size:12px;opacity:.7}
-.rest button{height:40px;padding:0 12px;border-radius:12px;background:rgba(127,127,127,.22);font-weight:700;font-size:14px}
+.rest{padding:12px 12px 14px 18px}
+.rest .rt{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:46px;font-variant-numeric:tabular-nums;line-height:.95;letter-spacing:-.01em}
+.rest .rl{font-size:13px;font-weight:650;opacity:.8;margin-top:3px}
+.rest button{height:48px;min-width:56px;padding:0 14px;border-radius:14px;background:rgba(127,127,127,.26);font-weight:700;font-size:15px}
+.rest .bar2{height:4px}
+.rest.up .rt{font-size:28px;white-space:nowrap}
+.resttip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(112px + env(safe-area-inset-bottom,0px));z-index:46;width:min(360px,calc(100% - 32px));
+  display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:16px;background:var(--surface);color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:14px;line-height:1.4}
+.resttip p{flex:1}
+.resttip button{flex:none;min-height:44px;padding:0 14px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.rest:not(.show) ~ .resttip{display:none}
 .rest .bar2{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);transform-origin:left;transform:scaleX(0)}
 .rest.up{background:var(--accent);color:var(--accent-ink)}
 .rest.up .bar2{display:none}
@@ -1049,6 +1057,8 @@ function cleanActive(a) {
   a.id = str(a.id, 60) || newId(); a.dayName = str(a.dayName, 40) || 'Workout';
   a.mode = a.mode === 'today' || a.mode === 'week' ? a.mode : 'program';
   a.entries.forEach(en => { en.lo = fin(en.lo) ? en.lo : 8; en.hi = fin(en.hi) ? en.hi : en.lo; en.rest = fin(en.rest) ? en.rest : 90; en.note = str(en.note, 80); });
+  // The rest timer is stored as its end time, so it's right even if the phone closed the app in the background.
+  if (!(isObj(a.rest) && fin(a.rest.end) && fin(a.rest.total) && a.rest.total > 0 && a.rest.total <= 3600)) delete a.rest;
   return a;
 }
 function cleanProfile(p0) {
@@ -1069,7 +1079,7 @@ function cleanProfile(p0) {
   out.bars = {bar:fin(b.bar) ? clamp(b.bar, 0, 40) : 20, ez:fin(b.ez) ? clamp(b.ez, 0, 40) : 10, smith:fin(b.smith) ? clamp(b.smith, 0, 40) : 15};
   out.custom = (Array.isArray(out.custom) ? out.custom : []).map(cleanCustom).filter(Boolean);
   out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
-  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped;
+  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped; out.restTip = !!out.restTip;
   if (typeof out.owner !== 'string' || !UUID_RE.test(out.owner)) delete out.owner; // the account this phone's workouts belong to
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
@@ -2314,7 +2324,7 @@ function openWorkout() {
   renderWorkout();
   wo.setAttribute('aria-hidden', 'false');
   requestAnimationFrame(() => wo.classList.add('open'));
-  if (restEnd > Date.now()) requestAnimationFrame(() => restEl.classList.add('show'));
+  if (S.active && S.active.rest) resumeRest(); else if (restEnd > Date.now()) requestAnimationFrame(() => restEl.classList.add('show'));
   updateResume();
   if (!S.profile.tour.wo && !coach) setTimeout(() => { if (wo.classList.contains('open') && !coach && !sheetEl) startCoach('wo'); }, reduced() ? 60 : 520);
   try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {}); } catch (e) {}
@@ -2438,14 +2448,42 @@ function chime() {
     });
   } catch (e) {}
 }
+/* The rest timer keeps its END time (in memory and in S.active.rest), never a countdown. Phones pause timers in the
+   background and iOS may close the app; whenever Rival is back on screen the time left is simply end - now.
+   TODO: an alert while the phone is locked would need Web Push (a push subscription in the app, plus a Supabase
+   Edge Function that sends the push when the rest ends). iPhone web apps can't vibrate or keep timers running. */
+function restBarHTML() {
+  return `<div class="rest-t"><div class="rt num" id="rt" aria-live="off">${fmtClock(Math.max(0, Math.ceil((restEnd - Date.now()) / 1000)))}</div><div class="rl">Rest</div></div><button data-act="rest15">+15s</button><button data-act="restskip">Skip</button><span class="bar2" id="rbar"></span>`;
+}
+function showRestBar() {
+  restEl.className = 'rest'; restEl.innerHTML = restBarHTML();
+  requestAnimationFrame(() => requestAnimationFrame(() => restEl.classList.add('show')));
+  clearInterval(restTick); restTick = setInterval(tickRest, 250); tickRest();
+  restTip();
+}
 function startRest(sec) {
   unlockAudio(); // runs inside the tap that logged the set, which is what lets iPhone play sound later
   clearTimeout(restHideT);
   restTotal = sec; restEnd = Date.now() + sec * 1000;
-  restEl.className = 'rest';
-  restEl.innerHTML = `<div><div class="rt num" id="rt">${fmtClock(sec)}</div><div class="rl">Rest</div></div><button data-act="rest15">+15s</button><button data-act="restskip">Skip</button><span class="bar2" id="rbar"></span>`;
-  requestAnimationFrame(() => requestAnimationFrame(() => restEl.classList.add('show')));
-  clearInterval(restTick); restTick = setInterval(tickRest, 250); tickRest();
+  if (S.active) { S.active.rest = {end:restEnd, total:restTotal}; persist(); }
+  showRestBar();
+}
+// Back in the logger (or the app reopened): pick the stored rest up where it really is.
+function resumeRest() {
+  const r = S.active && S.active.rest;
+  if (!r) return;
+  if (Date.now() - r.end > 6000) { delete S.active.rest; persist(); return; } // ended a while ago: nothing to show
+  restEnd = r.end; restTotal = r.total; clearTimeout(restHideT);
+  showRestBar();
+}
+// One-time tip, the first time a rest starts. The wording depends on whether the screen can be kept awake.
+function restTip() {
+  const old = $('#resttip'); if (S.profile.restTip) { if (old) old.remove(); return; }
+  if (old) return;
+  const awake = !!wakeLock || ('wakeLock' in navigator && !isIOS);
+  const el = document.createElement('div'); el.id = 'resttip'; el.className = 'resttip'; el.setAttribute('role', 'note');
+  el.innerHTML = `<p>Keep Rival open on screen for the rest alert. ${awake ? 'Your screen stays awake during workouts.' : 'Set Auto-Lock to Never while you train.'}</p><button data-act="resttipok">Got it</button>`;
+  restEl.after(el); // right after the rest bar, so it hides with it
 }
 function tickRest() {
   const left = (restEnd - Date.now()) / 1000;
@@ -2462,6 +2500,7 @@ function tickRest() {
 }
 function hideRest() {
   clearInterval(restTick); clearTimeout(restHideT); restEnd = 0;
+  if (S.active && S.active.rest) { delete S.active.rest; persist(); }
   restEl.classList.add('hide'); restEl.classList.remove('show');
 }
 
@@ -2936,9 +2975,10 @@ const acts = {
   },
   rest15() {
     if (restEnd <= Date.now()) { startRest(15); return; }
-    restEnd += 15000; restTotal += 15; tickRest();
+    restEnd += 15000; restTotal += 15; if (S.active) { S.active.rest = {end:restEnd, total:restTotal}; persist(); } tickRest();
   },
   restskip() { hideRest(); },
+  resttipok() { S.profile.restTip = true; touch(); const t = $('#resttip'); if (t) t.remove(); },
   closesheet() { closeSheet(); },
   muscle(el) { selMuscle = selMuscle === el.dataset.m ? null : el.dataset.m; const y = window.scrollY; render(); window.scrollTo(0, y); },
   lift(el) { liftSheet(el.dataset.id); },
@@ -3266,7 +3306,9 @@ document.addEventListener('focusin', e => { if (e.target.matches('.set input')) 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && wo.classList.contains('open') && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {});
   if (document.visibilityState === 'visible' && restEnd && restEl.classList.contains('show')) tickRest();
+  else if (document.visibilityState === 'visible' && wo.classList.contains('open') && S.active && S.active.rest && !restEnd) resumeRest();
 });
+addEventListener('pageshow', () => { if (restEnd && restEl.classList.contains('show')) tickRest(); });
 setInterval(() => {
   if (!S.active) return;
   const t = fmtClock((Date.now() - S.active.startedAt) / 1000);
