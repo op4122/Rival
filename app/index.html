@@ -502,6 +502,13 @@ body.gated .toasts{z-index:95}
 .ea-tag{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--tagc);font-size:11.5px;font-weight:650}
 .note-l{display:block;font-size:13px;font-weight:650;color:var(--muted);margin-top:14px}
 .ex-note{display:inline-block;margin:0 4px 8px;padding:4px 10px;border-radius:9px;background:var(--win-bg);font-size:13px}
+/* Plateau and deload hints: same soft accent panel as the starter note */
+.plat{position:relative;margin:0 0 10px;padding:12px 12px 10px 14px;border-radius:14px;background:var(--accent-soft);font-size:13.5px;line-height:1.4}
+.plat p{padding-right:30px}.plat b{font-weight:700}
+.plat-a{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.plat-a .btn{flex:1;min-width:120px;height:40px;font-size:14px;background:var(--surface)}
+.plat .starter-x{top:2px;right:2px}
+.deload{margin-top:14px}
 .sw-h{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 2px 8px}
 .sw-list{display:grid;gap:8px}
 .swr{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:10px 12px;border-radius:14px;background:var(--surface-2);text-align:left;transition:transform 140ms var(--ease-out),background-color 160ms ease}
@@ -713,6 +720,8 @@ const KEY = 'rival.v1';
 let erasing = false; // set while an account is being deleted, so nothing is written back to the phone
 const NEWS_V = 1; // bump when there's a new "What's new" note for existing users
 const DAY = 86400000;
+// Plateau and deload hints: stuck after 3 sessions; deload when readiness averages under 50 and 2+ lifts are stuck.
+const PLATEAU_N = 3, DL_DAYS = 7, DL_QUIET = 14, DL_READY = 50, DL_LIFTS = 2;
 const MUSCLES = {
   chest:'Chest', shoulders:'Shoulders', triceps:'Triceps', biceps:'Biceps', forearms:'Forearms', abs:'Abs',
   lats:'Upper back', traps:'Traps', lowerback:'Lower back', glutes:'Glutes', quads:'Quads', hamstrings:'Hamstrings', calves:'Calves'
@@ -1150,6 +1159,15 @@ function cleanProfile(p0) {
   out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
   out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped; out.restTip = !!out.restTip;
   if (typeof out.owner !== 'string' || !UUID_RE.test(out.owner)) delete out.owner; // the account this phone's workouts belong to
+  { const m = isObj(p.plateau) ? p.plateau : {}, o = {}; // plateau cards acted on, per exercise: {at, light, seen}
+    Object.keys(m).slice(0, 400).forEach(k => { const v = m[k]; if (/^[\w-]{1,80}$/.test(k) && isObj(v) && fin(v.at || 0))
+      o[k] = {...(fin(v.at) ? {at:v.at} : {}), ...(v.light === true ? {light:true} : {}), ...(fin(v.seen) ? {seen:v.seen} : {})}; });
+    out.plateau = o; }
+  { const d = isObj(p.deload) ? p.deload : {}, o = {}; // deload week: start/end when accepted, off when dismissed, sug when last suggested
+    ['start', 'end', 'off', 'sug'].forEach(k => { if (fin(d[k])) o[k] = d[k]; });
+    if (fin(o.end)) o.end = Math.min(o.end, Date.now() + (DL_DAYS + 1) * DAY);
+    if (fin(o.start) !== fin(o.end) || o.start > o.end) { delete o.start; delete o.end; }
+    out.deload = o; }
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
   // One-off sessions that sit on top of the program without changing it.
@@ -1284,7 +1302,14 @@ function tierOf(score) {
   if (score >= 35) return {key:'eased', label:'Eased', factor:.95, drop:false, note:'Loads eased 5% today.'};
   return {key:'recovery', label:'Recovery', factor:.9, drop:true, note:'Loads eased 10%, and one set dropped from lifts with 3 or more.'};
 }
-function curTier() { const r = todayR(); return tierOf(r && !r.skipped ? r.score : null); }
+function curTier() { if (deloadOn()) return DL_TIER; const r = todayR(); return tierOf(r && !r.skipped ? r.score : null); }
+// Deload week: about 40% fewer sets (cut), last time's weights and reps, no progression and no readiness easing on top.
+const DL_TIER = {key:'deload', label:'Deload', factor:1, drop:false, dl:true, cut:true, note:'Deload week: fewer sets, same weights.'};
+// The tier for changes inside a workout already running (swap, attachment, weight jump): never cuts sets again.
+function liveTier(a, keepDrop) {
+  if (a.dl) return Object.assign({}, DL_TIER, {cut:!!keepDrop});
+  const t = tierOf(a.readiness); return keepDrop ? t : Object.assign({}, t, {drop:false});
+}
 
 // Weight jump for one exercise: the user's own setting (⋯ menu), else its base lift's, else the library's
 // (2.5 kg barbell, 2 kg dumbbell, 1 kg small dumbbell, the machine's own step).
@@ -1319,6 +1344,13 @@ function planSlot0(slot, tier) {
   const ex = EX[slot.id] || {}, inc = incOf(slot.id);
   const last = lastWith(slot.id), g = last ? last.sets : [];
   let n = slot.sets; if (tier.drop && n >= 3) n -= 1;
+  if (tier.dl) {
+    if (tier.cut) n = dlSets(slot.sets);
+    return Array.from({length:n}, (_, i) => {
+      const gi = g[i] || null, gs = gi || g[g.length - 1]; if (!gs) return {w:null, r:slot.lo, g:gi};
+      return {w:gs.w > 0 && U() === 'lb' ? roundW(gs.w, inc) : gs.w, r:Math.min(Math.max(gs.r, slot.lo), MAX_REPS), g:gi};
+    });
+  }
   const pr = progression(g, slot.sets, slot.lo, slot.hi, stepKg(inc), !!ex.bw);
   const out = [];
   for (let i = 0; i < n; i++) {
@@ -1339,6 +1371,92 @@ const planSets = (slot, tier) => planSlot(slot, tier).map(x => ({w:x.w, r:x.r, g
 function trackSuggested(en) {
   const s = en.sets.find(x => x.sg); if (!s || en.sugT) return;
   en.sugT = 1; A.track('progression_suggested', {exercise_id:en.exId, type:s.sg.t, eased:en.sets.some(x => x.sg && x.sg.e)});
+}
+
+/* Plateaus: an exercise ties or loses to its ghost (best-set e1RM against the session before) 3 sessions in a row.
+   pts: [{date, best}] oldest first, lighter and deload sessions already left out. after: only sessions later than this
+   count (set when a plateau card is acted on, so it waits for 3 new stuck sessions). Returns how many sessions in a row,
+   counting back from the latest, failed to beat the one before. Pure, like progression: window.RivalPlateau. */
+function stuckRun(pts, after) {
+  let k = 0;
+  for (let i = pts.length - 1; i > 0; i--) {
+    if (fin(after) && pts[i].date <= after) break;
+    if (pts[i].best > pts[i - 1].best + 1e-6) break;
+    k++;
+  }
+  return k;
+}
+const dlSets = n => Math.max(1, Math.round(n * 0.6));
+const deloadDue = (avg, stuck) => avg != null && avg < DL_READY && stuck >= DL_LIFTS;
+window.RivalPlateau = {stuckRun, dlSets, deloadDue, N:PLATEAU_N};
+
+function inDeload(t) { const d = S.profile.deload; return !!(d && fin(d.start) && fin(d.end) && t >= d.start && t < d.end); }
+function deloadOn() { return inDeload(Date.now()); }
+function plateauPts(exId) {
+  const ack = (S.profile.plateau || {})[exId];
+  return S.sessions.filter(s => !s.sample && !inDeload(s.date) && !(ack && ack.light && s.date === ack.at))
+    .map(s => { const en = s.entries.find(e => e.exId === exId); return en && en.sets.length ? {date:s.date, best:Math.max(...en.sets.map(x => e1(x.w || 0, x.r || 0)))} : null; })
+    .filter(Boolean).sort((a, b) => a.date - b.date);
+}
+// How many sessions in a row this exercise has been stuck (0 below 3). raw: ignore cards already acted on.
+function plateauOf(exId, raw) {
+  const pts = plateauPts(exId), ack = (S.profile.plateau || {})[exId];
+  const n = stuckRun(pts, raw || !ack ? null : ack.at);
+  return n >= PLATEAU_N ? {n, key:pts[pts.length - n].date} : null;
+}
+// Exercises trained in the last 3 weeks that are stuck right now (whatever was done with their cards).
+function stuckLifts() {
+  const from = Date.now() - 21 * DAY, ids = new Set();
+  S.sessions.forEach(s => { if (!s.sample && s.date >= from) s.entries.forEach(e => ids.add(e.exId)); });
+  return [...ids].filter(id => plateauOf(id, true));
+}
+// Average readiness over the last 7 days: one score per day (the latest), today's check-in included. Needs 2 days.
+function avgReadiness() {
+  const now = Date.now(), by = {};
+  S.sessions.filter(s => !s.sample && s.readiness != null && s.date >= now - 7 * DAY && s.date <= now).sort((a, b) => a.date - b.date).forEach(s => { by[dkey(s.date)] = s.readiness; });
+  const r = todayR(); if (r && !r.skipped) by[r.date] = r.score;
+  const v = Object.values(by); return v.length >= 2 ? Math.round(v.reduce((a, x) => a + x, 0) / v.length) : null;
+}
+// The deload suggestion for the Today tab: null unless it's due and wasn't dismissed or done in the last 2 weeks.
+function deloadOffer() {
+  const d = S.profile.deload || {}, now = Date.now();
+  if (deloadOn() || (fin(d.off) && now - d.off < DL_QUIET * DAY) || (fin(d.end) && now - d.end < DL_QUIET * DAY)) return null;
+  const avg = avgReadiness(); if (avg == null || avg >= DL_READY) return null;
+  const stuck = stuckLifts().length; return deloadDue(avg, stuck) ? {avg, stuck} : null;
+}
+// plateau_detected: once per plateau (keyed by the session it started on), when its card first shows.
+function markPlateaus(a) {
+  if (a.dl) return;
+  if (!isObj(S.profile.plateau)) S.profile.plateau = {};
+  a.entries.forEach(en => {
+    const pl = plateauOf(en.exId); if (!pl) return;
+    en.pl = pl.n;
+    const m = S.profile.plateau, e = m[en.exId] || {};
+    if (e.seen !== pl.key) { m[en.exId] = Object.assign(e, {seen:pl.key}); A.track('plateau_detected', {exercise_id:en.exId, sessions:pl.n}); touch(); }
+  });
+}
+// A plateau card was acted on: quiet until 3 more stuck sessions after this one.
+function plateauAct(en, action) {
+  if (!isObj(S.profile.plateau)) S.profile.plateau = {};
+  const m = S.profile.plateau, e = m[en.exId] || {};
+  m[en.exId] = {at:S.active.startedAt, ...(action === 'lighter' ? {light:true} : {}), ...(fin(e.seen) ? {seen:e.seen} : {})};
+  delete en.pl;
+  A.track('plateau_action', {exercise_id:en.exId, action});
+  touch();
+}
+function plateauCard(en, ei) {
+  if (!en.pl) return '';
+  return `<div class="plat" role="note"><p><b>Stuck for ${en.pl} sessions.</b> Try a swap (same muscles) or a lighter week.</p>
+    <div class="plat-a"><button class="btn press" data-act="plswap" data-e="${ei}">Swap</button><button class="btn press" data-act="pllight" data-e="${ei}">10% lighter today</button></div>
+    <button class="starter-x" data-act="plx" data-e="${ei}" aria-label="Dismiss this hint">×</button></div>`;
+}
+function deloadCard() {
+  const d = S.profile.deload || {};
+  if (deloadOn()) return `<div class="ovr deload"><span><b>Deload week</b> until ${fmtDate(d.end, {weekday:'short', day:'numeric', month:'short'})}. About 40% fewer sets, same weights. Then back to normal.</span><span class="acts"><button data-act="dlend">End early</button></span></div>`;
+  const o = deloadOffer(); if (!o) return '';
+  if (!(fin(d.sug) && Date.now() - d.sug < DL_QUIET * DAY)) { S.profile.deload = Object.assign({}, d, {sug:Date.now()}); A.track('deload_suggested', {avg_readiness:o.avg, plateaued:o.stuck}); touch(); }
+  return `<div class="starter deload"><div class="starter-t"><b>Time for a lighter week?</b> Readiness has averaged ${o.avg} over the last 7 days and ${o.stuck} lifts are stuck. A deload week means about 40% fewer sets at the same weights for 7 days, then back to normal.</div>
+    <div class="starter-a"><button class="btn primary press" data-act="dlok">Start deload week</button><button class="btn press" data-act="dlno">Not now</button></div></div>`;
 }
 
 /* ================= storage note =================
@@ -1388,7 +1506,7 @@ const Sync = (() => {
   }
   function settingsRow() {
     const p = S.profile;
-    const keep = ['days', 'program', 'nextDay', 'custom', 'exUnit', 'exInc', 'restC', 'restI', 'theme', 'bars', 'warmups', 'restSound', 'units', 'programPicked', 'starterSeen', 'tour'];
+    const keep = ['days', 'program', 'nextDay', 'custom', 'exUnit', 'exInc', 'restC', 'restI', 'theme', 'bars', 'warmups', 'restSound', 'units', 'programPicked', 'starterSeen', 'tour', 'plateau', 'deload'];
     const settings = {v:1, updatedAt:p.updatedAt || 0}; keep.forEach(k => { if (p[k] !== undefined) settings[k] = p[k]; });
     return {id:st.uid, units:p.units === 'lb' ? 'lb' : 'kg', settings};
   }
@@ -1660,7 +1778,7 @@ function vToday() {
   const plans = day.ex.map(sl => planSlot(sl, tier));
   const sets = plans.reduce((a, x) => a + x.length, 0);
   const mins = Math.round(day.ex.reduce((a, sl, i) => a + plans[i].length * (restFor(sl) + 45), 0) / 60);
-  const adj = tier.factor < 1 ? `<span class="adj">${tier.label}</span>` : '';
+  const adj = tier.factor < 1 || tier.dl ? `<span class="adj">${tier.label}</span>` : '';
   const rows = day.ex.map((sl, i) => {
     const ex = EX[sl.id], pp = plans[i];
     const eu = exU(sl.id), fw = kg => inU(sl.id, () => fmtW(kg));
@@ -1685,6 +1803,7 @@ function vToday() {
       ${starterCard()}
     </section>
     ${readinessCard()}
+    ${deloadCard()}
     <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}</section>
     ${o ? '' : `<div class="tiles" role="group" aria-label="Change what you train">
       <button class="tile press" data-act="other"><b>${ICO.shuffle}Train something else</b><span>Swap today's session, or plan a different week. Your program waits.</span></button>
@@ -2461,11 +2580,12 @@ function startWorkout(idx, o) {
   const p = S.profile, day = (o ? o.days : p.days)[idx], r = todayR(), tier = curTier();
   S.active = {
     id:newId(), rid:uuid(), dayIdx:idx, dayName:day.name, startedAt:Date.now(), mode:o ? o.kind : 'program',
-    readiness: r && !r.skipped ? r.score : null, tierKey: tier.key,
+    readiness: r && !r.skipped ? r.score : null, tierKey: tier.key, ...(tier.dl ? {dl:1} : {}),
     rq: r && !r.skipped ? {id:uuid(), sleep:r.sleep, sore:r.sore, energy:r.energy, score:r.score} : null,
     entries: day.ex.map(sl => ({exId:sl.id, lo:sl.lo, hi:sl.hi, rest:restFor(sl), note:sl.note || '',
       sets: planSets(sl, tier)}))
   };
+  markPlateaus(S.active);
   persist(); openWorkout();
   A.track('workout_started', {mode:S.active.mode, exercise_count:S.active.entries.length});
   S.active.entries.forEach(trackSuggested); persist();
@@ -2515,7 +2635,7 @@ function sugHTML(ex, s, prev) {
   const same = sugSame(s), b = [], h = same ? '' : 'hidden';
   // A weight badge only on the first of a run of sets with the same change, so a whole exercise doesn't repeat "+2.5".
   const quiet = !!(prev && !prev.done && prev.g && prev.sg && prev.sg.e === sg.e && prev.sg.t === sg.t && (sg.e || prev.sg.p === sg.p) && Math.abs((prev.sg.w || 0) - (sg.w || 0)) < 0.01);
-  if (sg.e && !quiet) b.push(`<span class="sug-b w eased" ${h}>Eased</span>`);
+  if (sg.e && !quiet) b.push(`<span class="sug-b w eased" ${h}>${sg.l ? '−10%' : 'Eased'}</span>`);
   else if (!sg.e && !quiet && sg.p && sg.t === 'weight' && sg.w > 0) { const d = +(parseFloat(fmtW(sg.w)) - parseFloat(fmtW(s.g.w))).toFixed(2); if (d > 0) b.push(`<span class="sug-b w" ${h}>+${d}</span>`); }
   if (sg.p && sg.r > s.g.r && !(sg.t === 'weight' && sg.w > 0)) b.push(`<span class="sug-b r" ${h}>+${sg.r - s.g.r}</span>`);
   const w = ex.bw && !sg.w ? 'BW' : fmtW(sg.w) + ' ' + U();
@@ -2532,7 +2652,7 @@ function exBlock0(en, ei) {
   const attHTML = atts.length ? `<div class="att" role="group" aria-label="Attachment for ${esc(ex.bn || ex.n)}"><span class="att-l">Attachment</span><div class="att-o">${atts.map(a => `<button class="chip press" data-act="att" data-e="${ei}" data-id="${esc(a.id)}" aria-pressed="${a.id === en.exId}">${esc(a.n)}</button>`).join('')}</div></div>` : '';
   return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea || U() !== S.profile.units ? `<span class="tags">${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}${U() !== S.profile.units ? `<span class="ea-tag u-tag" title="This exercise uses ${U()}; your default is ${S.profile.units}">in ${U()}</span>` : ''}</span>` : ''}</div>
     <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button><button class="swap more press" data-act="exmenu" data-e="${ei}" aria-haspopup="dialog" aria-label="More for ${esc(ex.n)}">${I.more}</button></div></div>
-    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
+    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p></div>${plateauCard(en, ei)}${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
     <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button></div></section>`;
@@ -2608,7 +2728,7 @@ wo.addEventListener('click', e => { if (Swipe.moved) { Swipe.moved = false; if (
 function renderWorkout() {
   const a = S.active; if (!a) return;
   const t = tierOf(a.readiness);
-  const note = a.readiness == null ? '' : t.factor < 1
+  const note = a.dl ? `<p class="adjust-note"><b>Deload week.</b> Fewer sets, the same weights as last time.</p>` : a.readiness == null ? '' : t.factor < 1
     ? `<p class="adjust-note">Readiness <b>${a.readiness}</b>, ${t.label.toLowerCase()}. ${esc(t.note)}</p>`
     : `<p class="adjust-note">Readiness <b>${a.readiness}</b>, ${t.label.toLowerCase()}. ${esc(t.note)}</p>`;
   wo.innerHTML = `<header class="wo-head"><button class="ic press" data-act="min" aria-label="Minimize workout">${I.down}</button>
@@ -2923,7 +3043,7 @@ function addToCtx(id) {
   if (libCtx && libCtx.imp && imp) { const r = imp.days[libCtx.imp.d].ex[libCtx.imp.i]; r.id = id; r.off = false; libCtx = null; openSheet(impReviewHTML()); return; }
   if (libCtx && libCtx.workout && S.active) {
     const lo = ex.c ? 6 : 10, hi = ex.c ? 10 : 15, slot = {id, sets:3, lo, hi};
-    S.active.entries.push({exId:id, lo, hi, rest:restFor(slot), note:'', sets: planSets(slot, tierOf(S.active.readiness))});
+    S.active.entries.push({exId:id, lo, hi, rest:restFor(slot), note:'', sets: planSets(slot, liveTier(S.active, true))});
     trackSuggested(S.active.entries[S.active.entries.length - 1]);
     persist(); closeSheet();
     const ei = S.active.entries.length - 1, tmp = document.createElement('div'); tmp.innerHTML = exBlock(S.active.entries[ei], ei);
@@ -3120,6 +3240,22 @@ addEventListener('resize', () => placeCoach(true));
 document.addEventListener('scroll', () => placeCoach(true), {capture:true, passive:true});
 
 const acts = {
+  plswap(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'swap'); refreshEx(+el.dataset.e); acts.swap(el); },
+  plx(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'dismiss'); refreshEx(+el.dataset.e); },
+  pllight(el) {
+    const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
+    const inc = incOf(en.exId);
+    inU(en.exId, () => en.sets.forEach(x => { if (x.done || !(x.w > 0)) return;
+      x.w = roundW(x.w * 0.9, inc); if (x.sg) x.sg = Object.assign({}, x.sg, {w:x.w, r:x.r, e:true, l:true}); }));
+    plateauAct(en, 'lighter'); persist(); refreshEx(ei); toast('10% lighter for this session');
+  },
+  dlok() {
+    const o = deloadOffer() || {avg:avgReadiness(), stuck:stuckLifts().length}, now = Date.now();
+    S.profile.deload = Object.assign({}, S.profile.deload, {start:now, end:now + DL_DAYS * DAY}); delete S.profile.deload.off;
+    A.track('deload_accepted', {avg_readiness:o.avg, plateaued:o.stuck}); touch(); render(); toast('Deload week started');
+  },
+  dlno() { S.profile.deload = Object.assign({}, S.profile.deload, {off:Date.now()}); touch(); render(); },
+  dlend() { const d = S.profile.deload; if (d && fin(d.end)) d.end = Date.now(); touch(); render(); toast('Back to normal training'); },
   export() { exportBackup(); },
   importpick() { $('#importfile').click(); },
   restore() {
@@ -3267,7 +3403,7 @@ const acts = {
     S.profile.exInc = isObj(S.profile.exInc) ? S.profile.exInc : {};
     if (nx === ((EX[id] && EX[id].inc) || 2.5) && !S.profile.exInc[baseOf(id)]) delete S.profile.exInc[id]; else S.profile.exInc[id] = nx;
     // Re-plan sets not logged yet; sets still on the old suggestion move to the new one, edited sets keep what was typed.
-    const tier = Object.assign({}, tierOf(S.active.readiness), {drop:false}), fresh = planSets({id, sets:en.sets.length, lo:en.lo, hi:en.hi}, tier);
+    const tier = liveTier(S.active), fresh = planSets({id, sets:en.sets.length, lo:en.lo, hi:en.hi}, tier);
     en.sets.forEach((x, k) => { if (x.done || !fresh[k] || !fresh[k].sg) return; if (!x.sg || inU(id, () => sugSame(x))) { x.w = fresh[k].w; x.r = fresh[k].r; } x.sg = fresh[k].sg; });
     touch(); refreshEx(ei); setSheet(exMenuHTML(ei));
   },
@@ -3298,7 +3434,7 @@ const acts = {
   swpick(el) {
     const id = el.dataset.id, ctx = swapCtx; if (!S.active || !ctx || !EX[id]) return;
     const ei = ctx.ei, en = S.active.entries[ei]; if (!en || en.exId !== ctx.from) { closeSheet(); return; }
-    const before = clone(S.active.entries), done = en.sets.filter(x => x.done), tier = Object.assign({}, tierOf(S.active.readiness), {drop:false});
+    const before = clone(S.active.entries), done = en.sets.filter(x => x.done), tier = liveTier(S.active);
     const mk = n => planSets({id, sets:n, lo:en.lo, hi:en.hi}, tier);
     let ni = ei;
     if (!done.length) Object.assign(en, {exId:id, note:'', wdone:[], rest:restFor({id}), sets:mk(en.sets.length)});
@@ -3316,7 +3452,7 @@ const acts = {
     const a = S.active, ei = +el.dataset.e, en = a && a.entries[ei], picked = el.dataset.id; if (!en || !EX[picked]) return;
     const from = en.exId, to = from === picked ? baseOf(picked) : picked; // tap the chosen one again to clear it
     if (!EX[to] || to === from) return;
-    const before = clone(a.entries), tier = Object.assign({}, tierOf(a.readiness), {drop:false});
+    const before = clone(a.entries), tier = liveTier(a);
     const known = !!lastWith(to);
     // Weights come from the last time you used this attachment. Never used it? Keep what's on the card as a starting point.
     const mk = old => planSlot({id:to, sets:Math.max(1, old.length), lo:en.lo, hi:en.hi}, tier).map((x, i) => {

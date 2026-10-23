@@ -455,6 +455,127 @@ console.log('Suggested progression');
   await l.context().close();
 }
 
+// ---------- plateau and deload hints ----------
+console.log('Plateau and deload hints');
+{
+  const D = 86400000, now = Date.now(), today = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+  const s3 = (w, r) => [{ w, r }, { w, r }, { w, r }];
+  // bench ties its ghost 3 times (stuck), squat goes up every time. rowW: the row's weights (stuck when all the same).
+  const plSeed = ({ readiness = null, rq = null, rowW = [60, 62.5, 65, 67.5], profile = {} } = {}) => ({
+    profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: rq,
+      days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }, { id: 'squat', sets: 3, lo: 6, hi: 8 }, { id: 'bbrow', sets: 4, lo: 8, hi: 12 }] }], ...profile },
+    sessions: [10, 7, 4, 2].map((ago, i) => ({ id: 'p' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, readiness, entries: [
+      { exId: 'bench', sets: s3(80, 8) }, { exId: 'squat', sets: s3(100 + i * 5, 8) }, { exId: 'bbrow', sets: s3(rowW[i], 10) }] })), active: null });
+  const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
+    set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
+  async function open(seed, w = 390) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    p.errors = []; p.on('pageerror', e => p.errors.push(String(e))); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); });
+    await p.addInitScript(spy);
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(600);
+    return p;
+  }
+  const startW = async p => { await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800); };
+  const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
+
+  // The four events are allowed by the analytics helper and documented
+  { const fs = await import('node:fs'), js = fs.readFileSync('app/analytics.js', 'utf8'), md = fs.readFileSync('ANALYTICS.md', 'utf8');
+    for (const n of ['plateau_detected', 'plateau_action', 'deload_suggested', 'deload_accepted'])
+      ok(js.includes(`'${n}'`) && js.includes(`}} ${n}`) && md.includes('`' + n + '`'), n + ' is in analytics.js (list and types) and ANALYTICS.md'); }
+
+  // The rule itself
+  const p = await open(plSeed());
+  const R = (fn, ...a) => p.evaluate(([fn, a]) => window.RivalPlateau[fn](...a), [fn, a]);
+  const pts = (...b) => b.map((best, i) => ({ date: i + 1, best }));
+  ok(await R('stuckRun', pts(100, 100, 100, 100)) === 3, 'three ties in a row: stuck for 3');
+  ok(await R('stuckRun', pts(100, 99, 98, 97)) === 3, 'three losses in a row count too');
+  ok(await R('stuckRun', pts(100, 100, 100.5, 100)) === 1, 'any gain breaks the run');
+  ok(await R('stuckRun', pts(100, 100, 100)) === 2, 'needs 4 sessions (3 comparisons) to reach 3');
+  ok(await R('stuckRun', pts(100, 100, 100, 100), 2) === 2, 'sessions before a card was acted on are not counted again');
+  ok(await R('dlSets', 3) === 2 && await R('dlSets', 4) === 2 && await R('dlSets', 5) === 3 && await R('dlSets', 1) === 1, 'deload sets: about 60%, at least 1');
+  ok(await R('deloadDue', 49, 2) && !(await R('deloadDue', 50, 2)) && !(await R('deloadDue', 40, 1)) && !(await R('deloadDue', null, 3)), 'deload due only under 50 readiness with 2+ stuck lifts');
+  ok(await p.locator('.deload').count() === 0, 'no deload card without low readiness');
+
+  // Plateau card in the workout
+  await startW(p);
+  ok(await p.locator('.ex[data-e="0"] .plat').count() === 1 && /Stuck for 3 sessions\. Try a swap \(same muscles\) or a lighter week\./.test(await p.locator('.ex[data-e="0"] .plat').textContent()), 'bench shows the plateau card');
+  ok(await p.locator('.ex[data-e="1"] .plat').count() === 0, 'squat (still improving) has no card');
+  let det = await ev(p, 'plateau_detected');
+  ok(det.length === 1 && det[0].exercise_id === 'bench' && det[0].sessions === 3, 'plateau_detected once for bench: ' + JSON.stringify(det));
+  ok(await noHScroll(p), 'no sideways scroll with the card');
+  await p.locator('.ex[data-e="0"] [data-act=pllight]').click(); await p.waitForTimeout(300);
+  ok(await p.inputValue('#w-0-0') === '75' && await p.inputValue('#w-0-2') === '75', 'lighter: 82.5 suggested → 75 kg (−10%, rounded to a plate)');
+  ok((await p.locator('.set[data-e="0"][data-s="0"] .sug-b:not([hidden])').textContent()) === '−10%', 'labelled "−10%"');
+  ok(await p.locator('.plat').count() === 0, 'card gone after acting');
+  let act = await ev(p, 'plateau_action');
+  ok(act.length === 1 && act[0].action === 'lighter' && act[0].exercise_id === 'bench', 'plateau_action lighter');
+  let st = await state(p);
+  ok(st.profile.plateau.bench.light === true && st.profile.plateau.bench.at === st.active.startedAt, 'saved in the profile (syncs with settings)');
+  // Save the lighter session: it doesn't count, and the card waits for 3 new stuck sessions
+  await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(200);
+  await p.locator('[data-act=finish]').click(); await p.waitForTimeout(400); await p.locator('[data-act=save]').click(); await p.waitForTimeout(800);
+  await startW(p);
+  ok(await p.locator('.plat').count() === 0, 'next workout: no card again right after acting');
+  ok((await ev(p, 'plateau_detected')).length === 1, 'plateau_detected not sent again');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+
+  // Dismiss and Swap
+  const d = await open(plSeed()); await startW(d);
+  await d.locator('.ex[data-e="0"] [data-act=plx]').click(); await d.waitForTimeout(200);
+  ok(await d.locator('.plat').count() === 0 && (await ev(d, 'plateau_action'))[0].action === 'dismiss', 'dismiss hides the card, plateau_action dismiss');
+  ok(await d.inputValue('#w-0-0') === '82.5', 'dismiss leaves the weights alone');
+  await d.context().close();
+  const w = await open(plSeed()); await startW(w);
+  await w.locator('.ex[data-e="0"] [data-act=plswap]').click(); await w.waitForTimeout(500);
+  ok(/Swap Barbell Bench/.test(await w.locator('.sheet .h2').textContent()) && /Same muscles/.test(await w.locator('.sheet').textContent()), 'Swap opens the Swap sheet, same muscles first');
+  ok((await ev(w, 'plateau_action'))[0].action === 'swap', 'plateau_action swap');
+  await w.context().close();
+
+  // Deload: low readiness and 2 stuck lifts (bench and row)
+  const lowR = { readiness: 40, rq: { date: today, score: 40, sleep: 1, sore: 1, energy: 1 }, rowW: [60, 60, 60, 60] };
+  const q = await open(plSeed(lowR), 320);
+  ok(await q.locator('.deload [data-act=dlok]').count() === 1 && /averaged 40 over the last 7 days and 2 lifts are stuck/.test(await q.locator('.deload').textContent()), 'Today offers a deload week');
+  ok(await noHScroll(q), 'deload card: no sideways scroll at 320 px');
+  let sug = await ev(q, 'deload_suggested');
+  ok(sug.length === 1 && sug[0].avg_readiness === 40 && sug[0].plateaued === 2, 'deload_suggested with avg and count: ' + JSON.stringify(sug));
+  await q.reload(); await q.waitForTimeout(500);
+  ok((await ev(q, 'deload_suggested')).length === 0, 'not sent again on the next render');
+  await q.locator('[data-act=dlok]').click(); await q.waitForTimeout(300);
+  ok((await ev(q, 'deload_accepted')).length === 1, 'deload_accepted');
+  st = await state(q);
+  ok(Math.abs(st.profile.deload.end - st.profile.deload.start - 7 * D) < 1000, 'deload saved in the profile, 7 days');
+  ok(/Deload week/.test(await q.locator('.ovr.deload').textContent()) && await q.locator('[data-act=dlok]').count() === 0, 'banner replaces the offer');
+  await startW(q);
+  ok(await q.locator('.ex[data-e="0"] .set').count() === 2 && await q.locator('.ex[data-e="2"] .set').count() === 2, 'deload: bench 3 → 2 sets, row 4 → 2');
+  ok(await q.inputValue('#w-0-0') === '80' && await q.inputValue('#r-0-0') === '8', 'same weights as last time, no progression, no easing (80 × 8)');
+  ok(await q.locator('.plat').count() === 0 && await q.locator('.sug-b:not([hidden])').count() === 0, 'no plateau cards or badges during a deload');
+  ok(/Deload week/.test(await q.locator('.adjust-note').textContent()), 'workout says it is a deload week');
+  // Swapping inside a deload keeps the set count
+  await q.locator('.ex[data-e="1"] [data-act=swap]').click(); await q.waitForTimeout(400);
+  await q.locator('.sheet [data-act=swpick]').first().click(); await q.waitForTimeout(400);
+  ok(await q.locator('.ex[data-e="1"] .set').count() === 2, 'a swap mid-deload keeps the sets it had (2)');
+  await q.context().close();
+
+  // Deload ends after 7 days and the plan is back to normal
+  const e = await open(plSeed({ ...lowR, profile: { deload: { start: now - 8 * D, end: now - D } } }));
+  ok(await e.locator('.deload').count() === 0, 'ended deload: no banner, and no new offer for 2 weeks');
+  ok(/3 × 6–8/.test(await e.locator('.card.session .pv').first().textContent()), 'targets back to 3 sets');
+  await e.context().close();
+  // Not now
+  const n = await open(plSeed(lowR));
+  await n.locator('[data-act=dlno]').click(); await n.waitForTimeout(300);
+  ok(await n.locator('.deload').count() === 0 && (await state(n)).profile.deload.off > 0, '"Not now" hides it and is saved');
+  await n.reload(); await n.waitForTimeout(500);
+  ok(await n.locator('.deload').count() === 0, 'still hidden after a reload');
+  await n.context().close();
+  // One stuck lift is not enough
+  const one = await open(plSeed({ ...lowR, rowW: [60, 62.5, 65, 67.5] }));
+  ok(await one.locator('.deload').count() === 0, 'one stuck lift: no deload offer');
+  await one.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {

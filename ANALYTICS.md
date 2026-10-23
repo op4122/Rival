@@ -38,6 +38,10 @@ marketing site (`/Rival/`) report to it, so a visit, a click on "Open the app" a
 | `sync_completed` | The sync worker finishes sending changes | `rows` (rows sent) |
 | `progression_suggested` | A workout's targets are drawn up for an exercise with a ghost (at Start, or when one is added, swapped or changes attachment), once per exercise per workout | `exercise_id`, `type`: `'weight'` (every set hit the top last time, so the next weight up) or `'reps'` (same weight, one more rep), `eased` (readiness lowered the load today) |
 | `progression_accepted` | The first set of an exercise that moves on from its ghost is logged at the suggested weight and reps, once per exercise per workout | `exercise_id`, `type` (as above), `via`: `'prefill'` (logged as pre-filled) or `'tap'` (the numbers were changed and "↺ Reset" was tapped to put the suggestion back) |
+| `plateau_detected` | A workout starts with an exercise that tied or lost to its ghost (best-set e1RM, Epley) 3 sessions in a row; once per plateau. Lighter (−10%) and deload-week sessions don't count | `exercise_id`, `sessions` (sessions in a row without beating the one before) |
+| `plateau_action` | A button on the plateau card is tapped. Afterwards the card waits for 3 more stuck sessions | `exercise_id`, `action`: `'swap'` (opened the Swap sheet), `'lighter'` (this session's sets −10%) or `'dismiss'` |
+| `deload_suggested` | The Today tab offers a deload week: readiness averaged under 50 over the last 7 days (2+ days of scores) and 2+ exercises are stuck. At most once per 14 days | `avg_readiness` (0–100), `plateaued` (stuck exercises) |
+| `deload_accepted` | "Start deload week" is tapped (7 days, about 40% fewer sets, same weights) | `avg_readiness`, `plateaued` |
 | `cta_clicked` | Marketing site: a link into the app is clicked | `location` (`nav`, `hero`, `closing` or the section id), `label` (button text) |
 
 PostHog's own events also arrive: `$pageview`, `$autocapture`, `$pageleave`, `$identify`, `$web_vitals`, and
@@ -49,6 +53,9 @@ session recordings.
 - **Activation:** `app_opened` → `readiness_checkin_completed` → `workout_started` → `workout_completed`.
 - **Progression:** `progression_suggested` → `progression_accepted`, broken down by `type`. A low rate on `weight` means
   the jumps feel too big (see the per-exercise Weight jump in the ⋯ menu).
+- **Plateaus:** `plateau_detected` → `plateau_action`, broken down by `action`. Then `ghost_set_beaten` on the same
+  `exercise_id` within 2 weeks shows whether the hint helped.
+- **Deload:** `deload_suggested` → `deload_accepted`. A low rate means the suggestion fires when people don't feel they need it.
 - **Accounts:** `app_opened` (signed_in = false) → `signup_completed`, broken down by `method`.
 
 ## Housekeeping
