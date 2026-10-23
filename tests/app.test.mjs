@@ -755,6 +755,59 @@ console.log('Superset layout (BUG-5)');
   }
 }
 
+// ---------- BUG-3/BUG-4: removing or moving a plan exercise keeps every other link ----------
+console.log('Superset links on remove and move (BUG-3/4)');
+{
+  const seed = ex => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, days: [{ name: 'Upper', ex }] }, sessions: [], active: null });
+  const sl = (id, ln) => ({ id, sets: 3, lo: 8, hi: 12, ...(ln ? { ln: 1 } : {}) });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+  p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed([sl('bench', 1), sl('bbrow'), sl('ezcurl'), sl('squat')])));
+  await p.goto(URL); await p.waitForTimeout(600);
+  // The rule, on letters: names are the items, a "+" after one means it links to the next.
+  const run = (list, op, i, d) => p.evaluate(([list, op, i, d]) => {
+    const l = list.map(n => ({ n: n.replace('+', ''), ...(n.endsWith('+') ? { ln: 1 } : {}) })), S = window.RivalSuperset;
+    if (op === 'rm') S.ssRemove(l, i); else S.ssMove(l, i, d);
+    const g = S.ssGroups(l); return l.map((x, k) => x.n + (g[k] ? g[k].g + g[k].n : '')).join(' ');
+  }, [list, op, i, d]);
+  ok(await run(['a+', 'b', 'c'], 'rm', 1) === 'a c', 'remove the last member of a pair: the one before does not join the next exercise');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'rm', 2) === 'aA1 bA2 d', 'remove the last of three: A1 A2 stay, the next exercise does not join');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'rm', 1) === 'aA1 cA2 d', 'remove the middle of three: the other two stay a pair');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'rm', 0) === 'bA1 cA2 d', 'remove the first: the rest stay');
+  ok(await run(['x', 'a+', 'b', 'c'], 'rm', 0) === 'aA1 bA2 c', 'remove an exercise outside the group: group unchanged');
+  ok(await run(['a+', 'b', 'c'], 'mv', 1, 1) === 'a c b', 'move the last of a pair down: it leaves, and the one before does not link to the next');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'mv', 2, 1) === 'aA1 bA2 d c', 'move the last of three down: it leaves, A1 A2 stay');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'mv', 0, 1) === 'bA1 aA2 cA3 d', 'move within the group: order changes, group stays');
+  ok(await run(['x', 'a+', 'b', 'c'], 'mv', 0, 1) === 'aA1 bA2 x c', 'move an outside exercise down: it jumps over the group, never lands inside it');
+  ok(await run(['a+', 'b', 'x'], 'mv', 2, -1) === 'x aA1 bA2', 'and up: it jumps over the whole group');
+  ok(await run(['a+', 'b', 'c+', 'd'], 'mv', 1, 1) === 'a cA1 dA2 b', 'move the last of A into B: it leaves A and jumps over B');
+
+  // In the plan editor
+  const links = async () => (await state(p)).profile.days[0].ex.map(x => x.id + (x.ln ? '+' : '')).join(' ');
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=rmslot]').click(); await p.waitForTimeout(400);
+  ok(await links() === 'bench ezcurl squat' && await p.locator('#view .ss-l').count() === 0, 'remove A2 (row): bench is not linked to curl: ' + await links());
+  await p.locator('#toasts button').click(); await p.waitForTimeout(400);
+  ok(await links() === 'bench+ bbrow ezcurl squat' && await p.locator('#view .ss-l').count() === 2, 'Undo puts the exact links back');
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=slotmove][data-v="1"]').click(); await p.waitForTimeout(400);
+  ok(await links() === 'bench ezcurl bbrow squat', 'move A2 (row) down: it leaves, bench is not linked to curl: ' + await links());
+  ok(/exercise 3 of 4/.test(await p.locator('.sheet .sub').first().textContent()), 'the sheet follows the moved exercise');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await ctx.close();
+
+  // In the logger: removing A2 doesn't link A1 to the next exercise; Undo restores
+  const q = await page({}, { ...seed([sl('bench', 1), sl('bbrow'), sl('ezcurl')]), profile: { ...seed([]).profile, days: [{ name: 'Upper', ex: [sl('bench', 1), sl('bbrow'), sl('ezcurl')] }] } });
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  await q.locator('.ex[data-e="1"] [data-act=exmenu]').click(); await q.waitForTimeout(400);
+  await q.locator('.sheet [data-act=rmex]').click(); await q.waitForTimeout(500);
+  ok(await q.locator('#wo .ss-l').count() === 0 && !(await state(q)).active.entries[0].ln, 'logger: remove A2, bench stays on its own');
+  await q.locator('#toasts button').click(); await q.waitForTimeout(400);
+  ok(await q.locator('#wo .ss-l').count() === 2, 'logger Undo restores the pair');
+  await q.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
