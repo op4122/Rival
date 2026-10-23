@@ -736,6 +736,25 @@ console.log('Share card');
   await q.context().close();
 }
 
+// ---------- BUG-5: superset cards fit narrow phones ----------
+console.log('Superset layout (BUG-5)');
+{
+  const seed = { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: true,
+    days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8, ln: 1 }, { id: 'pushdown__rope', sets: 3, lo: 8, hi: 12, ln: 1 }, { id: 'bbrow', sets: 3, lo: 8, hi: 12 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: Date.now() - 2 * 86400000, dur: 50, entries: [{ exId: 'bench', sets: [{ w: 100, r: 8 }, { w: 100, r: 8 }, { w: 100, r: 8 }] }] }], active: null };
+  for (const w of [320, 360, 390]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 800 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(600);
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+    const m = await p.evaluate(() => ({ list: document.querySelector('#wo-list').getBoundingClientRect().right,
+      right: Math.max(...[...document.querySelectorAll('#wo .ssg .ex, #wo .ssg .set')].map(e => e.getBoundingClientRect().right)),
+      over: [...document.querySelectorAll('#wo .ssg')].some(g => g.scrollWidth > g.clientWidth + 1) }));
+    ok(m.right <= m.list + 0.5 && m.right <= w && !m.over, `${w} px: superset cards (with an attachment row) stay inside the screen (right edge ${Math.round(m.right)} ≤ ${Math.round(m.list)})`);
+    await ctx.close();
+  }
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
