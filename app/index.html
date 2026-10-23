@@ -21,7 +21,6 @@
 <style>
 @font-face{font-family:"Archivo";font-style:normal;font-display:swap;font-weight:100 900;font-stretch:62% 125%;src:url(../assets/fonts/archivo.woff2) format("woff2-variations"),url(../assets/fonts/archivo.woff2) format("woff2")}
 @font-face{font-family:"Instrument Sans";font-style:normal;font-display:swap;font-weight:400 700;src:url(../assets/fonts/instrument-sans.woff2) format("woff2-variations"),url(../assets/fonts/instrument-sans.woff2) format("woff2")}
-html{padding:env(safe-area-inset-top,0px) 0 0}
 body{margin:0}
 [hidden]{display:none!important}
 
@@ -51,7 +50,13 @@ body{margin:0}
   --ghost:#8A91A0; --tagc:#93A4FF; --win:#F4C542; --win-bg:rgba(244,197,66,.15); --warn:#FF6F59; --body:#262A33; --skin:#262B34; --mus0:#3A404D;
   --scrim:rgba(0,0,0,.55); --coach-scrim:rgba(0,0,0,.68); --glass:rgba(22,25,31,.78); color-scheme:dark;
 }
-html,body{height:100%}
+/* App shell: the document never scrolls. #app fills the screen; #view is the only scroller, the tab bar sits in
+   flow below it, and bottom UI is positioned inside #app. iOS (WebKit bug 297779) can leave visualViewport.offsetTop
+   stuck after the keyboard closes, which made position:fixed bottom bars float mid-screen; nothing here is fixed to
+   the viewport while the document scrolls, because the document doesn't scroll. Full-screen overlays (.wo,
+   .sheet-wrap, .gate, .coach) stay position:fixed. */
+html,body{height:100%;overflow:hidden}
+#app{position:relative;height:100%;display:flex;flex-direction:column;overflow:hidden}
 html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;overscroll-behavior:none}
 body{background:var(--bg);color:var(--ink);font-family:var(--text);font-size:15px;line-height:1.45;overscroll-behavior:none}
 *,*::before,*::after{box-sizing:border-box}
@@ -64,8 +69,10 @@ input{font:inherit;color:inherit}
 .press:active{transform:scale(.97)}
 
 /* ---------- shell ---------- */
-.view{max-width:520px;margin:0 auto;padding:12px 16px calc(112px + env(safe-area-inset-bottom,0px))}
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;
+.view{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  /* the content column stays 488 px wide and centred (was max-width:520px with 16 px padding); the scroller is full width */
+  padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,calc((100% - 488px) / 2)) 24px}
+.tabs{position:relative;flex:none;z-index:20;display:flex;justify-content:center;
   padding:6px 12px calc(6px + env(safe-area-inset-bottom,0px));background:var(--glass);
   -webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);border-top:1px solid var(--line)}
 .tabs-in{display:flex;width:100%;max-width:420px;justify-content:space-around}
@@ -75,7 +82,7 @@ input{font:inherit;color:inherit}
 .tab .press-in{transition:transform 140ms var(--ease-out)}
 .tab:active .press-in{transform:scale(.94)}
 
-.resume{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:21;
+.resume{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:21;
   display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:999px;background:var(--ink);color:var(--bg);
   box-shadow:0 10px 30px rgba(0,0,0,.18);white-space:nowrap;font-weight:600;font-size:14px}
 .resume .pill{background:var(--accent);color:var(--accent-ink);padding:6px 12px;border-radius:999px;font-size:13px}
@@ -438,7 +445,7 @@ body.gated{overflow:hidden}
 .ex-act button:first-child{color:var(--accent)}
 .finish{height:40px;padding:0 16px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:15px}
 
-.rest{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:45;width:min(360px,calc(100% - 32px));
+.rest{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:45;width:min(360px,calc(100% - 32px));
   transform:translate(-50%,calc(100% + 40px));opacity:0;transition:transform 260ms var(--ease-out),opacity 200ms ease;
   background:var(--ink);color:var(--bg);border-radius:20px;padding:10px 10px 10px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;
   box-shadow:0 14px 40px rgba(0,0,0,.22);overflow:hidden}
@@ -450,7 +457,7 @@ body.gated{overflow:hidden}
 .rest button{height:48px;min-width:56px;padding:0 14px;border-radius:14px;background:rgba(127,127,127,.26);font-weight:700;font-size:15px}
 .rest .bar2{height:4px}
 .rest.up .rt{font-size:28px;white-space:nowrap}
-.resttip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(112px + env(safe-area-inset-bottom,0px));z-index:46;width:min(360px,calc(100% - 32px));
+.resttip{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(112px + env(safe-area-inset-bottom,0px));z-index:46;width:min(360px,calc(100% - 32px));
   display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:16px;background:var(--surface);color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:14px;line-height:1.4}
 .resttip p{flex:1}
 .resttip button{flex:none;min-height:44px;padding:0 14px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700}
@@ -460,14 +467,17 @@ body.gated{overflow:hidden}
 .rest.up .bar2{display:none}
 
 /* ---------- toasts ---------- */
-.startbar{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:19;display:flex;justify-content:center;padding:0 16px;pointer-events:none}
+.startbar{position:absolute;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:19;display:flex;justify-content:center;padding:0 16px;pointer-events:none}
 .startbar .btn{width:100%;max-width:488px;pointer-events:auto;box-shadow:0 8px 24px rgba(20,22,27,.16),0 0 0 6px var(--bg)}
-body.has-start .view{padding-bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+/* The tab bar no longer covers #view, so #view only clears what floats over its bottom edge: the Start button
+   (its top is ~78 px above the tab bar) or the Resume pill (~46 px). */
+body.has-start .view{padding-bottom:104px}
+body.has-resume .view{padding-bottom:64px}
 body.has-start .toasts{bottom:calc(156px + env(safe-area-inset-bottom,0px))}
 body.wo-open .startbar,body.has-resume .startbar{display:none}
 .card.session + .tiles{margin-top:12px}
 body.gated .toasts{z-index:95}
-.toasts{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.toasts{position:absolute;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.2);
   transform:translateY(16px);opacity:0;transition:transform 240ms var(--ease-out),opacity 200ms ease}
 .toast.show{transform:none;opacity:1}
@@ -2109,7 +2119,7 @@ function applyDays(days, program, msg) {
   prevPlan = {days: clone(p.days), program: clone(p.program), nextDay: p.nextDay};
   p.days = days; p.program = program; p.nextDay = 0; p.programPicked = true;
   document.querySelectorAll('#toasts .toast').forEach(t => t.remove());
-  touch(); closeSheet(); tab = 'plan'; render(); window.scrollTo(0, 0);
+  touch(); closeSheet(); tab = 'plan'; render(); viewScrollTo(0);
   toast(msg, {label:'Undo', fn: () => { if (!prevPlan) return; Object.assign(p, prevPlan); prevPlan = null; touch(); render(); }});
 }
 function markCustom() { const p = S.profile; if (p.program.id !== 'custom') p.program = {id:'custom', name:'Custom split'}; p.programPicked = true; }
@@ -2368,7 +2378,7 @@ function syncStatusHTML() { return typeof Sync.statusHTML === 'function' ? Sync.
 function authSheetHTML() { return `<h2 class="h2">Sign in</h2><p class="sub">${esc(Auth.why || '')}</p><div class="acct" style="margin-top:10px">${authUid() ? '<p>You are signed in.</p>' : authFormHTML()}</div>`; }
 function rerenderAuth() {
   if (gateEl) { const a = gateEl.querySelector('.acct'); if (a) a.innerHTML = authFormHTML(); return; }
-  if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML()); else if (tab === 'settings') { const y = scrollY; render(); scrollTo(0, y); }
+  if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML()); else if (tab === 'settings') { const y = viewScrollTop(); render(); viewScrollTo(y); }
 }
 /* Delete account. The server part is the Supabase Edge Function supabase/functions/delete-account: it checks the
    login token, deletes this user's rows and then the login itself. Only after it says yes is the phone cleared. */
@@ -2548,7 +2558,7 @@ function rivalsHTML() {
   // Refresh in the background (rivals, invite link, name and sharing switch can change on another phone).
   if (!RV.loading && navigator.onLine && (!RV.list || Date.now() - (RV.at || 0) > 60000)) {
     RV.loading = true; RV.at = Date.now();
-    Promise.all([rvLoad(true), meLoad(true)]).then(() => { RV.loading = false; if (tab === 'settings' && !sheetEl) { const y = scrollY; render(); scrollTo(0, y); } });
+    Promise.all([rvLoad(true), meLoad(true)]).then(() => { RV.loading = false; if (tab === 'settings' && !sheetEl) { const y = viewScrollTop(); render(); viewScrollTo(y); } });
   }
   const p = S.profile;
   const inv = RV.code ? `<p class="note-l" style="margin-top:6px">Your invite link</p><div class="fb-mail"><span class="rv-link">${esc(inviteUrl(RV.code))}</span><button class="link" data-act="rvcopy">Copy</button></div>
@@ -2607,7 +2617,7 @@ function rivalLinesHTML() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '30'; // matches the service worker cache, rival-v30
+const APP_VERSION = '31'; // matches the service worker cache, rival-v31
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2625,7 +2635,7 @@ function feedbackHref() {
 }
 function vSettings() {
   const p = S.profile;
-  return `<header><p class="date">Rival version ${APP_VERSION}</p><h1 class="title">Settings</h1></header>
+  return `<header><p class="date" data-act="vertap">Rival version ${APP_VERSION}</p><h1 class="title">Settings</h1></header>
     ${accountHTML()}
     ${rivalsHTML()}
     <section class="section" style="margin-top:20px"><div class="section-head"><h2 class="h2">Appearance</h2></div><div class="card" style="padding:4px 16px">
@@ -2709,6 +2719,30 @@ function readBackup(file) {
 
 /* ================= render ================= */
 const view = $('#view');
+/* Hidden viewport readout for checking the iOS keyboard bug on a real phone: tap "Rival version N" in Settings 5 times
+   to switch it on or off (remembered on this phone). Shows visualViewport offsetTop/height, innerHeight, #view
+   scrollTop and where the tab bar's bottom edge is. */
+const VV_KEY = 'rival.vvdiag';
+let vvEl = null, vvTaps = [];
+function vvPaint() {
+  if (!vvEl) return;
+  const vv = window.visualViewport, t = document.querySelector('.tabs'), r1 = n => Math.round(n * 10) / 10;
+  vvEl.textContent = `vv.offsetTop ${vv ? r1(vv.offsetTop) : '-'}\nvv.height    ${vv ? r1(vv.height) : '-'}\ninnerHeight  ${innerHeight}\nview.scroll  ${Math.round(viewScrollTop())}\ntabs.bottom  ${t ? r1(t.getBoundingClientRect().bottom) : '-'}`;
+}
+function vvDiag(on) {
+  if (on && !vvEl) {
+    vvEl = document.createElement('pre'); vvEl.id = 'vvdiag'; vvEl.setAttribute('aria-hidden', 'true');
+    vvEl.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top,0px) + 4px);right:4px;z-index:200;margin:0;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.78);color:#7CFC8A;font:11px/1.35 ui-monospace,Menlo,monospace;pointer-events:none;white-space:pre';
+    document.body.appendChild(vvEl); vvPaint();
+  } else if (!on && vvEl) { vvEl.remove(); vvEl = null; }
+}
+['resize', 'scroll'].forEach(e => { if (window.visualViewport) visualViewport.addEventListener(e, vvPaint); });
+addEventListener('resize', vvPaint); addEventListener('focusout', () => setTimeout(vvPaint, 350));
+try { if (localStorage.getItem(VV_KEY) === '1') vvDiag(true); } catch (e) {}
+// #view is the page's only scroller (the document itself never scrolls).
+function viewScrollTop() { return view ? view.scrollTop : 0; }
+function viewScrollTo(y) { if (view) view.scrollTop = Math.max(0, y); }
+if (view) view.addEventListener('scroll', vvPaint, {passive:true});
 // Appearance: follow the phone, or force light or dark. The CSS already has both palettes behind [data-theme].
 const THEME_BAR = {light:'#ECEEE9', dark:'#0D0F13'};
 function applyTheme() {
@@ -3596,7 +3630,7 @@ function goCoach(i, dir) {
   if (st.sel) {
     const t = st._t[0];
     if (coach.kind === 'wo') t.scrollIntoView({block:'center'});
-    else if (st.tab) { const r = t.getBoundingClientRect(); if (!t.closest('.tabs')) window.scrollTo(0, Math.max(0, scrollY + r.top + r.height / 2 - innerHeight * 0.4)); }
+    else if (st.tab) { const r = t.getBoundingClientRect(), vr = view.getBoundingClientRect(); if (!t.closest('.tabs') && view.contains(t)) viewScrollTo(viewScrollTop() + r.top - vr.top + r.height / 2 - view.clientHeight * 0.4); }
     const last = !c.steps.slice(i + 1).some(x => x.sel ? coachTargets(x).length || x.tab : true);
     pop.innerHTML = `<div class="coach-in"><div class="coach-dots" aria-hidden="true">${pts.map((_, k) => `<i class="${k === n ? 'on' : ''}"></i>`).join('')}</div>
       <h2 id="coach-h">${st.h}</h2><p>${st.b}</p>
@@ -3611,7 +3645,7 @@ function goCoach(i, dir) {
       </ul>
       <div class="coach-f col"><button class="btn primary press" data-act="coachnext">Show me around</button><button class="link" data-act="coachskip">Skip, I'll explore</button></div></div>`;
   } else {
-    window.scrollTo(0, 0);
+    viewScrollTo(0);
     const smp = hasSamples();
     pop.innerHTML = `<div class="coach-in"><div class="coach-hero"><h2 id="coach-h">You're all set</h2></div>
       <p style="text-align:center">${smp ? 'The workouts already here are <b>samples</b>, so every screen has something to show. Clear them before your first real session, or keep them while you explore.' : 'Check in, hit Start, and go beat your ghost.'}</p>
@@ -3662,12 +3696,17 @@ function endCoach(instant) {
   persist();
   if (instant) { c.el.remove(); return; }
   c.el.classList.remove('on'); setTimeout(() => c.el.remove(), 220);
-  if (c.kind !== 'wo' && tab !== 'today') { tab = 'today'; render(); window.scrollTo(0, 0); }
+  if (c.kind !== 'wo' && tab !== 'today') { tab = 'today'; render(); viewScrollTo(0); }
 }
 addEventListener('resize', () => placeCoach(true));
 document.addEventListener('scroll', () => placeCoach(true), {capture:true, passive:true});
 
 const acts = {
+  vertap() {
+    const now = Date.now(); vvTaps = vvTaps.filter(t => now - t < 3000).concat(now); if (vvTaps.length < 5) return;
+    vvTaps = []; const on = !vvEl; vvDiag(on); try { localStorage.setItem(VV_KEY, on ? '1' : '0'); } catch (e) {}
+    toast(on ? 'Viewport readout on' : 'Viewport readout off');
+  },
   rvsignin() { requireAuth(() => render(), 'Sign in to race a friend.'); },
   rvtoggle(el) { if (!S.active) return; S.active.rvOff = el.dataset.v === '0'; persist(); const b = wo.querySelector('.wo-body'), y = b ? b.scrollTop : 0; renderWorkout(); const b2 = wo.querySelector('.wo-body'); if (b2) b2.scrollTop = y; },
   async sharelifts(el) {
@@ -3760,7 +3799,7 @@ const acts = {
   },
   install() { if (!installEvt) return; installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; render(); }); },
   noinstall() { try { localStorage.setItem('rival.noinstall', '1'); } catch (e) {} render(); },
-  tab(el) { const was = tab; tab = el.dataset.tab; selMuscle = null; render(); window.scrollTo(0, 0); if (was !== tab) screenChanged(); },
+  tab(el) { const was = tab; tab = el.dataset.tab; selMuscle = null; render(); viewScrollTo(0); if (was !== tab) screenChanged(); },
   rq(el) {
     draftR[el.dataset.k] = +el.dataset.v;
     if (RQ.every(q => draftR[q.k] != null)) {
@@ -3795,7 +3834,7 @@ const acts = {
     if (!oth.f || !FOCUS[oth.f]) return;
     const d = buildDays([oth.f])[0];
     S.profile.today = {date:dkey(Date.now()), f:oth.f, day:d};
-    touch(); closeSheet(); tab = 'today'; render(); window.scrollTo(0, 0);
+    touch(); closeSheet(); tab = 'today'; render(); viewScrollTo(0);
     toast(`${d.name} for today. Your program hasn't moved.`);
   },
   othweek() {
@@ -3806,7 +3845,7 @@ const acts = {
       done:days.map((d, i) => !!(old && old.days[i] && old.days[i].name === d.name && old.done[i]))};
     const nx = p.week.done.findIndex(x => !x); p.week.next = nx >= 0 ? nx : 0;
     delete p.today;
-    touch(); closeSheet(); tab = 'today'; render(); window.scrollTo(0, 0);
+    touch(); closeSheet(); tab = 'today'; render(); viewScrollTo(0);
     toast(`This week: ${days.length <= 3 ? days.map(d => d.name).join(', ') : pl(days.length, 'session')}. Your program is paused.`);
   },
   endother() {
@@ -3855,7 +3894,7 @@ const acts = {
   restskip() { hideRest(); },
   resttipok() { S.profile.restTip = true; touch(); const t = $('#resttip'); if (t) t.remove(); },
   closesheet() { closeSheet(); },
-  muscle(el) { selMuscle = selMuscle === el.dataset.m ? null : el.dataset.m; const y = window.scrollY; render(); window.scrollTo(0, y); },
+  muscle(el) { selMuscle = selMuscle === el.dataset.m ? null : el.dataset.m; const y = viewScrollTop(); render(); viewScrollTo(y); },
   lift(el) { liftSheet(el.dataset.id); },
   session(el) { sessionSheet(el.dataset.id); },
   delsession(el) {
@@ -4104,7 +4143,7 @@ const acts = {
   coachskip() { endCoach(); },
   coachclear() { endCoach(); acts.clearsample(); },
   program() { openPrograms(); },
-  gotoplan() { tab = 'plan'; render(); window.scrollTo(0, 0); },
+  gotoplan() { tab = 'plan'; render(); viewScrollTo(0); },
   progdays(el) { progN = +el.dataset.n; setSheet(progListHTML()); },
   progpick(el) { progSel = PROGRAMS.find(x => x.id === el.dataset.id); setSheet(progDetailHTML(progSel)); sheetEl.querySelector('.sheet-body').scrollTop = 0; },
   progback() { setSheet(progListHTML()); sheetEl.querySelector('.sheet-body').scrollTop = 0; },
