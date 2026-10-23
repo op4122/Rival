@@ -1,7 +1,8 @@
 # Rival: manual setup in dashboards
 
-Status (22 Oct 2026): steps 1, 4, 5, 6 and 8 are done. Google sign-in works for test users and the keep-alive workflow runs green.
-Still to do: step 7 (Branding + Publish app) if not done yet, and step 3 (custom SMTP) before opening email sign-in to everyone.
+Status (23 Oct 2026): steps 1, 4, 5, 6, 7 and 8 are done. The Google sign-in app is published, so anyone can use Google sign-in,
+and the keep-alive workflow runs green. The delete-account Edge Function is deployed and was tested end to end on 23 Oct.
+Still to do: step 3 (custom SMTP) before opening email sign-in to everyone.
 
 Things only the project owner can do in the Supabase, Google Cloud and GitHub dashboards.
 Project: `rival` (ref `rwlpwhwagcrzpusplvcz`). App URL: `https://op4122.github.io/Rival/app/`.
@@ -75,7 +76,7 @@ Google Cloud → Google Auth Platform → Branding:
 - Privacy policy link: `https://op4122.github.io/Rival/privacy.html`
 - Terms of service link: `https://op4122.github.io/Rival/terms.html`
 
-These go live when this branch is merged into `main`. Then go to Audience → Publish app.
+Done: the app is published (Audience → Publish app). Leave the logo empty so Google doesn't need to review it.
 
 ## 8. Clean-up after setup testing
 
@@ -88,7 +89,5 @@ These go live when this branch is merged into `main`. Then go to Audience → Pu
 
 - **Email sign-in for everyone:** set up custom SMTP (step 3). Until then Supabase only emails members of your Supabase
   organization; the app tells other people to use Google.
-- **Publish the Google app:** add the three URLs (step 7) on the Branding page, then Audience → Publish app. Until then
-  only listed test users can use Google sign-in; everyone else sees a friendly "not open yet" message.
 - **Security advisor, "Leaked password protection disabled":** Rival never uses passwords (Google and magic link only),
   so this doesn't affect users. The setting is under Authentication → Providers → Email and needs a paid plan.
