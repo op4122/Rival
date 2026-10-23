@@ -449,6 +449,12 @@ body.gated{overflow:hidden}
 .rest.up .bar2{display:none}
 
 /* ---------- toasts ---------- */
+.startbar{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:19;display:flex;justify-content:center;padding:0 16px;pointer-events:none}
+.startbar .btn{width:100%;max-width:488px;pointer-events:auto;box-shadow:0 8px 24px rgba(20,22,27,.16),0 0 0 6px var(--bg)}
+body.has-start .view{padding-bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+body.has-start .toasts{bottom:calc(156px + env(safe-area-inset-bottom,0px))}
+body.wo-open .startbar,body.has-resume .startbar{display:none}
+.card.session + .tiles{margin-top:12px}
 .toasts{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.2);
   transform:translateY(16px);opacity:0;transition:transform 240ms var(--ease-out),opacity 200ms ease}
@@ -1547,9 +1553,9 @@ function vToday() {
     return `<div class="pv"><span class="nm">${esc(ex.n)}</span><span class="sr num">${pp.length} × ${sl.lo}–${sl.hi}</span>
       <span class="ln"><span class="tg">${tw}${pp[0] && pp[0].w != null ? ' × ' + pp.map(x => x.r).join(', ') : ''}</span>${g.length ? `<span class="gh">Ghost ${ex.bw && !g[0].w ? 'BW' : fw(g[0].w)} × ${g.map(x => x.r).join(', ')}</span>` : ''}</span></div>`;
   }).join('');
-  const act = S.active
-    ? `<button class="btn primary big press" data-act="resume">Resume ${S.active.dayName.length > 16 ? 'workout' : esc(S.active.dayName)}</button>`
-    : day.ex.length ? `<button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button>` : '';
+  // Start sits pinned above the tab bar so it's always in reach. A workout in progress has the Resume pill instead.
+  const pinned = !S.active && day.ex.length;
+  const act = pinned ? `<div class="startbar" id="startbar"><button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button></div>` : '';
   return `<header><p class="date hdr-row"><span>${fmtDate(Date.now())}</span>${Sync.pillHTML()}</p>${weekStrip()}</header>
     ${installNote()}
     ${hasSamples() ? `<div class="sample-note"><span>You're looking at sample workouts.</span><button data-act="clearsample">Clear them</button></div>` : ''}
@@ -1561,12 +1567,13 @@ function vToday() {
       }).join('')}</div>`}
       ${o ? overrideBanner(o) : ''}
       ${starterCard()}
-      ${o ? '' : `<div class="tiles" role="group" aria-label="Change what you train">
-        <button class="tile press" data-act="other"><b>${ICO.shuffle}Train something else</b><span>Swap today's session, or plan a different week. Your program waits.</span></button>
-        <button class="tile press" data-act="gotoplan"><b>${ICO.edit}Edit your plan</b><span>Change the program, exercises, sets and reps, or import your own.</span></button></div>`}
     </section>
     ${readinessCard()}
-    <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}${act}</section>`;
+    <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}</section>
+    ${o ? '' : `<div class="tiles" role="group" aria-label="Change what you train">
+      <button class="tile press" data-act="other"><b>${ICO.shuffle}Train something else</b><span>Swap today's session, or plan a different week. Your program waits.</span></button>
+      <button class="tile press" data-act="gotoplan"><b>${ICO.edit}Edit your plan</b><span>Change the program, exercises, sets and reps, or import your own.</span></button></div>`}
+    ${act}`;
 }
 
 /* ================= progress ================= */
@@ -2212,6 +2219,7 @@ function render() {
   applyTheme();
   view.innerHTML = tab === 'today' ? vToday() : tab === 'progress' ? vProgress() : tab === 'settings' ? vSettings() : vPlan();
   document.querySelectorAll('.tab').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  document.body.classList.toggle('has-start', !!$('#startbar'));
   updateResume();
 }
 function updateResume() {
@@ -2299,6 +2307,7 @@ function startWorkout(idx, o) {
   A.track('workout_started', {mode:S.active.mode, exercise_count:S.active.entries.length});
 }
 function openWorkout() {
+  document.body.classList.add('wo-open');
   A.screen('workout');
   renderWorkout();
   wo.setAttribute('aria-hidden', 'false');
@@ -2309,7 +2318,7 @@ function openWorkout() {
   try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {}); } catch (e) {}
 }
 function minimizeWorkout() {
-  wo.classList.remove('open'); wo.setAttribute('aria-hidden', 'true');
+  wo.classList.remove('open'); wo.setAttribute('aria-hidden', 'true'); document.body.classList.remove('wo-open');
   restEl.classList.remove('show');
   render();
   try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null;
@@ -2693,7 +2702,7 @@ const TOUR = [
   {tab:'today', sel:'.tabs-in', h:'Four tabs, that\'s all', b:'<b>Today</b> is your next workout. <b>Progress</b> shows how you\'re trending. <b>Plan</b> holds your program. <b>Settings</b> has light and dark mode, backups, help and a way to reach me.'},
   {tab:'today', sel:'.card.ready', h:'Check in before you train', b:'Three taps: sleep, soreness, energy. On a rough day Rival trims today\'s weights by 5 to 10%, so you still train without grinding.'},
   {tab:'today', sel:'.card.session .pv', h:'Meet your ghost', b:'Every lift shows today\'s target and your <b>ghost</b>: what you lifted last time. Beat it and you\'re getting stronger. Hit the top of the rep range on every set and the weight goes up next session.'},
-  {tab:'today', sel:'.card.session .btn.primary', h:'Start when you\'re ready', b:'Opens the logger full screen. A few quick tips show up the first time.'},
+  {tab:'today', sel:'#startbar .btn', h:'Start when you\'re ready', b:'Opens the logger full screen. A few quick tips show up the first time.'},
   {tab:'today', sel:'.daypick', h:'Train any day, in any order', b:'Tap a day to do it next. Rival keeps your place in the program either way.'},
   {tab:'today', sel:'.tiles', h:'Your plan bends', b:'Not feeling it, or short on time this week? <b>Train something else</b> for just today, or plan a different week. Your program waits where you left it.'},
   {tab:'progress', sel:'.map-card .bodies', h:'Your muscle heat map', b:'Hard sets per muscle over the last 7 days. <b>Blue</b> is the 10 to 20 sets that builds muscle best. Tap a muscle to see what trained it.'},

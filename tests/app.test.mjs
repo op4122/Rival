@@ -45,10 +45,19 @@ console.log('Fresh install');
     const h = await p.locator('#coach-h').textContent();
     if (/Your plan bends/.test(h)) ok(true, 'tour covers "Train something else"');
     if (/starting point/.test(h)) ok(true, 'tour says the plan can be changed');
+    if (/Start when you/.test(h)) ok(await p.evaluate(() => { const hole = document.querySelector('.coach-hole').getBoundingClientRect(), b = document.querySelector('#startbar .btn').getBoundingClientRect(); return Math.abs(hole.top - b.top) < 12 && hole.height > 30; }), 'tour spotlights the pinned Start button');
     const next = p.locator('[data-act=coachnext]');
     if (await next.count()) await next.click(); else await p.locator('[data-act=coachskip]').first().click();
     await p.waitForTimeout(250);
   }
+  // Fix 1: Start pinned above the tab bar, visible without scrolling
+  const sb = await p.evaluate(() => { const b = document.querySelector('#startbar .btn'), t = document.querySelector('.tabs'); if (!b) return null; const r = b.getBoundingClientRect(), tr = t.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, tabsTop: tr.top, vh: innerHeight, inCard: !!b.closest('.card') }; });
+  ok(sb && sb.bottom <= sb.tabsTop && sb.top > 0 && sb.bottom < sb.vh, 'Start button is on screen, just above the tab bar');
+  ok(sb && !sb.inCard, 'Start is no longer inside the targets card');
+  ok(await p.evaluate(() => { const t = document.querySelector('.tiles'), c = document.querySelector('.card.session'); return !!t && !!c && (c.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) > 0; }), 'Train something else / Edit your plan sit below the targets');
+  await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(200);
+  ok(await p.evaluate(() => { const last = [...document.querySelectorAll('#view .tile')].pop().getBoundingClientRect(), b = document.querySelector('#startbar .btn').getBoundingClientRect(); return last.bottom <= b.top; }), 'content scrolls fully clear of the pinned button');
+  await p.evaluate(() => window.scrollTo(0, 0));
   ok(await p.locator('.starter').count() === 1, 'starter plan card on Today');
   ok(await p.locator('.tiles .tile').count() === 2, 'two plan tiles on Today');
   ok(await noHScroll(p), 'no sideways scroll at 390 px');
@@ -118,7 +127,8 @@ console.log('Attachments');
 {
   const p = await page({ w: 320, dark: true });
   await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; s.profile.nextDay = 0; });
-  await p.locator('.card.session [data-act=start]').click(); await p.waitForTimeout(700);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(700);
+  ok(await p.locator('#startbar').isHidden() || await p.locator('#startbar').count() === 0, 'pinned Start hidden while the logger is open');
   const card = p.locator('.ex').filter({ has: p.locator('h3', { hasText: 'Cable Triceps Pushdown' }) }).first();
   ok(await card.locator('[data-act=att]').count() === 4, 'pushdown card shows 4 attachment chips');
   ok(await noHScroll(p), 'no sideways scroll at 320 px with chips');
@@ -136,7 +146,7 @@ console.log('Attachments');
   // next time: rope ghost is there, straight bar is new
   await p.locator('[data-act=day][data-i="0"]').click(); await p.waitForTimeout(150);
   ok(/Cable Triceps Pushdown \(Rope\)/.test(await p.locator('.card.session').textContent()), 'Today preview names the attachment');
-  await p.locator('.card.session [data-act=start]').click(); await p.waitForTimeout(700);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(700);
   const e2 = await p.locator('.ex').filter({ has: p.locator('h3', { hasText: 'Cable Triceps Pushdown' }) }).first().getAttribute('data-e');
   ok(/35/.test(await p.locator(`.set[data-e="${e2}"][data-s="0"] .ghost`).textContent()), 'rope ghost shows 35');
   await p.locator(`.ex[data-e="${e2}"] [data-act=att]`, { hasText: 'Straight bar' }).click(); await p.waitForTimeout(250);
@@ -182,7 +192,7 @@ console.log('Rest sound');
   await p.goto(URL); await p.clock.runFor(600);
   await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; });
   await p.clock.runFor(600);
-  await p.locator('.card.session [data-act=start]').click(); await p.clock.runFor(900);
+  await p.locator('#startbar [data-act=start]').click(); await p.clock.runFor(900);
   const logFirst = async () => { await p.fill('#w-0-0', '60'); await p.fill('#r-0-0', '8'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); };
   await logFirst();
   const rest = await p.evaluate(() => document.querySelector('#rest .rt').textContent);

@@ -43,7 +43,7 @@ ok(one.signedIn && await p.locator('.gate').count() === 0, 'signed in, sign-in s
 ok(await until(p, async () => (await status(p)).phase === 'synced'), 'first sync done (samples not uploaded)');
 ok((await q(p, 'workouts')).length === 0, 'sample workouts were not uploaded');
 for (const [k, v] of [['sleep', 2], ['sore', 3], ['energy', 2]]) await p.locator(`[data-act=rq][data-k=${k}][data-v="${v}"]`).click();
-await p.locator('.card.session [data-act=start]').click(); await p.waitForTimeout(800);
+await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
 while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
 await one.ctx.setOffline(true); await p.evaluate(() => window.dispatchEvent(new Event('offline')));
 for (const [si, w, r] of [[0, 82.5, 8], [1, 82.5, 7]]) { await p.fill(`#w-0-${si}`, String(w)); await p.fill(`#r-0-${si}`, String(r)); await p.locator(`.set[data-e="0"][data-s="${si}"] [data-act=log]`).click(); }
