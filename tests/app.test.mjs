@@ -45,10 +45,19 @@ console.log('Fresh install');
     const h = await p.locator('#coach-h').textContent();
     if (/Your plan bends/.test(h)) ok(true, 'tour covers "Train something else"');
     if (/starting point/.test(h)) ok(true, 'tour says the plan can be changed');
+    if (/Start when you/.test(h)) ok(await p.evaluate(() => { const hole = document.querySelector('.coach-hole').getBoundingClientRect(), b = document.querySelector('#startbar .btn').getBoundingClientRect(); return Math.abs(hole.top - b.top) < 12 && hole.height > 30; }), 'tour spotlights the pinned Start button');
     const next = p.locator('[data-act=coachnext]');
     if (await next.count()) await next.click(); else await p.locator('[data-act=coachskip]').first().click();
     await p.waitForTimeout(250);
   }
+  // Fix 1: Start pinned above the tab bar, visible without scrolling
+  const sb = await p.evaluate(() => { const b = document.querySelector('#startbar .btn'), t = document.querySelector('.tabs'); if (!b) return null; const r = b.getBoundingClientRect(), tr = t.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, tabsTop: tr.top, vh: innerHeight, inCard: !!b.closest('.card') }; });
+  ok(sb && sb.bottom <= sb.tabsTop && sb.top > 0 && sb.bottom < sb.vh, 'Start button is on screen, just above the tab bar');
+  ok(sb && !sb.inCard, 'Start is no longer inside the targets card');
+  ok(await p.evaluate(() => { const t = document.querySelector('.tiles'), c = document.querySelector('.card.session'); return !!t && !!c && (c.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) > 0; }), 'Train something else / Edit your plan sit below the targets');
+  await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(200);
+  ok(await p.evaluate(() => { const last = [...document.querySelectorAll('#view .tile')].pop().getBoundingClientRect(), b = document.querySelector('#startbar .btn').getBoundingClientRect(); return last.bottom <= b.top; }), 'content scrolls fully clear of the pinned button');
+  await p.evaluate(() => window.scrollTo(0, 0));
   ok(await p.locator('.starter').count() === 1, 'starter plan card on Today');
   ok(await p.locator('.tiles .tile').count() === 2, 'two plan tiles on Today');
   ok(await noHScroll(p), 'no sideways scroll at 390 px');
@@ -118,7 +127,8 @@ console.log('Attachments');
 {
   const p = await page({ w: 320, dark: true });
   await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; s.profile.nextDay = 0; });
-  await p.locator('.card.session [data-act=start]').click(); await p.waitForTimeout(700);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(700);
+  ok(await p.locator('#startbar').isHidden() || await p.locator('#startbar').count() === 0, 'pinned Start hidden while the logger is open');
   const card = p.locator('.ex').filter({ has: p.locator('h3', { hasText: 'Cable Triceps Pushdown' }) }).first();
   ok(await card.locator('[data-act=att]').count() === 4, 'pushdown card shows 4 attachment chips');
   ok(await noHScroll(p), 'no sideways scroll at 320 px with chips');
@@ -136,7 +146,7 @@ console.log('Attachments');
   // next time: rope ghost is there, straight bar is new
   await p.locator('[data-act=day][data-i="0"]').click(); await p.waitForTimeout(150);
   ok(/Cable Triceps Pushdown \(Rope\)/.test(await p.locator('.card.session').textContent()), 'Today preview names the attachment');
-  await p.locator('.card.session [data-act=start]').click(); await p.waitForTimeout(700);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(700);
   const e2 = await p.locator('.ex').filter({ has: p.locator('h3', { hasText: 'Cable Triceps Pushdown' }) }).first().getAttribute('data-e');
   ok(/35/.test(await p.locator(`.set[data-e="${e2}"][data-s="0"] .ghost`).textContent()), 'rope ghost shows 35');
   await p.locator(`.ex[data-e="${e2}"] [data-act=att]`, { hasText: 'Straight bar' }).click(); await p.waitForTimeout(250);
@@ -182,7 +192,7 @@ console.log('Rest sound');
   await p.goto(URL); await p.clock.runFor(600);
   await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; });
   await p.clock.runFor(600);
-  await p.locator('.card.session [data-act=start]').click(); await p.clock.runFor(900);
+  await p.locator('#startbar [data-act=start]').click(); await p.clock.runFor(900);
   const logFirst = async () => { await p.fill('#w-0-0', '60'); await p.fill('#r-0-0', '8'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); };
   await logFirst();
   const rest = await p.evaluate(() => document.querySelector('#rest .rt').textContent);
@@ -203,6 +213,145 @@ console.log('Rest sound');
   ok(await p.evaluate(() => window.__beeps) === 3, 'no chime with sound off');
   ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
   await ctx.close();
+}
+
+console.log('Rest when the phone locks');
+{
+  const p = await page();
+  await p.clock.install();
+  await p.reload(); await p.clock.runFor(600);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; });
+  await p.clock.runFor(600);
+  await p.locator('#startbar [data-act=start]').click(); await p.clock.runFor(900);
+  await p.fill('#w-0-0', '60'); await p.fill('#r-0-0', '8'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click();
+  await p.clock.runFor(300);
+  const r = (await state(p)).active.rest;
+  ok(r && r.end > Date.now() - 1e12 && r.total > 0, 'rest end time saved with the workout');
+  ok(parseFloat(await p.evaluate(() => getComputedStyle(document.querySelector('#rt')).fontSize)) >= 40, 'remaining time is large');
+  ok(await p.locator('#resttip').count() === 1 && /Keep Rival open on screen for the rest alert/.test(await p.locator('#resttip').textContent()), 'one-time tip above the rest bar');
+  await p.locator('[data-act=resttipok]').click(); await p.clock.runFor(200);
+  ok(await p.locator('#resttip').count() === 0 && (await state(p)).profile.restTip === true, '"Got it" hides the tip for good');
+  // The app is closed in the background for 50 s, then opened again
+  await p.reload(); await p.clock.runFor(50000);
+  await p.locator('#resume').click(); await p.clock.runFor(700);
+  const left = await p.locator('#rt').textContent();
+  const [m, sec] = left.split(':').map(Number);
+  ok(Math.abs((m * 60 + sec) - (r.total - 51)) <= 2, `after reopening, the timer shows the real time left (${left})`);
+  ok(await p.locator('#resttip').count() === 0, 'tip not shown again');
+  await p.locator('[data-act=rest15]').click(); await p.clock.runFor(100);
+  ok(Math.abs((await state(p)).active.rest.end - r.end - 15000) < 50, '+15s moves the saved end time');
+  // Back long after the rest ended: nothing stale is shown
+  await p.reload(); await p.clock.runFor(300000);
+  await p.locator('#resume').click(); await p.clock.runFor(700);
+  ok(!(await p.locator('#rest').getAttribute('class')).includes('show') && !(await state(p)).active.rest, 'a rest that ended minutes ago is cleared, not shown');
+  ok(await noHScroll(p), 'no sideways scroll');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+
+console.log('Gym-readable logger');
+for (const [w, dark] of [[360, false], [390, true]]) {
+  const p = await page({ w, dark });
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  await p.fill('#w-0-0', '102.5'); await p.fill('#r-0-0', '10');
+  const m = await p.evaluate(() => {
+    const vw = innerWidth, cs = (e, ps) => getComputedStyle(e, ps);
+    const wide = [...document.querySelectorAll('.wo .ex')].filter(e => e.getBoundingClientRect().right > vw).length;
+    const inp = cs(document.querySelector('#w-0-0'));
+    const g = document.querySelector('.g-txt:not(.none)'), gs = cs(g);
+    const small = [...document.querySelectorAll('.wo button')].filter(e => { const r = e.getBoundingClientRect(); if (!r.width || e.closest('.useg')) return false; const a = cs(e, '::after'); const h = a.content !== 'none' ? Math.max(r.height, parseFloat(a.height)) : r.height; return h < 44 || r.width < 44; }).map(e => e.dataset.act);
+    const tiny = [...document.querySelectorAll('.wo *')].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(cs(e).fontSize) < 12.5).map(e => e.className);
+    const clipped = [...document.querySelectorAll('.set input, .g-txt')].filter(e => e.scrollWidth > e.clientWidth + 1).length;
+    return { wide, f: parseFloat(inp.fontSize), wgt: +inp.fontWeight, tab: inp.fontVariantNumeric.includes('tabular'), gf: parseFloat(gs.fontSize), gbg: gs.backgroundColor, gc: gs.color, ink: cs(document.body).color, small, tiny, clipped, gsp: g.querySelector('i') ? cs(g.querySelector('i')).display !== 'none' : null, gtxt: g.textContent };
+  });
+  const tag = `${w}px${dark ? ' dark' : ''}`;
+  ok(m.wide === 0 && await noHScroll(p), `${tag}: cards fit the screen`);
+  ok(m.f >= 20 && m.wgt >= 700 && m.tab, `${tag}: weight and reps ${m.f}px bold tabular`);
+  ok(m.gf >= 14 && m.gbg !== 'rgba(0, 0, 0, 0)' && m.gc === m.ink, `${tag}: ghost ${m.gf}px, full contrast on a solid chip`);
+  ok(m.small.length === 0, `${tag}: every tap target at least 44×44 ` + m.small.join(','));
+  ok(m.tiny.length === 0, `${tag}: no text under 12.5px ` + m.tiny.join(','));
+  ok(m.clipped === 0, `${tag}: "102.5" and the ghost are not cut off`);
+  ok(w > 380 ? m.gsp === true : m.gsp === false, `${tag}: ghost "${m.gtxt}" ${w > 380 ? 'with spaces' : 'shown without spaces'}`);
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+
+console.log('Safer set removal');
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true, isMobile: true });
+  const p = await ctx.newPage(); p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.goto(URL); await p.waitForTimeout(500);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  const sets = () => p.locator('.ex[data-e="0"] .set').count();
+  ok(await p.locator('.ex-act [data-act=delset], .ex-act [data-act=rmex]').count() === 0 && await p.locator('.ex-act button').count() === await p.locator('.ex').count(), 'only "Add set" left under each exercise');
+  ok(await p.locator('.ex[data-e="0"] .ex-tools [data-act=exmenu]').count() === 1, '⋯ button after Swap');
+  const swipe = async (si, dist = 140) => {
+    const b = await p.locator(`.set[data-e="0"][data-s="${si}"] .ghost`).boundingBox(), y = b.y + b.height / 2; let x = b.x + 220;
+    const cdp = await ctx.newCDPSession(p);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let i = 0; i < 10; i++) { x -= dist / 10; await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] }); await p.waitForTimeout(16); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await p.waitForTimeout(350);
+  };
+  await p.fill('#w-0-1', '80'); await p.fill('#r-0-1', '8'); await p.locator('.set[data-e="0"][data-s="1"] [data-act=log]').click(); await p.waitForTimeout(300);
+  await swipe(1, 40);
+  ok(!(await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.style.transform)), 'a short swipe springs back');
+  await swipe(1);
+  ok(/-9\d/.test(await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.style.transform)) && await p.locator('.set-wrap.sw .set-del').isVisible(), 'swipe left shows Delete');
+  ok(await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.classList.contains('done')), 'swiping does not toggle the logged set');
+  await p.locator('.set-del[data-e="0"][data-s="1"]').tap(); await p.waitForTimeout(300);
+  ok(await sets() === 2 && /Set 2 deleted/.test(await p.locator('.toast').textContent()), 'Delete removes the set, with an Undo toast');
+  await p.locator('.toast button').tap(); await p.waitForTimeout(300);
+  ok(await sets() === 3 && await p.locator('.set[data-e="0"][data-s="1"]').evaluate(e => e.classList.contains('done')) && (await state(p)).active.entries[0].sets[1].w === 80, 'Undo puts the logged set back where it was');
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').tap(); await p.waitForTimeout(450);
+  ok(await p.locator('.sheet [data-act=menudelset]').count() === 3 && /80 kg × 8, logged/.test(await p.locator('.sheet').textContent()), '⋯ menu lists each set with its weight');
+  await p.locator('.sheet [data-act=menudelset][data-s="0"]').tap(); await p.waitForTimeout(500);
+  ok(await sets() === 2 && (await state(p)).active.entries[0].sets[0].w === 80, '"Delete set 1" from the menu');
+  const toastMs = await p.evaluate(() => new Promise(r => { const t0 = Date.now(); const iv = setInterval(() => { if (!document.querySelector('.toast.show')) { clearInterval(iv); r(Date.now() - t0); } }, 100); }));
+  ok(toastMs > 4000 && toastMs < 6000, `Undo stays for about 5 s (${toastMs} ms)`);
+  const name = await p.locator('.ex .h3').first().textContent();
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').tap(); await p.waitForTimeout(450);
+  await p.locator('.sheet [data-act=rmex]').tap(); await p.waitForTimeout(450);
+  ok(await p.locator('.ex .h3').first().textContent() !== name && /Removed/.test(await p.locator('.toast').textContent()), '"Remove exercise" lives in the ⋯ menu');
+  await p.locator('.toast button').tap(); await p.waitForTimeout(300);
+  ok(await p.locator('.ex .h3').first().textContent() === name, 'and can be undone');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true, reducedMotion: 'reduce' });
+  const p = await ctx.newPage();
+  await p.goto(URL); await p.waitForTimeout(500);
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  ok(await p.locator('.set').first().evaluate(e => !/transform/.test(getComputedStyle(e).transitionProperty)), 'reduced motion: rows snap instead of sliding');
+  await ctx.close();
+}
+
+console.log('Units per exercise');
+{
+  const p = await page({ w: 360 });
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  ok(await p.locator('.wo .useg').count() === 0, 'no kg/lb switch on the cards');
+  ok(await p.locator('.wo .u-tag').count() === 0, 'no unit tag while every exercise uses the default');
+  await p.fill('#w-0-0', '100'); await p.fill('#r-0-0', '5'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(300);
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').click(); await p.waitForTimeout(450);
+  ok(await p.locator('.sheet [data-act=exunit][data-u=def][aria-pressed=true]').count() === 1 && /Use default \(kg\)/.test(await p.locator('.sheet').textContent()), '⋯ menu: "Units for this exercise", Use default selected');
+  ok(await p.locator('.sheet [data-act=exunit]').evaluateAll(b => b.every(x => x.getBoundingClientRect().height >= 44 && x.scrollWidth <= x.clientWidth + 1)), 'unit buttons are 44px tall and fit at 360px');
+  await p.locator('.sheet [data-act=exunit][data-u=lb]').click(); await p.waitForTimeout(500);
+  let st = await state(p);
+  ok(st.profile.exUnit[st.active.entries[0].exId] === 'lb' && /in lb/.test(await p.locator('.ex[data-e="0"] .u-tag').textContent()), 'lb for this exercise: tag "in lb" on its card');
+  ok(await p.locator('.ex[data-e="1"] .u-tag').count() === 0 && /^kg/.test(await p.locator('.ex[data-e="1"] .cols span').nth(2).textContent()), 'other exercises stay in kg');
+  ok(st.active.entries[0].sets[0].w === 100 && await p.inputValue('#w-0-0') === '220.5', 'logged set keeps the weight lifted: 100 kg shown as 220.5 lb');
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').click(); await p.waitForTimeout(450);
+  await p.locator('.sheet [data-act=exunit][data-u=def]').click(); await p.waitForTimeout(500);
+  st = await state(p);
+  ok(!st.profile.exUnit[st.active.entries[0].exId] && await p.locator('.wo .u-tag').count() === 0 && await p.inputValue('#w-0-0') === '100', '"Use default" goes back to kg, tag gone, 100 kg unchanged');
+  ok(await noHScroll(p), 'no sideways scroll');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await p.context().close();
 }
 
 // ---------- settings tab: appearance, help, feedback ----------
@@ -306,6 +455,74 @@ console.log('Account');
   ok(g.searchParams.get('provider') === 'google' && g.searchParams.get('redirect_to') === URL, 'Google sign-in returns to this page');
   ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
   await ctx.close();
+}
+
+// ---------- delete account: typed confirmation, offline guard, server first, then the phone is cleared ----------
+console.log('Delete account');
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const p = await ctx.newPage(); p.errors = [];
+  p.on('pageerror', e => p.errors.push(String(e)));
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const uid = '0b9c2f2e-0000-4000-8000-00000000dddd', exp = Math.floor(Date.now() / 1000) + 3600;
+  const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: uid, exp, aud: 'authenticated', role: 'authenticated' })}.sig`;
+  const user = { id: uid, aud: 'authenticated', role: 'authenticated', email: 'del@example.com', created_at: '2026-01-01T00:00:00Z', app_metadata: { provider: 'email' }, user_metadata: {} };
+  const session = { access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r1', user };
+  await p.route('**/auth/v1/**', route => {
+    const u = new globalThis.URL(route.request().url());
+    if (u.pathname.endsWith('/token')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) });
+    if (u.pathname.endsWith('/user')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) });
+    if (u.pathname.endsWith('/logout')) return route.fulfill({ status: 204, body: '' });
+    return route.fulfill({ status: 404, body: '{}' });
+  });
+  await p.route('**/rest/v1/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  let fnStatus = 500; const fnCalls = [];
+  await p.route('**/functions/v1/delete-account', route => {
+    fnCalls.push(route.request().headers()['authorization'] || '');
+    route.fulfill({ status: fnStatus, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(fnStatus === 200 ? { deleted: true } : { error: 'delete_failed' }) });
+  });
+  const events = [];
+  await p.addInitScript(() => { window.__ev = []; });
+  await p.goto(URL); await p.waitForTimeout(600);
+  await p.locator('[data-act=gateskip]').click(); await p.waitForTimeout(400);
+  while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  ok(await p.locator('[data-act=delacct]').count() === 0, 'no "Delete account" button without an account');
+  await p.evaluate(s => localStorage.setItem('rival.auth', s), JSON.stringify(session)); // signed in, as supabase-js saves it
+  await p.reload(); await p.waitForTimeout(1200);
+  while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
+  await p.locator('[data-tab=settings]').click(); await p.waitForTimeout(300);
+  const order = await p.evaluate(() => [...document.querySelectorAll('.sheet-actions .btn')].map(b => b.dataset.act));
+  ok(order.indexOf('delacct') === order.indexOf('wipe') + 1, 'signed in: "Delete account" sits right below "Delete all workouts"');
+  await p.locator('[data-act=delacct]').click(); await p.waitForTimeout(400);
+  const go = p.locator('[data-act=delacctgo]');
+  ok(/Delete your account\?/.test(await p.locator('.sheet').textContent()) && await go.isDisabled(), 'confirmation sheet opens, button off until DELETE is typed');
+  await p.fill('#delconfirm', 'delete'); ok(await go.isDisabled(), 'lower-case "delete" does not count');
+  await p.fill('#delconfirm', 'DELETE'); ok(!(await go.isDisabled()), 'typing DELETE turns the button on');
+  await ctx.setOffline(true); await p.waitForTimeout(200);
+  ok(await go.isDisabled() && /Needs a connection/.test(await p.locator('.sheet').textContent()), 'offline: button off with "Needs a connection"');
+  await ctx.setOffline(false); await p.waitForTimeout(200);
+  // Server says no: nothing on the phone is touched
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('rival.v1')); s.sessions.push({ id: 'keep-me', dayIdx: 0, dayName: 'Upper', date: new Date().toISOString(), dur: 30, readiness: null, entries: [] }); localStorage.setItem('rival.v1', JSON.stringify(s)); });
+  await go.click(); await p.waitForTimeout(800);
+  ok(fnCalls.length === 1 && fnCalls[0] === 'Bearer ' + jwt, 'calls delete-account with the login token');
+  ok(/Couldn't delete your account/.test(await p.locator('.sheet').textContent()) && await p.evaluate(() => localStorage.getItem('rival.v1').includes('keep-me')), 'server error: friendly message, phone data kept');
+  // Server says yes: phone cleared, signed out, sign-in screen with the toast
+  fnStatus = 200;
+  await Promise.all([p.waitForEvent('load'), go.click()]); await p.waitForTimeout(1200);
+  ok(await p.locator('.gate').count() === 1, 'back at the sign-in screen');
+  ok(await p.locator('.toast', { hasText: 'Your account was deleted' }).count() === 1, '"Your account was deleted" toast');
+  const left = await p.evaluate(async () => ({ keep: (localStorage.getItem('rival.v1') || '').includes('keep-me'), auth: !!localStorage.getItem('rival.auth'), dbs: indexedDB.databases ? (await indexedDB.databases()).map(d => d.name) : [] }));
+  ok(!left.keep && !left.auth, 'workouts and login removed from this phone');
+  ok(!left.dbs.includes('rival-sync'), 'sync database deleted (' + left.dbs.join(',') + ')');
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const p = await (await browser.newContext({ serviceWorkers: 'block' })).newPage();
+  await p.goto(URL.replace(/app\/$/, '') + 'privacy.html');
+  ok(/Settings → Data → Delete account/.test(await p.locator('main').textContent()) && /Delete my Rival account/.test(await p.locator('main').textContent()), 'privacy: in-app deletion, email kept as a backup');
+  await p.context().close();
 }
 
 await browser.close();

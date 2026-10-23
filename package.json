@@ -7,7 +7,7 @@
     "vendor": "node scripts/vendor.mjs",
     "config": "node scripts/write-config.mjs",
     "serve": "python3 -m http.server 8765",
-    "test": "node tests/app.test.mjs"
+    "test": "node tests/app.test.mjs && node tests/analytics.test.mjs && node tests/offline.sw.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",

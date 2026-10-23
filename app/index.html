@@ -441,14 +441,29 @@ body.gated{overflow:hidden}
   box-shadow:0 14px 40px rgba(0,0,0,.22);overflow:hidden}
 .rest.show{transform:translate(-50%,0);opacity:1}
 .rest.hide{transition-duration:180ms,160ms}
-.rest .rt{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;line-height:1}
-.rest .rl{font-size:12px;opacity:.7}
-.rest button{height:40px;padding:0 12px;border-radius:12px;background:rgba(127,127,127,.22);font-weight:700;font-size:14px}
+.rest{padding:12px 12px 14px 18px}
+.rest .rt{font-family:var(--display);font-stretch:112%;font-weight:800;font-size:46px;font-variant-numeric:tabular-nums;line-height:.95;letter-spacing:-.01em}
+.rest .rl{font-size:13px;font-weight:650;opacity:.8;margin-top:3px}
+.rest button{height:48px;min-width:56px;padding:0 14px;border-radius:14px;background:rgba(127,127,127,.26);font-weight:700;font-size:15px}
+.rest .bar2{height:4px}
+.rest.up .rt{font-size:28px;white-space:nowrap}
+.resttip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(112px + env(safe-area-inset-bottom,0px));z-index:46;width:min(360px,calc(100% - 32px));
+  display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:16px;background:var(--surface);color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.18);font-size:14px;line-height:1.4}
+.resttip p{flex:1}
+.resttip button{flex:none;min-height:44px;padding:0 14px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.rest:not(.show) ~ .resttip{display:none}
 .rest .bar2{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent);transform-origin:left;transform:scaleX(0)}
 .rest.up{background:var(--accent);color:var(--accent-ink)}
 .rest.up .bar2{display:none}
 
 /* ---------- toasts ---------- */
+.startbar{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:19;display:flex;justify-content:center;padding:0 16px;pointer-events:none}
+.startbar .btn{width:100%;max-width:488px;pointer-events:auto;box-shadow:0 8px 24px rgba(20,22,27,.16),0 0 0 6px var(--bg)}
+body.has-start .view{padding-bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+body.has-start .toasts{bottom:calc(156px + env(safe-area-inset-bottom,0px))}
+body.wo-open .startbar,body.has-resume .startbar{display:none}
+.card.session + .tiles{margin-top:12px}
+body.gated .toasts{z-index:95}
 .toasts{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
 .toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.2);
   transform:translateY(16px);opacity:0;transition:transform 240ms var(--ease-out),opacity 200ms ease}
@@ -506,8 +521,22 @@ body.gated{overflow:hidden}
 .resume .rn{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .title.long{font-size:34px}
 .wo-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.ex-act .rm{margin-left:auto;color:var(--muted)}
-.ex-act button.armed{color:var(--warn)}
+.set-wrap{position:relative;border-radius:14px;overflow:hidden}
+.set-wrap .set{position:relative;z-index:1;background:var(--surface);touch-action:pan-y;transition:transform 220ms var(--ease-out),background-color 200ms ease}
+.set-del{position:absolute;right:1px;top:1px;bottom:1px;width:90px;visibility:hidden;border-radius:14px;background:var(--warn);color:#fff;font-weight:700;font-size:15px}
+.set-wrap.sw .set-del{visibility:visible}
+.swap.more{width:44px;padding:0;display:grid;place-items:center;color:var(--ink)}
+.swap.more svg{width:20px;height:20px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tags .ea-tag{margin-top:0}
+.u-tag{background:var(--win-bg);color:var(--ink)}
+.menu-seg{margin-top:8px;width:100%}
+.menu-seg button{min-height:44px}
+.menu-seg button[data-u=def]{flex:2.2;white-space:nowrap}
+.ex-mrow{padding-top:6px}
+.menu-list{display:grid;gap:6px;margin-top:8px}
+.menu-i{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:0 14px;border-radius:14px;background:var(--surface-2);font-weight:650;text-align:left}
+.menu-s{font-family:var(--display);font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted);font-weight:600}
 @media (max-width:380px){
   .cols,.set{grid-template-columns:20px minmax(0,1fr) 64px 48px 42px;gap:6px}
   .lift{grid-template-columns:minmax(0,1fr) 64px 64px;gap:8px}
@@ -541,6 +570,7 @@ body.gated{overflow:hidden}
 .mv-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .opts.one{grid-template-columns:1fr}
 .btn:disabled{opacity:.45}
+.toast.tap{pointer-events:auto;cursor:pointer}
 .toast button{pointer-events:auto;color:var(--accent);font-weight:700;padding:4px 2px}
 .slot .nm{display:block}
 
@@ -586,7 +616,41 @@ body.gated{overflow:hidden}
   .chip:hover,.btn:hover{filter:brightness(.97)}
   .lift:hover,.hist:hover,.slot:hover,.lib:hover,.mrow:hover{background:var(--surface-2)}
 }
+/* Gym-readable logger: big numbers, high-contrast ghost, 44px tap areas (some are invisible padding so the layout stays compact) */
+.wo-in,#wo-list{grid-template-columns:minmax(0,1fr)} /* a long attachment row can't widen the cards past the screen */
+.cols,.set{grid-template-columns:24px minmax(0,1fr) 80px 60px 44px}
+.cols{font-size:12.5px}
+.set{min-height:52px}
+.set input{height:48px;font-size:21px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.set input::placeholder{font-size:15px;font-weight:600;color:var(--muted)}
+.set .n{font-size:15px}
+.ghost{height:48px}
+.g-txt{height:32px;padding:0 9px;border:1.5px solid color-mix(in oklab,var(--ghost) 40%,transparent);background:color-mix(in oklab,var(--ghost) 16%,var(--surface));
+  color:var(--ink);font-size:14.5px;font-weight:700}
+.g-txt i{font-style:normal}
+.g-txt.none{font-size:14px;font-weight:600;color:var(--ink);background:none;border-color:transparent}
+.g-win{height:30px;font-size:13px}
+.check{width:44px;height:48px}
+.wu-l,.att-l{font-size:12.5px}
+.ea-tag{font-size:12.5px}
+.finish{height:44px}
+.wu{row-gap:10px}
+.wu-c{color:var(--ink)}
+.swap,.wu-c,.att-o .chip,.ex-act button{position:relative}
+.swap::after,.wu-c::after,.att-o .chip::after,.ex-act button::after{content:'';position:absolute;left:-2px;right:-2px;top:50%;height:44px;min-width:44px;transform:translateY(-50%)}
+.att-o{padding-top:4px;padding-bottom:4px;margin:-4px 0}
+@media (max-width:380px){
+  .cols,.set{grid-template-columns:20px minmax(0,1fr) 70px 52px 44px;gap:6px}
+  .set input{font-size:20px;padding:0 2px}
+  .g-txt{font-size:14px;padding:0 6px;height:32px;white-space:nowrap;line-height:1}
+  .g-txt i{display:none} /* "82.5×7": no spaces on narrow phones */
+  .wu{column-gap:5px}
+  .wu-c{padding:0 8px}
+  .wu-l{margin-right:0}
+  .check{width:44px}
+}
 @media (prefers-reduced-motion: reduce){
+  .set-wrap .set{transition:background-color 200ms ease!important}
   .press:active,.check:active,.tab:active .press-in{transform:none}
   .sheet,.wo,.rest,.toast,.g-win,.g-txt{transition-property:opacity,visibility!important}
   .sheet{transform:none;opacity:0}
@@ -634,6 +698,7 @@ body.gated{overflow:hidden}
 
 /* ================= data ================= */
 const KEY = 'rival.v1';
+let erasing = false; // set while an account is being deleted, so nothing is written back to the phone
 const NEWS_V = 1; // bump when there's a new "What's new" note for existing users
 const DAY = 86400000;
 const MUSCLES = {
@@ -950,7 +1015,9 @@ const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e)
 let UX = null; // unit in force while one exercise is being drawn or edited
 function U() { return UX || S.profile.units; }
 // Each exercise can have its own unit (dumbbells in lb, plates in kg). Falls back to the app-wide unit.
-function exU(id) { const m = S.profile.exUnit, u = m && (m[id] || m[baseOf(id)]); return u === 'kg' || u === 'lb' ? u : S.profile.units; }
+// Unit for one exercise: its own choice, else its base exercise's (attachments), else the default. 'def' = use the default.
+function exUChoice(id) { const m = S.profile.exUnit, u = m && (m[id] || m[baseOf(id)]); return u === 'kg' || u === 'lb' ? u : 'def'; }
+function exU(id) { const u = exUChoice(id); return u === 'def' ? S.profile.units : u; }
 function inU(id, fn) { const prev = UX; UX = exU(id); try { return fn(); } finally { UX = prev; } }
 // Weight steps people can actually load. In lb, plates and dumbbells go up in 2.5, 5 or 10 lb, not in converted kg.
 const lbStep = incKg => incKg <= 1.25 ? 2.5 : incKg <= 2.5 ? 5 : 10;
@@ -1042,6 +1109,8 @@ function cleanActive(a) {
   a.id = str(a.id, 60) || newId(); a.dayName = str(a.dayName, 40) || 'Workout';
   a.mode = a.mode === 'today' || a.mode === 'week' ? a.mode : 'program';
   a.entries.forEach(en => { en.lo = fin(en.lo) ? en.lo : 8; en.hi = fin(en.hi) ? en.hi : en.lo; en.rest = fin(en.rest) ? en.rest : 90; en.note = str(en.note, 80); });
+  // The rest timer is stored as its end time, so it's right even if the phone closed the app in the background.
+  if (!(isObj(a.rest) && fin(a.rest.end) && fin(a.rest.total) && a.rest.total > 0 && a.rest.total <= 3600)) delete a.rest;
   return a;
 }
 function cleanProfile(p0) {
@@ -1052,7 +1121,7 @@ function cleanProfile(p0) {
   out.units = out.units === 'lb' ? 'lb' : 'kg';
   out.theme = out.theme === 'light' || out.theme === 'dark' ? out.theme : 'system';
   { const m = isObj(p.exUnit) ? p.exUnit : {}, o = {};
-    Object.keys(m).slice(0, 400).forEach(k => { if ((m[k] === 'kg' || m[k] === 'lb') && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
+    Object.keys(m).slice(0, 400).forEach(k => { if ((m[k] === 'kg' || m[k] === 'lb' || m[k] === 'def') && /^[\w-]{1,40}$/.test(k)) o[k] = m[k]; });
     out.exUnit = o; }
   out.restC = fin(out.restC) ? clamp(Math.round(out.restC), 30, 600) : 150;
   out.restI = fin(out.restI) ? clamp(Math.round(out.restI), 30, 600) : 90;
@@ -1062,7 +1131,7 @@ function cleanProfile(p0) {
   out.bars = {bar:fin(b.bar) ? clamp(b.bar, 0, 40) : 20, ez:fin(b.ez) ? clamp(b.ez, 0, 40) : 10, smith:fin(b.smith) ? clamp(b.smith, 0, 40) : 15};
   out.custom = (Array.isArray(out.custom) ? out.custom : []).map(cleanCustom).filter(Boolean);
   out.days = (Array.isArray(out.days) ? out.days : []).map(cleanDay).filter(Boolean).slice(0, 7);
-  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped;
+  out.programPicked = !!out.programPicked; out.sampleCleared = !!out.sampleCleared; out.starterSeen = !!out.starterSeen; out.gateSkipped = !!out.gateSkipped; out.restTip = !!out.restTip;
   if (typeof out.owner !== 'string' || !UUID_RE.test(out.owner)) delete out.owner; // the account this phone's workouts belong to
   const r = out.readiness;
   out.readiness = isObj(r) && typeof r.date === 'string' && (r.skipped === true || fin(r.score)) ? r : null;
@@ -1090,6 +1159,7 @@ function load() {
 }
 let saveWarned = false, syncHook = null;
 function persist() {
+  if (erasing) return;
   try { localStorage.setItem(KEY, JSON.stringify(S)); saveWarned = false; }
   catch (e) { if (!saveWarned) { saveWarned = true; try { toast("Couldn't save on this phone. Export a backup so you don't lose your workouts."); } catch (e2) {} } }
   if (syncHook) syncHook(); // tell the sync engine something changed (it waits a moment, then queues the rows)
@@ -1432,6 +1502,7 @@ const Sync = (() => {
         if (changed) keys.add('p:' + st.uid);
         keys.forEach(k => { const o = want.get(k); if (o) { marks.push({key:k, uid:st.uid, h:o.h}); synced.set(k, o.h); } });
         await store.put('synced', marks);
+        if (erasing) return;
         localStorage.setItem(KEY, JSON.stringify(S));
         render(); if (wo.classList.contains('open')) renderWorkout();
         if (pulled.length) toast(`${pl(pulled.length, 'workout')} from your other devices added`);
@@ -1464,7 +1535,7 @@ const Sync = (() => {
     if (!st.uid) { paint(); return; }
     const owner = S.profile.owner;
     if (owner && owner !== st.uid) { st.blocked = true; paint(); return; } // never mix two accounts' workouts
-    if (!owner) { S.profile.owner = st.uid; localStorage.setItem(KEY, JSON.stringify(S)); }
+    if (!owner && !erasing) { S.profile.owner = st.uid; localStorage.setItem(KEY, JSON.stringify(S)); }
     await push(); await pull(true); push();
   }
   function soon() { if (!st.uid) return; clearTimeout(st.soonT); st.soonT = setTimeout(push, 800); }
@@ -1485,6 +1556,7 @@ function touch() { S.profile.updatedAt = Date.now(); persist(); Sync.profile(); 
 
 /* ================= icons ================= */
 const I = {
+  more:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></svg>',
   chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6l6 6-6 6"/></svg>',
@@ -1547,9 +1619,9 @@ function vToday() {
     return `<div class="pv"><span class="nm">${esc(ex.n)}</span><span class="sr num">${pp.length} × ${sl.lo}–${sl.hi}</span>
       <span class="ln"><span class="tg">${tw}${pp[0] && pp[0].w != null ? ' × ' + pp.map(x => x.r).join(', ') : ''}</span>${g.length ? `<span class="gh">Ghost ${ex.bw && !g[0].w ? 'BW' : fw(g[0].w)} × ${g.map(x => x.r).join(', ')}</span>` : ''}</span></div>`;
   }).join('');
-  const act = S.active
-    ? `<button class="btn primary big press" data-act="resume">Resume ${S.active.dayName.length > 16 ? 'workout' : esc(S.active.dayName)}</button>`
-    : day.ex.length ? `<button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button>` : '';
+  // Start sits pinned above the tab bar so it's always in reach. A workout in progress has the Resume pill instead.
+  const pinned = !S.active && day.ex.length;
+  const act = pinned ? `<div class="startbar" id="startbar"><button class="btn primary big press" data-act="start">Start ${day.name.length > 16 ? 'workout' : esc(day.name)}</button></div>` : '';
   return `<header><p class="date hdr-row"><span>${fmtDate(Date.now())}</span>${Sync.pillHTML()}</p>${weekStrip()}</header>
     ${installNote()}
     ${hasSamples() ? `<div class="sample-note"><span>You're looking at sample workouts.</span><button data-act="clearsample">Clear them</button></div>` : ''}
@@ -1561,12 +1633,13 @@ function vToday() {
       }).join('')}</div>`}
       ${o ? overrideBanner(o) : ''}
       ${starterCard()}
-      ${o ? '' : `<div class="tiles" role="group" aria-label="Change what you train">
-        <button class="tile press" data-act="other"><b>${ICO.shuffle}Train something else</b><span>Swap today's session, or plan a different week. Your program waits.</span></button>
-        <button class="tile press" data-act="gotoplan"><b>${ICO.edit}Edit your plan</b><span>Change the program, exercises, sets and reps, or import your own.</span></button></div>`}
     </section>
     ${readinessCard()}
-    <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}${act}</section>`;
+    <section class="card session"><div class="section-head" style="margin-bottom:6px"><h2 class="h3">Today's targets${adj}</h2></div>${rows || `<p class="empty">No exercises on ${esc(day.name)} yet. <button class="link" data-act="gotoplan">Add some on the Plan tab</button></p>`}</section>
+    ${o ? '' : `<div class="tiles" role="group" aria-label="Change what you train">
+      <button class="tile press" data-act="other"><b>${ICO.shuffle}Train something else</b><span>Swap today's session, or plan a different week. Your program waits.</span></button>
+      <button class="tile press" data-act="gotoplan"><b>${ICO.edit}Edit your plan</b><span>Change the program, exercises, sets and reps, or import your own.</span></button></div>`}
+    ${act}`;
 }
 
 /* ================= progress ================= */
@@ -2027,6 +2100,51 @@ function rerenderAuth() {
   if (gateEl) { const a = gateEl.querySelector('.acct'); if (a) a.innerHTML = authFormHTML(); return; }
   if (sheetEl && sheetEl.querySelector('.acct')) setSheet(authSheetHTML()); else if (tab === 'settings') { const y = scrollY; render(); scrollTo(0, y); }
 }
+/* Delete account. The server part is the Supabase Edge Function supabase/functions/delete-account: it checks the
+   login token, deletes this user's rows and then the login itself. Only after it says yes is the phone cleared. */
+const DelAcct = {typed:'', busy:false, err:''};
+function delAcctHTML() {
+  const off = !navigator.onLine, ready = DelAcct.typed.trim() === 'DELETE' && !off && !DelAcct.busy;
+  return `<h2 class="h2">Delete your account?</h2>
+    <p class="sub">This permanently deletes your Rival account and everything saved to it: workouts, check-ins, your plan and custom exercises. Rival on this phone is cleared too. This can't be undone.</p>
+    <p class="sub" style="margin-top:8px">Want to keep your workouts? Export a backup first in Settings → Data.</p>
+    <label class="note-l" for="delconfirm">Type DELETE to confirm</label>
+    <input class="search" id="delconfirm" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(DelAcct.typed)}"${DelAcct.busy ? ' disabled' : ''}>
+    ${off ? '<p class="acct-err" role="alert">Needs a connection. Try again when you are online.</p>' : ''}
+    ${DelAcct.err ? `<p class="acct-err" role="alert">${esc(DelAcct.err)}</p>` : ''}
+    <div class="sheet-actions" style="margin-top:14px">
+      <button class="btn danger armed big press" data-act="delacctgo"${ready ? '' : ' disabled'}>${DelAcct.busy ? 'Deleting…' : 'Delete account'}</button>
+      <button class="btn press" data-act="closesheet"${DelAcct.busy ? ' disabled' : ''}>Cancel</button>
+    </div>`;
+}
+function refreshDelAcct() {
+  const b = sheetEl && sheetEl.querySelector('[data-act=delacctgo]'); if (!b) return;
+  const i = sheetEl.querySelector('#delconfirm'), focused = document.activeElement === i, pos = i && i.selectionStart;
+  setSheet(delAcctHTML());
+  const j = sheetEl.querySelector('#delconfirm'); if (focused && j) { j.focus({preventScroll:true}); try { j.setSelectionRange(pos, pos); } catch (e) {} }
+}
+async function deleteAccount() {
+  if (!db || !authUid() || DelAcct.busy || !navigator.onLine) return;
+  DelAcct.busy = true; DelAcct.err = ''; refreshDelAcct();
+  A.track('account_deleted', {}); // no properties: nothing personal
+  let res;
+  try { res = await db.functions.invoke('delete-account', {method:'POST', body:{}}); } catch (e) { res = {error:e}; }
+  if (res.error || !res.data || !res.data.deleted) {
+    DelAcct.busy = false;
+    DelAcct.err = !navigator.onLine ? 'You went offline. Nothing was deleted yet; try again when you are online.' : `Couldn't delete your account. Try again, or email ${SUPPORT_EMAIL} and we'll do it for you.`;
+    refreshDelAcct(); return;
+  }
+  // The account is gone on the server. Now clear this phone and start fresh at the sign-in screen.
+  erasing = true;
+  try { A.reset(); } catch (e) {}
+  try { await db.auth.signOut({scope:'local'}); } catch (e) {}
+  try { if (window.Dexie) await Dexie.delete('rival-sync'); } catch (e) {}
+  try { if (indexedDB.databases) for (const d of await indexedDB.databases()) if (d.name && /^rival/i.test(d.name)) indexedDB.deleteDatabase(d.name); } catch (e) {}
+  try { localStorage.clear(); } catch (e) {}
+  try { sessionStorage.setItem('rival.deleted', '1'); } catch (e) {}
+  location.replace(location.pathname);
+}
+
 /* Route guard: the sign-in screen is the first thing a signed-out person sees. Signing in is optional,
    so it also offers "Continue without an account" (remembered, so it doesn't nag). */
 let gateEl = null;
@@ -2050,7 +2168,7 @@ function closeGate(then) {
   const g = gateEl; if (!g) return; gateEl = null;
   Auth.returnedWithError = false;
   g.classList.add('out'); document.body.classList.remove('gated');
-  setTimeout(() => { g.remove(); if (then) then(); }, reduced() ? 0 : 180);
+  setTimeout(() => { g.remove(); if (then) then(); if (updateWaiting) setTimeout(offerUpdate, 600); }, reduced() ? 0 : 180);
 }
 // What a new arrival sees after the sign-in screen: the tour, or the "What's new" note.
 function startIntro() {
@@ -2097,7 +2215,7 @@ async function authInit() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '24'; // matches the service worker cache, rival-v24
+const APP_VERSION = '26'; // matches the service worker cache, rival-v26
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2107,7 +2225,7 @@ const HELP = [
   ['Where are my workouts saved?', 'On this phone, and in your account if you sign in, so they\'re backed up and show up on any phone you sign in on. Only you can see them. Without an account, clearing browser data or losing the phone clears them, so tap <b>Export backup</b> below now and then. <a href="../privacy.html">Privacy Policy</a>'],
   ['Does it work without signal?', 'Yes. Sets save on the phone first and sync when you\'re back online. The small label at the top says <b>Synced</b>, <b>waiting</b> or <b>Offline</b>.'],
   ['Why doesn\'t my phone buzz when rest ends?', 'iPhone doesn\'t let web apps vibrate, so Rival plays a short chime instead. It follows your silent switch and won\'t pause your music. It can\'t play while the phone is locked.'],
-  ['How do I get the newest version?', 'Close Rival fully and open it again. Updates arrive in the background when you\'re online.']
+  ['How do I get the newest version?', 'Updates download in the background when you\'re online. When one is ready, Rival shows "Update ready, tap to refresh" (never in the middle of a workout).']
 ];
 function feedbackHref() {
   const body = '\n\n\n---\nRival version ' + APP_VERSION + (isStandalone() ? ', installed' : ', in browser') + (isIOS ? ', iPhone/iPad' : '');
@@ -2135,6 +2253,7 @@ function vSettings() {
       <button class="btn press" data-act="importpick">Import backup</button>
       ${hasSamples() ? '<button class="btn press" data-act="clearsample">Clear sample workouts</button>' : ''}
       <button class="btn danger press" data-act="wipe">Delete all workouts</button>
+      ${authUid() ? '<button class="btn danger press" data-act="delacct">Delete account</button>' : ''}
     </div></section>
     <section class="section"><div class="section-head"><h2 class="h2">Help</h2></div><div class="card help" style="padding:2px 16px">
       ${HELP.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${a}</p></details>`).join('')}
@@ -2212,6 +2331,7 @@ function render() {
   applyTheme();
   view.innerHTML = tab === 'today' ? vToday() : tab === 'progress' ? vProgress() : tab === 'settings' ? vSettings() : vPlan();
   document.querySelectorAll('.tab').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  document.body.classList.toggle('has-start', !!$('#startbar'));
   updateResume();
 }
 function updateResume() {
@@ -2270,16 +2390,17 @@ function dragToDismiss(wrap) {
 }
 
 /* ================= toast ================= */
-function toast(msg, action) {
+function toast(msg, action, ms) {
   const box = $('#toasts'), t = document.createElement('div');
   box.querySelectorAll('.toast').forEach(o => o.remove());
   t.className = 'toast'; const sp = document.createElement('span'); sp.textContent = msg; t.appendChild(sp);
   let timer = 0;
   const hide = () => { clearTimeout(timer); t.classList.remove('show'); setTimeout(() => t.remove(), 260); };
   if (action) { const b = document.createElement('button'); b.textContent = action.label; b.addEventListener('click', () => { action.fn(); hide(); }); t.appendChild(b); }
+  if (action && action.whole) { t.classList.add('tap'); t.addEventListener('click', e => { if (e.target === t || e.target === sp) { action.fn(); hide(); } }); }
   box.appendChild(t);
   requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
-  timer = setTimeout(hide, action ? 5000 : 2400);
+  timer = setTimeout(hide, ms || (action ? 5000 : 2400));
 }
 
 /* ================= workout ================= */
@@ -2299,17 +2420,25 @@ function startWorkout(idx, o) {
   A.track('workout_started', {mode:S.active.mode, exercise_count:S.active.entries.length});
 }
 function openWorkout() {
+  document.body.classList.add('wo-open');
   A.screen('workout');
   renderWorkout();
   wo.setAttribute('aria-hidden', 'false');
   requestAnimationFrame(() => wo.classList.add('open'));
-  if (restEnd > Date.now()) requestAnimationFrame(() => restEl.classList.add('show'));
+  if (S.active && S.active.rest) resumeRest(); else if (restEnd > Date.now()) requestAnimationFrame(() => restEl.classList.add('show'));
   updateResume();
   if (!S.profile.tour.wo && !coach) setTimeout(() => { if (wo.classList.contains('open') && !coach && !sheetEl) startCoach('wo'); }, reduced() ? 60 : 520);
   try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {}); } catch (e) {}
 }
+let updateWaiting = false;
+function offerUpdate() {
+  if (wo.classList.contains('open') || gateEl || coach) { updateWaiting = true; return; }
+  updateWaiting = false;
+  toast('Update ready, tap to refresh', {label:'Refresh', whole:true, fn:() => location.reload()}, 12000);
+}
 function minimizeWorkout() {
-  wo.classList.remove('open'); wo.setAttribute('aria-hidden', 'true');
+  wo.classList.remove('open'); wo.setAttribute('aria-hidden', 'true'); document.body.classList.remove('wo-open');
+  if (updateWaiting) setTimeout(offerUpdate, 2800); // after the "Workout saved" toast
   restEl.classList.remove('show');
   render();
   try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null;
@@ -2317,14 +2446,14 @@ function minimizeWorkout() {
 function setRow(en, s, ei, si) { return inU(en.exId, () => setRow0(en, s, ei, si)); }
 function setRow0(en, s, ei, si) {
   const ex = EX[en.exId] || {}, g = s.g;
-  const gtxt = g ? `<span class="g-txt">${ex.bw && !g.w ? 'BW' : fmtW(g.w)} × ${g.r}</span>` : `<span class="g-txt none">New</span>`;
+  const gtxt = g ? `<span class="g-txt">${ex.bw && !g.w ? 'BW' : fmtW(g.w)}<i> </i>×<i> </i>${g.r}</span>` : `<span class="g-txt none">New</span>`;
   const win = s.done && s.res === 'beat' && g ? beatLabel(s, g) : s.done && s.res === 'match' ? 'Matched' : '';
-  return `<div class="set${s.done ? ' done' : ''}${s.done && s.res ? ' ' + s.res : ''}" data-e="${ei}" data-s="${si}">
+  return `<div class="set-wrap"><button class="set-del" data-act="swdel" data-e="${ei}" data-s="${si}" tabindex="-1" aria-hidden="true">Delete</button><div class="set${s.done ? ' done' : ''}${s.done && s.res ? ' ' + s.res : ''}" data-e="${ei}" data-s="${si}">
     <span class="n">${si + 1}</span>
     <span class="ghost">${gtxt}<span class="g-win${s.res === 'match' ? ' match' : ''}">${esc(win)}</span></span>
     <input class="in-w" id="w-${ei}-${si}" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Set ${si + 1} weight in ${U()}${ex.ea ? ', for each side' : ''}" placeholder="${ex.bw ? 'BW' : U()}" value="${s.w == null || (ex.bw && !s.w) ? '' : fmtW(s.w)}">
     <input class="in-r" id="r-${ei}-${si}" inputmode="numeric" enterkeyhint="done" autocomplete="off" aria-label="Set ${si + 1} reps" placeholder="reps" value="${s.r == null ? '' : s.r}">
-    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button></div>`;
+    <button class="check" data-act="log" aria-pressed="${s.done}" aria-label="Log set ${si + 1}">${I.check}</button></div></div>`;
 }
 function exBlock(en, ei) { return inU(en.exId, () => exBlock0(en, ei)); }
 function exBlock0(en, ei) {
@@ -2334,13 +2463,78 @@ function exBlock0(en, ei) {
   const wuHTML = wu.length ? `<div class="wu" role="group" aria-label="Warm-up sets"><span class="wu-l">Warm-up</span>${wu.map((x, i) => `<button class="wu-c${en.wdone[i] ? ' done' : ''}" data-act="wlog" data-e="${ei}" data-i="${i}" aria-pressed="${!!en.wdone[i]}">${x.bar ? 'Bar' : fmtW(x.w)} × ${x.r}</button>`).join('')}</div>` : '';
   const atts = attsOf(en.exId), title = atts.length && ex.bn ? ex.bn : ex.n;
   const attHTML = atts.length ? `<div class="att" role="group" aria-label="Attachment for ${esc(ex.bn || ex.n)}"><span class="att-l">Attachment</span><div class="att-o">${atts.map(a => `<button class="chip press" data-act="att" data-e="${ei}" data-id="${esc(a.id)}" aria-pressed="${a.id === en.exId}">${esc(a.n)}</button>`).join('')}</div></div>` : '';
-  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}</div>
-    <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button></div></div>
-    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p><div class="useg" role="group" aria-label="Weight unit for ${esc(ex.n)}">${['kg', 'lb'].map(u => `<button data-act="exunit" data-e="${ei}" data-u="${u}" aria-pressed="${U() === u}">${u}</button>`).join('')}</div></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
+  return `<section class="ex" data-e="${ei}"><div class="ex-h"><div style="min-width:0"><h3 class="h3">${esc(title)}</h3>${ex.prim ? musclesLine(ex) : ''}${ex.ea || U() !== S.profile.units ? `<span class="tags">${ex.ea ? '<span class="ea-tag">Weight per side</span>' : ''}${U() !== S.profile.units ? `<span class="ea-tag u-tag" title="This exercise uses ${U()}; your default is ${S.profile.units}">in ${U()}</span>` : ''}</span>` : ''}</div>
+    <div class="ex-tools">${bt ? `<button class="swap press" data-act="plates" data-e="${ei}">Plates</button>` : ''}<button class="swap press" data-act="swap" data-e="${ei}" aria-label="Swap ${esc(ex.n)} for another exercise">Swap</button><button class="swap more press" data-act="exmenu" data-e="${ei}" aria-haspopup="dialog" aria-label="More for ${esc(ex.n)}">${I.more}</button></div></div>
+    <div class="ex-mrow"><p class="ex-meta">${en.lo}–${en.hi} reps, rest ${fmtClock(en.rest)}</p></div>${attHTML}${en.note ? `<p class="ex-note">${esc(en.note)}</p>` : ''}${wuHTML}
     <div class="cols"><span>Set</span><span>Ghost</span><span>${U()}${ex.ea ? ' each' : ''}</span><span>Reps</span><span></span></div>
     <div class="rows">${en.sets.map((s, si) => setRow(en, s, ei, si)).join('')}</div>
-    <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button>${en.sets.length > 1 ? `<button data-act="delset" data-e="${ei}">Remove last set</button>` : ''}<button class="rm" data-act="rmex" data-e="${ei}" aria-label="Remove ${esc(ex.n)} from this workout">Remove</button></div></section>`;
+    <div class="ex-act"><button data-act="addset" data-e="${ei}">Add set</button></div></section>`;
 }
+/* Exercise ⋯ menu: delete any set, remove the exercise (more items join it later). Both can be undone for 5 s. */
+let menuCtx = null;
+function exMenuHTML(ei) {
+  const en = S.active.entries[ei], ex = EX[en.exId] || {n:en.exId};
+  const sets = en.sets.length > 1 ? `<p class="note-l" style="margin-top:4px">Delete a set</p><div class="menu-list">${inU(en.exId, () => en.sets.map((x, si) => {
+    const what = x.w != null || x.r != null ? `${ex.bw && !x.w ? 'BW' : x.w != null ? fmtW(x.w) + ' ' + U() : '–'} × ${x.r != null ? x.r : '–'}` : 'Empty';
+    return `<button class="menu-i press" data-act="menudelset" data-e="${ei}" data-s="${si}"><span>Delete set ${si + 1}</span><span class="menu-s">${what}${x.done ? ', logged' : ''}</span></button>`; }).join(''))}</div>` : '';
+  const cur = exUChoice(en.exId), def = S.profile.units;
+  const units = `<p class="note-l" style="margin-top:${sets ? 16 : 4}px">Units for this exercise</p>
+    <div class="seg menu-seg" role="group" aria-label="Units for ${esc(ex.n)}">${[['kg', 'kg'], ['lb', 'lb'], ['def', `Use default (${def})`]].map(([v, l]) => `<button data-act="exunit" data-e="${ei}" data-u="${v}" aria-pressed="${cur === v}">${l}</button>`).join('')}</div>`;
+  return `<h2 class="h2">${esc(ex.n)}</h2>${sets}${units}
+    <div class="sheet-actions" style="margin-top:16px"><button class="btn danger press" data-act="rmex" data-e="${ei}">Remove exercise</button></div>
+    <p class="sub" style="margin-top:10px;font-size:13px">Tip: swipe a set to the left to delete it.</p>`;
+}
+function deleteSet(ei, si) {
+  const en = S.active && S.active.entries[ei]; if (!en || !en.sets[si] || en.sets.length < 2) return;
+  const [gone] = en.sets.splice(si, 1), exId = en.exId;
+  persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
+  toast(`Set ${si + 1} deleted`, {label:'Undo', fn: () => {
+    const e2 = S.active && S.active.entries[ei]; if (!e2 || e2.exId !== exId) return;
+    e2.sets.splice(Math.min(si, e2.sets.length), 0, gone); persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
+  }}, 5000);
+}
+/* Swipe a set row left to show Delete. Rows only move sideways; vertical scrolling is untouched. */
+const Swipe = {row:null, x0:0, y0:0, dx:0, on:false, open:null, moved:false};
+const SW_OPEN = 92;
+function swClose(instant) {
+  const r = Swipe.open; if (!r) return; Swipe.open = null;
+  r.style.transition = instant || reduced() ? 'none' : ''; r.style.transform = '';
+  const w = r.parentElement; if (w) setTimeout(() => { if (Swipe.open !== r && Swipe.row !== r) w.classList.remove('sw'); }, instant || reduced() ? 0 : 240);
+  const d = r.parentElement && r.parentElement.querySelector('.set-del'); if (d) { d.tabIndex = -1; d.setAttribute('aria-hidden', 'true'); }
+}
+wo.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const row = e.target.closest('.set'); 
+  if (Swipe.open && row !== Swipe.open && !e.target.closest('.set-del')) swClose();
+  if (!row || !S.active || S.active.entries[+row.dataset.e].sets.length < 2) return;
+  Swipe.row = row; Swipe.x0 = e.clientX; Swipe.y0 = e.clientY; Swipe.dx = 0; Swipe.on = false; Swipe.moved = false;
+});
+wo.addEventListener('pointermove', e => {
+  const row = Swipe.row; if (!row) return;
+  const dx = e.clientX - Swipe.x0, dy = e.clientY - Swipe.y0, base = Swipe.open === row ? -SW_OPEN : 0;
+  if (!Swipe.on) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { Swipe.row = null; return; } // a scroll
+    if (Math.abs(dx) < 10) return;
+    Swipe.on = true; Swipe.moved = true; row.style.transition = 'none'; row.parentElement.classList.add('sw');
+    try { row.setPointerCapture(e.pointerId); } catch (err) {}
+    if (document.activeElement && row.contains(document.activeElement)) document.activeElement.blur();
+  }
+  Swipe.dx = Math.max(-SW_OPEN - 40, Math.min(0, base + dx));
+  row.style.transform = `translateX(${Swipe.dx}px)`;
+});
+function swEnd() {
+  const row = Swipe.row; Swipe.row = null; if (!row || !Swipe.on) return;
+  row.style.transition = reduced() ? 'none' : '';
+  if (Swipe.dx < -SW_OPEN / 2) {
+    if (Swipe.open && Swipe.open !== row) swClose(true);
+    row.style.transform = `translateX(${-SW_OPEN}px)`; Swipe.open = row;
+    const d = row.parentElement.querySelector('.set-del'); d.tabIndex = 0; d.removeAttribute('aria-hidden');
+  } else { row.style.transform = ''; if (Swipe.open === row) swClose(); else setTimeout(() => { if (Swipe.open !== row) row.parentElement && row.parentElement.classList.remove('sw'); }, reduced() ? 0 : 240); }
+}
+wo.addEventListener('pointerup', swEnd);
+wo.addEventListener('pointercancel', swEnd);
+// A swipe is not a tap: don't log the set or focus an input when the finger lifts.
+wo.addEventListener('click', e => { if (Swipe.moved) { Swipe.moved = false; if (e.target.closest('.set')) { e.stopPropagation(); e.preventDefault(); } } }, true);
 function renderWorkout() {
   const a = S.active; if (!a) return;
   const t = tierOf(a.readiness);
@@ -2379,7 +2573,7 @@ function logSet0(row) {
   }
   persist();
   const tmp = document.createElement('div'); tmp.innerHTML = setRow(en, s, ei, si);
-  const fresh = tmp.firstElementChild;
+  const fresh = tmp.querySelector('.set'); // replace the row itself; its swipe wrapper stays
   if (s.done && s.res) { // render pre-state, then flip, so the ghost dissolves
     fresh.classList.remove(s.res); row.replaceWith(fresh);
     requestAnimationFrame(() => requestAnimationFrame(() => fresh.classList.add(s.res)));
@@ -2420,14 +2614,42 @@ function chime() {
     });
   } catch (e) {}
 }
+/* The rest timer keeps its END time (in memory and in S.active.rest), never a countdown. Phones pause timers in the
+   background and iOS may close the app; whenever Rival is back on screen the time left is simply end - now.
+   TODO: an alert while the phone is locked would need Web Push (a push subscription in the app, plus a Supabase
+   Edge Function that sends the push when the rest ends). iPhone web apps can't vibrate or keep timers running. */
+function restBarHTML() {
+  return `<div class="rest-t"><div class="rt num" id="rt" aria-live="off">${fmtClock(Math.max(0, Math.ceil((restEnd - Date.now()) / 1000)))}</div><div class="rl">Rest</div></div><button data-act="rest15">+15s</button><button data-act="restskip">Skip</button><span class="bar2" id="rbar"></span>`;
+}
+function showRestBar() {
+  restEl.className = 'rest'; restEl.innerHTML = restBarHTML();
+  requestAnimationFrame(() => requestAnimationFrame(() => restEl.classList.add('show')));
+  clearInterval(restTick); restTick = setInterval(tickRest, 250); tickRest();
+  restTip();
+}
 function startRest(sec) {
   unlockAudio(); // runs inside the tap that logged the set, which is what lets iPhone play sound later
   clearTimeout(restHideT);
   restTotal = sec; restEnd = Date.now() + sec * 1000;
-  restEl.className = 'rest';
-  restEl.innerHTML = `<div><div class="rt num" id="rt">${fmtClock(sec)}</div><div class="rl">Rest</div></div><button data-act="rest15">+15s</button><button data-act="restskip">Skip</button><span class="bar2" id="rbar"></span>`;
-  requestAnimationFrame(() => requestAnimationFrame(() => restEl.classList.add('show')));
-  clearInterval(restTick); restTick = setInterval(tickRest, 250); tickRest();
+  if (S.active) { S.active.rest = {end:restEnd, total:restTotal}; persist(); }
+  showRestBar();
+}
+// Back in the logger (or the app reopened): pick the stored rest up where it really is.
+function resumeRest() {
+  const r = S.active && S.active.rest;
+  if (!r) return;
+  if (Date.now() - r.end > 6000) { delete S.active.rest; persist(); return; } // ended a while ago: nothing to show
+  restEnd = r.end; restTotal = r.total; clearTimeout(restHideT);
+  showRestBar();
+}
+// One-time tip, the first time a rest starts. The wording depends on whether the screen can be kept awake.
+function restTip() {
+  const old = $('#resttip'); if (S.profile.restTip) { if (old) old.remove(); return; }
+  if (old) return;
+  const awake = !!wakeLock || ('wakeLock' in navigator && !isIOS);
+  const el = document.createElement('div'); el.id = 'resttip'; el.className = 'resttip'; el.setAttribute('role', 'note');
+  el.innerHTML = `<p>Keep Rival open on screen for the rest alert. ${awake ? 'Your screen stays awake during workouts.' : 'Set Auto-Lock to Never while you train.'}</p><button data-act="resttipok">Got it</button>`;
+  restEl.after(el); // right after the rest bar, so it hides with it
 }
 function tickRest() {
   const left = (restEnd - Date.now()) / 1000;
@@ -2444,6 +2666,7 @@ function tickRest() {
 }
 function hideRest() {
   clearInterval(restTick); clearTimeout(restHideT); restEnd = 0;
+  if (S.active && S.active.rest) { delete S.active.rest; persist(); }
   restEl.classList.add('hide'); restEl.classList.remove('show');
 }
 
@@ -2693,7 +2916,7 @@ const TOUR = [
   {tab:'today', sel:'.tabs-in', h:'Four tabs, that\'s all', b:'<b>Today</b> is your next workout. <b>Progress</b> shows how you\'re trending. <b>Plan</b> holds your program. <b>Settings</b> has light and dark mode, backups, help and a way to reach me.'},
   {tab:'today', sel:'.card.ready', h:'Check in before you train', b:'Three taps: sleep, soreness, energy. On a rough day Rival trims today\'s weights by 5 to 10%, so you still train without grinding.'},
   {tab:'today', sel:'.card.session .pv', h:'Meet your ghost', b:'Every lift shows today\'s target and your <b>ghost</b>: what you lifted last time. Beat it and you\'re getting stronger. Hit the top of the rep range on every set and the weight goes up next session.'},
-  {tab:'today', sel:'.card.session .btn.primary', h:'Start when you\'re ready', b:'Opens the logger full screen. A few quick tips show up the first time.'},
+  {tab:'today', sel:'#startbar .btn', h:'Start when you\'re ready', b:'Opens the logger full screen. A few quick tips show up the first time.'},
   {tab:'today', sel:'.daypick', h:'Train any day, in any order', b:'Tap a day to do it next. Rival keeps your place in the program either way.'},
   {tab:'today', sel:'.tiles', h:'Your plan bends', b:'Not feeling it, or short on time this week? <b>Train something else</b> for just today, or plan a different week. Your program waits where you left it.'},
   {tab:'progress', sel:'.map-card .bodies', h:'Your muscle heat map', b:'Hard sets per muscle over the last 7 days. <b>Blue</b> is the 10 to 20 sets that builds muscle best. Tap a muscle to see what trained it.'},
@@ -2814,6 +3037,7 @@ function placeCoach(instant) {
 }
 function endCoach(instant) {
   const c = coach; if (!c) return; coach = null;
+  if (updateWaiting && c.kind !== 'wo') setTimeout(offerUpdate, 800);
   if (c.kind === 'wo') S.profile.tour.wo = true; else S.profile.tour.done = true;
   persist();
   if (instant) { c.el.remove(); return; }
@@ -2896,14 +3120,12 @@ const acts = {
     en.sets.push({w: last ? last.w : null, r: last ? last.r : en.lo, g: g ? {w:g.w, r:g.r} : null, done:false, res:null});
     persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
   },
-  delset(el) {
-    const ei = +el.dataset.e, en = S.active.entries[ei]; if (en.sets.length < 2) return;
-    if (en.sets[en.sets.length - 1].done && !el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again: it\'s logged'; return; }
-    en.sets.pop(); persist(); refreshEx(ei); $('#wo-count').textContent = countDone();
-  },
+  exmenu(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; menuCtx = {ei}; openSheet(exMenuHTML(ei), () => { menuCtx = null; }); },
+  menudelset(el) { const ei = +el.dataset.e, si = +el.dataset.s; closeSheet(); setTimeout(() => deleteSet(ei, si), reduced() ? 0 : 120); },
+  swdel(el) { deleteSet(+el.dataset.e, +el.dataset.s); },
   rmex(el) {
-    const ei = +el.dataset.e, en = S.active.entries[ei];
-    if (en.sets.some(x => x.done) && !el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to remove'; return; }
+    const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
+    if (sheetEl) closeSheet(true);
     const [gone] = S.active.entries.splice(ei, 1); persist();
     const y = wo.querySelector('.wo-body') ? wo.querySelector('.wo-body').scrollTop : 0;
     renderWorkout(); const body = wo.querySelector('.wo-body'); if (body) body.scrollTop = y;
@@ -2917,9 +3139,10 @@ const acts = {
   },
   rest15() {
     if (restEnd <= Date.now()) { startRest(15); return; }
-    restEnd += 15000; restTotal += 15; tickRest();
+    restEnd += 15000; restTotal += 15; if (S.active) { S.active.rest = {end:restEnd, total:restTotal}; persist(); } tickRest();
   },
   restskip() { hideRest(); },
+  resttipok() { S.profile.restTip = true; touch(); const t = $('#resttip'); if (t) t.remove(); },
   closesheet() { closeSheet(); },
   muscle(el) { selMuscle = selMuscle === el.dataset.m ? null : el.dataset.m; const y = window.scrollY; render(); window.scrollTo(0, y); },
   lift(el) { liftSheet(el.dataset.id); },
@@ -2931,6 +3154,8 @@ const acts = {
   clearsample() {
     S.sessions = S.sessions.filter(s => !s.sample); S.profile.sampleCleared = true; S.profile.nextDay = 0; touch(); render(); toast('Sample workouts cleared');
   },
+  delacct() { if (!authUid()) return; DelAcct.typed = ''; DelAcct.busy = false; DelAcct.err = ''; openSheet(delAcctHTML(), () => { DelAcct.typed = ''; }); setTimeout(() => { const i = sheetEl && sheetEl.querySelector('#delconfirm'); if (i) i.focus({preventScroll:true}); }, 300); },
+  delacctgo() { deleteAccount(); },
   wipe(el) {
     if (!el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to delete everything'; return; }
     S.sessions.forEach(s => Sync.remove(s.id)); S.sessions = []; S.profile.sampleCleared = true; S.profile.nextDay = 0; touch(); render(); toast('All workouts deleted');
@@ -2938,18 +3163,23 @@ const acts = {
   units(el) { S.profile.units = el.dataset.u; touch(); render(); },
   theme(el) { const v = el.dataset.v; S.profile.theme = v === 'light' || v === 'dark' ? v : 'system'; touch(); render(); },
   exunit(el) {
-    const ei = +el.dataset.e, u = el.dataset.u, en0 = S.active && S.active.entries[ei];
-    if (!en0 || (u !== 'kg' && u !== 'lb') || u === exU(en0.exId)) return;
-    const id = en0.exId, ex = EX[id] || {};
+    const ei = +el.dataset.e, choice = el.dataset.u, en0 = S.active && S.active.entries[ei];
+    if (!en0 || !['kg', 'lb', 'def'].includes(choice)) return;
+    const id = en0.exId, ex = EX[id] || {}, was = exU(id);
     S.profile.exUnit = isObj(S.profile.exUnit) ? S.profile.exUnit : {};
-    S.profile.exUnit[id] = u; // remembered for this exercise, other exercises are untouched
+    const m = S.profile.exUnit; // remembered for this exercise, other exercises are untouched
+    if (choice === 'def') { delete m[id]; if (id !== baseOf(id) && m[baseOf(id)]) m[id] = 'def'; } // an attachment can follow the default even if its base has its own unit
+    else m[id] = choice;
+    const u = exU(id);
+    if (sheetEl) closeSheet();
+    if (u === was) { touch(); S.active.entries.forEach((en, i) => { if (en.exId === id) refreshEx(i); }); toast(`${ex.n || 'Exercise'} uses ${choice === 'def' ? 'your default, ' + u : u}`); return; }
     // Sets not logged yet move to the nearest weight you can load in the new unit; logged sets keep what was lifted.
     inU(id, () => S.active.entries.forEach(en => { if (en.exId !== id) return;
       en.sets.forEach(s => { if (!s.done && fin(s.w) && s.w > 0) s.w = clamp(roundW(s.w, ex.inc || 2.5), 0, MAX_KG); }); }));
     touch();
     S.active.entries.forEach((en, i) => { if (en.exId === id) refreshEx(i); });
-    const f = wo.querySelector(`.ex[data-e="${ei}"] .useg [data-u="${u}"]`); if (f) f.focus({preventScroll:true});
-    toast(`${ex.n || 'Exercise'} now in ${u}`);
+    const f = wo.querySelector(`.ex[data-e="${ei}"] [data-act=exmenu]`); if (f && kbNav) f.focus({preventScroll:true});
+    toast(`${ex.n || 'Exercise'} now in ${u}${choice === 'def' ? ' (your default)' : ''}`);
   },
   rest(el) { const k = el.dataset.k; S.profile[k] = Math.max(30, Math.min(600, S.profile[k] + +el.dataset.d)); touch(); render(); },
   slot(el) { slotCtx = {d:+el.dataset.d, s:+el.dataset.s}; openSheet(slotHTML(slotCtx.d, slotCtx.s)); },
@@ -3221,6 +3451,7 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'authemail') { Auth.email = e.target.value; Auth.mailOpen = true; return; }
+  if (e.target.id === 'delconfirm') { const was = DelAcct.typed.trim() === 'DELETE'; DelAcct.typed = e.target.value; if (was !== (DelAcct.typed.trim() === 'DELETE')) { const b = sheetEl.querySelector('[data-act=delacctgo]'); if (b) b.disabled = !(DelAcct.typed.trim() === 'DELETE' && navigator.onLine && !DelAcct.busy); } return; }
   if (e.target.id === 'cxname' && cx) {
     cx.n = e.target.value; const b = sheetEl && sheetEl.querySelector('[data-act=cxsave]'); const ok = cx.n.trim() && cx.prim.length;
     if (b) b.disabled = !ok; return;
@@ -3247,7 +3478,9 @@ document.addEventListener('focusin', e => { if (e.target.matches('.set input')) 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && wo.classList.contains('open') && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {});
   if (document.visibilityState === 'visible' && restEnd && restEl.classList.contains('show')) tickRest();
+  else if (document.visibilityState === 'visible' && wo.classList.contains('open') && S.active && S.active.rest && !restEnd) resumeRest();
 });
+addEventListener('pageshow', () => { if (restEnd && restEl.classList.contains('show')) tickRest(); });
 setInterval(() => {
   if (!S.active) return;
   const t = fmtClock((Date.now() - S.active.startedAt) / 1000);
@@ -3259,12 +3492,20 @@ $('#importfile').addEventListener('change', e => { const f = e.target.files && e
 $('#planfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readPlanFile(f); e.target.value = ''; });
 render();
 authInit().then(() => {
-  A.track('app_opened', {standalone:isStandalone(), signed_in:!!authUid(), surface:'app'}); A.screen(tab); if (gateNeeded() && !S.active) openGate(); else startIntro(); });
+  A.track('app_opened', {standalone:isStandalone(), signed_in:!!authUid(), surface:'app'}); A.screen(tab); if (gateNeeded() && !S.active) openGate(); else startIntro();
+  let gone = false; try { gone = !!sessionStorage.getItem('rival.deleted'); sessionStorage.removeItem('rival.deleted'); } catch (e) {}
+  if (gone) setTimeout(() => toast('Your account was deleted'), 400); });
 document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('acct-mail')) Auth.mailOpen = e.target.open; }, true);
-addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
-addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
+addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); refreshDelAcct(); });
+addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); refreshDelAcct(); });
 if (S.active) updateResume();
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  // The service worker shows the saved copy instantly and fetches a fresh one in the background.
+  // When the fresh one differs, offer a refresh. Never reload on its own, and wait while a workout is open.
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'rival-update') offerUpdate(); });
+  navigator.serviceWorker.ready.then(r => { const w = navigator.serviceWorker.controller || r.active; if (w) w.postMessage({type:'rival-hello'}); }).catch(() => {});
+}
 })();
 </script>
 </body>

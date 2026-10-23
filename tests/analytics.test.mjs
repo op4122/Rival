@@ -41,7 +41,7 @@ console.log('App');
   for (const [k, v] of [['sleep', 2], ['sore', 2], ['energy', 3]]) await p.locator(`[data-act=rq][data-k=${k}][data-v="${v}"]`).click();
   await p.locator('[data-tab=progress]').click(); await p.waitForTimeout(200);
   await p.locator('[data-tab=today]').click(); await p.waitForTimeout(200);
-  await p.locator('.card.session [data-act=start]').click(); await p.waitForTimeout(900);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
   while (await p.locator('[data-act=coachskip]').count()) { await p.locator('[data-act=coachskip]').first().click(); await p.waitForTimeout(250); }
   await p.fill('#w-0-0', '90'); await p.fill('#r-0-0', '8'); await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(300);
   await p.locator('[data-act=finish]').click(); await p.waitForTimeout(400); await p.locator('[data-act=save]').click(); await p.waitForTimeout(400);
