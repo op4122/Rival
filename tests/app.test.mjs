@@ -376,7 +376,8 @@ console.log('Suggested progression');
     await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
     return p;
   }
-  const hints = (p, e) => p.locator(`.set[data-e="${e}"] .sug`).evaluateAll(b => b.map(x => x.hidden ? '' : x.textContent));
+  // Per set row: the visible badges ("+1", "+2.5", "Eased"), plus "↺" when the put-back button shows.
+  const hints = (p, e) => p.locator(`.set[data-e="${e}"]`).evaluateAll(rows => rows.map(r => [...r.querySelectorAll('.sug-b:not([hidden])')].map(x => x.textContent).concat(r.querySelector('.sug-r:not([hidden])') ? ['Reset'] : []).join(' ')));
   const ev = (p, n) => p.evaluate(n => window.__ev.filter(x => x[0] === n).map(x => x[1]), n);
 
   // The rule itself
@@ -402,19 +403,20 @@ console.log('Suggested progression');
   ok(await P([], 3, 6, 8, 2.5) === null, 'no ghost, no suggestion');
 
   // In the workout
-  ok(JSON.stringify(await hints(p, 0)) === JSON.stringify(['Try 82.5 × 6', 'Try 82.5 × 6', 'Try 82.5 × 6']), 'bench shows "Try 82.5 × 6" on every set');
+  ok(JSON.stringify(await hints(p, 0)) === JSON.stringify(['+2.5', '', '']), 'bench: one "+2.5" badge on the weight, not repeated on every set');
+  ok(await p.locator('.set[data-e="0"][data-s="0"] .sug-b').evaluate(b => b.getBoundingClientRect().top < b.parentElement.querySelector('.in-w').getBoundingClientRect().top + 4), 'badge sits on the corner of the weight box');
   ok(await p.inputValue('#w-0-0') === '82.5' && await p.inputValue('#r-0-0') === '6', 'inputs pre-filled with the suggestion');
-  ok(JSON.stringify(await hints(p, 1)) === JSON.stringify(['', 'Try 100 × 8', '']), 'squat: hint only on the set that moves on (set 2)');
-  ok(JSON.stringify(await hints(p, 2)) === JSON.stringify(['Try BW × 11', '', '']), 'pull-up: bodyweight shows BW × 11');
+  ok(JSON.stringify(await hints(p, 1)) === JSON.stringify(['', '+1', '']), 'squat: "+1" only on the set that moves on (set 2)');
+  ok(JSON.stringify(await hints(p, 2)) === JSON.stringify(['+1', '', '']) && await p.inputValue('#r-2-0') === '11', 'pull-up: bodyweight gets one more rep (11)');
   const sug = await ev(p, 'progression_suggested');
   ok(sug.length === 3 && sug.find(x => x.exercise_id === 'bench').type === 'weight' && sug.find(x => x.exercise_id === 'squat').type === 'reps' && sug.every(x => x.eased === false),
     'progression_suggested once per exercise, with exercise_id and type: ' + JSON.stringify(sug));
   // Override, then tap the hint to restore
   await p.fill('#w-1-0', '95'); await p.fill('#r-1-0', '5');
-  ok((await hints(p, 1))[0] === 'Try 100 × 8', 'changing the numbers shows the hint on that set');
-  await p.locator('.set[data-e="1"][data-s="0"] .sug').click();
+  ok((await hints(p, 1))[0] === 'Reset', 'changing the numbers shows Reset on that set');
+  await p.locator('.set[data-e="1"][data-s="0"] .sug-r').click();
   ok(await p.inputValue('#w-1-0') === '100' && await p.inputValue('#r-1-0') === '8', 'tapping the hint fills the inputs');
-  ok((await hints(p, 1))[0] === '', 'hint hides again once the numbers match');
+  ok((await hints(p, 1))[0] === '', 'Reset hides again once the numbers match');
   // Accepted: logging a set that moves on, as suggested
   await p.locator('.set[data-e="1"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(200);
   ok((await ev(p, 'progression_accepted')).length === 0, 'logging a set that only repeats the ghost is not "accepted"');
@@ -422,8 +424,8 @@ console.log('Suggested progression');
   await p.locator('.set[data-e="0"][data-s="1"] [data-act=log]').click(); await p.waitForTimeout(200);
   let acc = await ev(p, 'progression_accepted');
   ok(acc.length === 1 && acc[0].exercise_id === 'bench' && acc[0].type === 'weight' && acc[0].via === 'prefill', 'progression_accepted once for bench (prefill): ' + JSON.stringify(acc));
-  ok(await p.locator('.set[data-e="0"][data-s="0"] .sug').count() === 0, 'hint gone once the set is logged');
-  await p.fill('#r-1-1', '7'); await p.locator('.set[data-e="1"][data-s="1"] .sug').click();
+  ok(await p.locator('.set[data-e="0"][data-s="0"] .sug-b, .set[data-e="0"][data-s="0"] .sug-r').count() === 0, 'badges gone once the set is logged');
+  await p.fill('#r-1-1', '7'); ok((await hints(p, 1))[1] === 'Reset', 'editing the +1 set swaps the badge for Reset'); await p.locator('.set[data-e="1"][data-s="1"] .sug-r').click();
   await p.locator('.set[data-e="1"][data-s="1"] [data-act=log]').click(); await p.waitForTimeout(200);
   acc = await ev(p, 'progression_accepted');
   ok(acc.length === 2 && acc[1].exercise_id === 'squat' && acc[1].type === 'reps' && acc[1].via === 'tap', 'progression_accepted for squat via tap, type reps');
@@ -433,22 +435,23 @@ console.log('Suggested progression');
   await p.locator('.sheet [data-act=exinc][data-v="1"]').click(); await p.waitForTimeout(200);
   ok(/5 kg/.test(await p.locator('.sheet .stepper output').last().textContent()), 'jump goes up to 5 kg');
   ok((await state(p)).profile.exInc.bench === 5, 'saved per exercise in settings (syncs with the profile)');
-  ok(await p.inputValue('#w-0-2') === '85' && JSON.stringify(await hints(p, 0)) === '["Try 85 × 6"]', 'unlogged bench set re-planned to 85 × 6; logged sets keep 82.5');
+  ok(await p.inputValue('#w-0-2') === '85' && JSON.stringify(await hints(p, 0)) === JSON.stringify(['', '', '+5']), 'unlogged bench set re-planned to 85 × 6 ("+5"); logged sets keep 82.5');
   ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
   await p.context().close();
 
   // Readiness eases after the progression, and says so
   const q = await start(progSeed({ profile: { readiness: { date: today, score: 50, sleep: 1, sore: 1, energy: 2 } } }));
-  ok(JSON.stringify(await hints(q, 0)) === JSON.stringify(['Eased: 77.5 × 6', 'Eased: 77.5 × 6', 'Eased: 77.5 × 6']), 'eased day: 82.5 eased 5% to "Eased: 77.5 × 6"');
-  ok(await q.locator('.sug.eased').count() >= 3 && await q.inputValue('#w-0-0') === '77.5', 'inputs carry the eased weight');
+  ok(JSON.stringify(await hints(q, 0)) === JSON.stringify(['Eased', '', '']) && await q.inputValue('#w-0-0') === '77.5', 'eased day: 82.5 eased 5% to 77.5, labelled "Eased" once');
+  ok(JSON.stringify(await hints(q, 1)) === JSON.stringify(['Eased', '+1', '']), 'eased squat still shows its +1 rep');
   ok((await ev(q, 'progression_suggested')).filter(x => x.exercise_id !== 'pullup').every(x => x.eased === true), 'progression_suggested has eased: true (bodyweight pull-up has nothing to ease)');
-  ok(await noHScroll(q), 'no sideways scroll with hints');
+  ok(await noHScroll(q), 'no sideways scroll with badges');
+  ok(await q.evaluate(() => { const a = document.querySelector('.set[data-e="0"][data-s="0"]').getBoundingClientRect().height, b = document.querySelector('.set[data-e="0"][data-s="1"]').getBoundingClientRect().height; return Math.abs(a - b) < 1; }), 'badges add no height to the row');
   await q.context().close();
 
   // lb: the next weight up is a plate you can load
   const l = await start(progSeed({ profile: { units: 'lb' } }));
   const lw = +(await l.inputValue('#w-0-0'));
-  ok(lw % 5 === 0 && lw > 176 && lw <= 185 && (await hints(l, 0))[0] === `Try ${lw} × 6`, 'lb: 80 kg (176 lb) goes to a loadable ' + lw + ' lb');
+  ok(lw % 5 === 0 && lw > 176 && lw <= 185 && /^\+\d+(\.5)?$/.test((await hints(l, 0))[0]), 'lb: 80 kg (176 lb) goes to a loadable ' + lw + ' lb, badge ' + (await hints(l, 0))[0]);
   await l.context().close();
 }
 

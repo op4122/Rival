@@ -3,7 +3,7 @@
 Train against last week's you. Rival is a workout logger that runs in the browser and installs to your phone's home screen.
 
 - **Ghost sets:** last session's weight × reps sits beside every set. Beat it and the ghost dissolves.
-- **Suggested progression:** double progression from the ghost. Hit the top of the rep range on every set and the next weight up is suggested (2.5 kg barbell, 2 kg dumbbell, the machine's step, or your own Weight jump in the exercise's ⋯ menu); otherwise one more rep on the first set that fell short. Shown as a "Try 82.5 × 8" hint that refills the inputs when tapped; readiness easing is applied after it ("Eased: 80 × 8").
+- **Suggested progression:** double progression from the ghost. Hit the top of the rep range on every set and the next weight up is suggested (2.5 kg barbell, 2 kg dumbbell, the machine's step, or your own Weight jump in the exercise's ⋯ menu); otherwise one more rep on the first set that fell short. The inputs start on the suggestion, with a small badge on the box that moved on ("+1" on reps, "+2.5" on weight, grey "Eased" when readiness lowered the load, which is applied after the progression). Change the numbers and "↺ Reset" puts the suggestion back.
 - **Readiness check-in:** three taps (sleep, soreness, energy) adjust today's loads.
 - **Muscle heat map:** an anatomical front and back body map of weekly sets per muscle against a 10–20 set target.
 - **Programs:** suggested splits for 2 to 6 days a week, or build your own for 1 to 7 days.

@@ -37,7 +37,7 @@ marketing site (`/Rival/`) report to it, so a visit, a click on "Open the app" a
 | `offline_set_queued` | A set is logged while offline and signed in | `exercise_id`, `pending` (changes waiting to sync) |
 | `sync_completed` | The sync worker finishes sending changes | `rows` (rows sent) |
 | `progression_suggested` | A workout's targets are drawn up for an exercise with a ghost (at Start, or when one is added, swapped or changes attachment), once per exercise per workout | `exercise_id`, `type`: `'weight'` (every set hit the top last time, so the next weight up) or `'reps'` (same weight, one more rep), `eased` (readiness lowered the load today) |
-| `progression_accepted` | The first set of an exercise that moves on from its ghost is logged at the suggested weight and reps, once per exercise per workout | `exercise_id`, `type` (as above), `via`: `'prefill'` (logged as pre-filled) or `'tap'` (the "Try" hint was tapped to put the suggestion back) |
+| `progression_accepted` | The first set of an exercise that moves on from its ghost is logged at the suggested weight and reps, once per exercise per workout | `exercise_id`, `type` (as above), `via`: `'prefill'` (logged as pre-filled) or `'tap'` (the numbers were changed and "↺ Reset" was tapped to put the suggestion back) |
 | `cta_clicked` | Marketing site: a link into the app is clicked | `location` (`nav`, `hero`, `closing` or the section id), `label` (button text) |
 
 PostHog's own events also arrive: `$pageview`, `$autocapture`, `$pageleave`, `$identify`, `$web_vitals`, and
