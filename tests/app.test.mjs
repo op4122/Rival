@@ -616,7 +616,10 @@ console.log('Supersets');
   ok(ce.length === 1 && ce[0].size === 2 && ce[0].where === 'plan', 'superset_created size 2: ' + JSON.stringify(ce));
   await p.keyboard.press('Escape'); await p.waitForTimeout(400);
   await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
-  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0 && await p.locator('.sheet [data-act=slotunlink]').count() === 1, 'A2 shows the group with Unlink');
+  ok(await p.locator('.sheet [data-act=slotunlink]').count() === 1, 'A2 shows the group with Unlink');
+  // BUG-1: A2 of a pair can still bring the next exercise in as A3
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 1 && /Link with the next one\s*Adds EZ-Bar Curl as A3/.test(await p.locator('.sheet').textContent()), 'A2 of 2 also offers "Link with the next one" (adds EZ-Bar Curl as A3)');
+  ok(await p.evaluate(() => window.RivalSuperset.ssCanLink([{ ln: 1 }, {}, {}], 0)) === 0, 'already linked to the next one: ssCanLink says no');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
   ok(JSON.stringify(await labels(p)) === JSON.stringify(['A1', 'A2']) && await p.locator('.day .ssg').count() === 1, 'plan shows A1 / A2 and one shared bar');
   ok(await p.locator('.day .ssg').evaluate(el => getComputedStyle(el, '::before').backgroundColor !== 'rgba(0, 0, 0, 0)'), 'the bar is coloured');
@@ -806,6 +809,23 @@ console.log('Superset links on remove and move (BUG-3/4)');
   await q.locator('#toasts button').click(); await q.waitForTimeout(400);
   ok(await q.locator('#wo .ss-l').count() === 2, 'logger Undo restores the pair');
   await q.context().close();
+}
+
+// ---------- BUG-1: an exercise in a group can link the next one ----------
+console.log('Link a third (BUG-1)');
+{
+  const sl = (id, ln) => ({ id, sets: 3, lo: 8, hi: 12, ...(ln ? { ln: 1 } : {}) });
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, days: [{ name: 'Upper', ex: [sl('bench', 1), sl('bbrow'), sl('ezcurl'), sl('squat')] }] }, sessions: [], active: null });
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  ok(await p.locator('.sheet [data-act=slotunlink]').count() === 1 && await p.locator('.sheet [data-act=slotlink]').count() === 1, 'A2 of 2 shows Unlink and "Link with the next one"');
+  await p.locator('.sheet [data-act=slotlink]').click(); await p.waitForTimeout(300);
+  ok(/A1 Barbell Bench Press, A2 Barbell Row, A3 EZ-Bar Curl/.test(await p.locator('.sheet').textContent()), 'linked: bench, row and curl are A1 A2 A3');
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0, 'group of 3 is full: no more Link');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="0"]').click(); await p.waitForTimeout(400);
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0, 'A1 (already linked to A2) shows no Link');
+  await p.context().close();
 }
 
 // ---------- settings tab: appearance, help, feedback ----------

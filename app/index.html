@@ -1413,9 +1413,11 @@ function ssGroups(list) {
   }
   return out;
 }
-// Can item i be linked to the one after it without making a group bigger than 3? Returns the new group size, or 0.
+// Can item i be linked to the one after it without making a group bigger than 3? Returns the new group size, or 0
+// (also 0 when the two are already in the same group).
 function ssCanLink(list, i) {
   if (i < 0 || i >= list.length - 1) return 0;
+  const now = ssGroups(list); if (now[i] && now[i + 1] && now[i].g === now[i + 1].g) return 0;
   const g = ssGroups(list.map((x, k) => ({ln:k === i ? 1 : x.ln})));
   return g[i] && g[i + 1] && g[i].g === g[i + 1].g ? g[i].size : 0;
 }
@@ -3432,9 +3434,11 @@ let slotCtx = null, noteT = 0, wuT = 0;
 // The Superset row in the plan's exercise sheet and the logger's ⋯ menu. kind: 'slot' (plan) or 'ex' (logger).
 function ssRowHTML(list, i, kind, ei) {
   const gi = ssGroups(list)[i], nm = x => esc(EX[x.id || x.exId] ? EX[x.id || x.exId].n : (x.id || x.exId)), de = ei != null ? ` data-e="${ei}"` : '';
-  if (gi) return `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">${list.slice(gi.start, gi.end + 1).map((x, k) => gi.g + (k + 1) + ' ' + nm(x)).join(', ')}</span></span><button class="link" data-act="${kind}unlink"${de}>Unlink</button></div>`;
-  const nx = ssCanLink(list, i) ? list[i + 1] : null;
-  return nx ? `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">Alternate sets with ${nm(nx)}, rest after each round</span></span><button class="link" data-act="${kind}link"${de}>Link</button></div>` : '';
+  // Both rows can show: an exercise already in a group can still bring the next one in (A2 of 2 adds an A3).
+  const size = ssCanLink(list, i), nx = size ? list[i + 1] : null;
+  const unlink = gi ? `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">${list.slice(gi.start, gi.end + 1).map((x, k) => gi.g + (k + 1) + ' ' + nm(x)).join(', ')}</span></span><button class="link" data-act="${kind}unlink"${de}>Unlink</button></div>` : '';
+  const link = nx ? `<div class="set-row"><span>Link with the next one<span class="menu-s" style="display:block">${gi ? `Adds ${nm(nx)} as ${gi.g}${size}` : `Alternate sets with ${nm(nx)}, rest after each round`}</span></span><button class="link" data-act="${kind}link"${de}>Link</button></div>` : '';
+  return unlink + link;
 }
 
 
