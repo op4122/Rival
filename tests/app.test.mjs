@@ -959,6 +959,89 @@ console.log('Name for email sign-ups');
   await p.context().close();
 }
 
+console.log('Rival chips offline');
+{ // online start fills the cache
+  const p = await fakePhone();
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(1200);
+  ok(JSON.stringify(await chips(p)) === JSON.stringify(['Sara 85 × 6', 'Sara 85 × 5']), 'online: Sara\'s chips as before ' + JSON.stringify(await chips(p)));
+  const c = await rvCache(p);
+  ok(c && Object.keys(c).join() === 'bench' && c.bench.name === 'Sara' && JSON.stringify(c.bench.sets) === JSON.stringify([{ w: 85, r: 6 }, { w: 85, r: 5 }]) && Date.now() - c.bench.fetchedAt < 20000 && c.bench.at > 0, 'rival.rvcache: {bench: {name, at, sets, fetchedAt}} ' + JSON.stringify(c));
+  // next session: no signal at all
+  await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('rival.v1')); s.active = null; localStorage.setItem('rival.v1', JSON.stringify(s)); });
+  await p.reload(); await p.waitForTimeout(800);
+  await p.context().setOffline(true);
+  const calls = await p.evaluate(() => window.__fake.log.filter(x => x.rpc).length);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+  ok(JSON.stringify(await chips(p)) === JSON.stringify(['Sara 85 × 6', 'Sara 85 × 5']), 'offline start: chips come from the cache ' + JSON.stringify(await chips(p)));
+  ok(/Racing Sara/.test(await p.locator('#rv-bar').textContent()), 'offline: "Racing Sara"');
+  ok(await p.evaluate(n => window.__fake.log.filter(x => x.rpc).length === n, calls), 'offline: no request made');
+  await p.locator('[data-act=rvtoggle][data-v="0"]').click(); await p.waitForTimeout(200);
+  ok(await p.locator('.set .rv-g').count() === 0, 'offline: the toggle still hides them');
+  await p.locator('[data-act=rvtoggle][data-v="1"]').click(); await p.waitForTimeout(200);
+  await p.fill('#w-0-0', '90'); await p.fill('#r-0-0', '6'); await p.locator('.set[data-s="0"] [data-act=log]').click(); await p.waitForTimeout(1300);
+  ok(await p.locator('.set[data-s="0"] .rv-g.won').count() === 1 && /You beat Sara on/.test(await p.locator('#toasts').textContent()), 'offline: beating a cached ghost ticks the chip and shows the toast');
+  // signal back: a refresh replaces what was remembered
+  await p.context().setOffline(false);
+  await p.evaluate(sara => { window.__fakeSeed.ghosts[sara][0].weight = 87.5; }, SARA);
+  await p.locator('[data-act=rvtoggle][data-v="0"]').click(); await p.waitForTimeout(200); await p.locator('[data-act=rvtoggle][data-v="1"]').click(); await p.waitForTimeout(1200);
+  ok((await chips(p))[0] === 'Sara 87.5 × 6', 'online again: refreshed from the server ' + JSON.stringify(await chips(p)));
+  ok((await rvCache(p)).bench.sets[0].w === 87.5 && (await state(p)).active.rv.bench.cached === undefined, 'cache updated, entry no longer marked as remembered');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+{ // 30 days
+  const entry = ago => ({ bench: { name: 'Sara', at: Date.now() - 40 * 86400000, sets: [{ w: 85, r: 6 }], fetchedAt: Date.now() - ago * 86400000 } });
+  for (const [days, expect] of [[29, 1], [31, 0]]) {
+    const p = await fakePhone({ cache: entry(days) });
+    await p.context().setOffline(true);
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+    ok(await p.locator('.set .rv-g').count() === expect, `cache entry ${days} days old: ${expect ? 'used' : 'ignored'}`);
+    await p.context().close();
+  }
+  const p = await fakePhone({ cache: { bench: { name: 'Sara', at: 1, sets: [{ w: 'x', r: 6 }], fetchedAt: Date.now() } } });
+  await p.context().setOffline(true);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+  ok(await p.locator('.set .rv-g').count() === 0 && p.errors.length === 0, 'a damaged cache entry is ignored, no errors');
+  await p.context().close();
+}
+{ // a failed request is not "no rivals"
+  const cache = { bench: { name: 'Sara', at: Date.now() - 86400000, sets: [{ w: 80, r: 8 }], fetchedAt: Date.now() - 86400000 } };
+  const p = await fakePhone({ cache });
+  await p.evaluate(() => { window.__fake.failRpc = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(1500);
+  ok((await chips(p))[0] === 'Sara 80 × 8' && JSON.stringify(await rvCache(p)) === JSON.stringify(cache), 'online but the server errors: remembered chips and cache stay');
+  await p.context().close();
+}
+{ // no rivals: cache gone, and the remembered chips leave the workout
+  const cache = { bench: { name: 'Sara', at: Date.now() - 86400000, sets: [{ w: 80, r: 8 }], fetchedAt: Date.now() - 86400000 } };
+  const p = await fakePhone({ rivals: false, cache });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(1500);
+  ok(await p.locator('.set .rv-g').count() === 0 && await rvCache(p) === null, 'no rivals: cache cleared and no chips');
+  ok(!(await state(p)).active.rv || !(await state(p)).active.rv.bench, 'the remembered ghost is not kept in the workout either');
+  await p.context().close();
+}
+{ // a rival with nothing to show any more: their old ghost goes
+  const p = await fakePhone();
+  await p.evaluate(() => { window.__fakeSeed.ghosts = {}; window.__fake.tables.profiles.find(x => x.display_name === 'Sara Test').share_lifts = false; });
+  await p.evaluate(() => localStorage.setItem('rival.rvcache', JSON.stringify({ bench: { name: 'Sara', at: Date.now() - 86400000, sets: [{ w: 80, r: 8 }], fetchedAt: Date.now() - 86400000 } })));
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(1500);
+  ok(await p.locator('.set .rv-g').count() === 0 && await rvCache(p) === null, 'rival switched sharing off: the next online workout drops the remembered ghost');
+  await p.context().close();
+}
+{ // removing a rival, signing out
+  const cache = { bench: { name: 'Sara', at: Date.now() - 86400000, sets: [{ w: 80, r: 8 }], fetchedAt: Date.now() - 86400000 } };
+  const p = await fakePhone({ cache });
+  await p.locator('[data-act=tab][data-tab=settings]').click(); await p.waitForTimeout(800);
+  ok(await rvCache(p) !== null, 'cache present before');
+  await p.locator('#rivals [data-act=rvremove]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=rvremoveok]').click(); await p.waitForTimeout(800);
+  ok(await rvCache(p) === null, 'removing a rival clears the cache');
+  await p.evaluate(() => localStorage.setItem('rival.rvcache', JSON.stringify({ bench: { name: 'Sara', at: 1, sets: [{ w: 80, r: 8 }], fetchedAt: Date.now() } })));
+  await p.locator('[data-act=authsignout]').click(); await p.waitForTimeout(800);
+  ok(await rvCache(p) === null, 'signing out clears the cache');
+  await p.context().close();
+}
+
 // ---------- BUG-8: plateau cards only where they help ----------
 console.log('Plateau rules (BUG-8)');
 {

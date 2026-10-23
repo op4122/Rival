@@ -1,10 +1,11 @@
 // A tiny in-memory stand-in for the Supabase client, for offline browser tests (npm test).
 // Load it with page.addInitScript({ path }) BEFORE the page loads, after setting window.__fakeSeed:
 //   { me: {id, display_name, share_lifts}, users: [{id, display_name, share_lifts}], rivals: [[a, b]], codes: [{code, user_id}],
-//     ghosts: {<user id>: [{set_index, weight, reps, started_at}]} }
+//     ghosts: {<user id>: [{set_index, weight, reps, started_at}]}, exercises: [{id, slug, user_id}] (default: bench and row) }
 // It pins window.rivalDb to the fake (app/supabase.js can't replace it) and keeps everything in window.__fake for checks:
-//   __fake.tables (profiles, rivals, invite_codes), __fake.log (every call). It mirrors the real Row Level Security only as
-// far as these tests need: you see your own invite code, rivals rows you're part of, and your own profile.
+//   __fake.tables (profiles, rivals, invite_codes, exercises), __fake.log (every call), __fake.me, and __fake.failRpc (true: get_rival_ghost
+//   answers with an error). signOut() tells the app's onAuthStateChange listener, as the real client does. It mirrors the real Row Level
+// Security only as far as these tests need: you see your own invite code, rivals rows you're part of, and your own profile.
 (function () {
   const seed = window.__fakeSeed || {};
   const me = seed.me || { id: '00000000-0000-4000-8000-000000000001', display_name: 'Test Me', share_lifts: false };
@@ -13,8 +14,11 @@
     profiles: users.map(u => ({ id: u.id, display_name: u.display_name || null, share_lifts: !!u.share_lifts, settings: {} })),
     rivals: (seed.rivals || []).map(([a, b]) => (a < b ? { user_a: a, user_b: b } : { user_a: b, user_b: a })),
     invite_codes: (seed.codes || []).slice(),
+    exercises: (seed.exercises || [{ id: '10000000-0000-4000-8000-000000000001', slug: 'bench', user_id: null }, { id: '10000000-0000-4000-8000-000000000002', slug: 'bbrow', user_id: null }]).map(e => ({ user_id: null, ...e })),
   };
+  let authCb = null, signedIn = true;
   const log = [];
+  const trip = () => new Promise(r => setTimeout(r, 30)); // a real round trip takes time; instant answers would finish before the screen's own animations
   const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   const visible = (t, r) => t === 'invite_codes' ? r.user_id === me.id : t === 'rivals' ? (r.user_a === me.id || r.user_b === me.id) : t === 'profiles' ? r.id === me.id : true;
   function query(t) {
@@ -43,22 +47,24 @@
       update(v) { q.op = 'update'; q.values = v; return b; }, delete() { q.op = 'delete'; return b; },
       eq(c, v) { q.filters.push([c, v]); return b; }, neq() { return b; }, in() { return b; }, is() { return b; }, order() { return b; }, limit() { return b; },
       maybeSingle() { q.one = 'maybe'; return b; }, single() { q.one = 'single'; return b; },
-      then(res, rej) { return Promise.resolve().then(run).then(res, rej); },
+      then(res, rej) { return trip().then(run).then(res, rej); },
     };
     return b;
   }
   const linked = id => T.rivals.some(r => (r.user_a === me.id && r.user_b === id) || (r.user_b === me.id && r.user_a === id));
   const fake = {
     auth: {
-      getSession: () => Promise.resolve({ data: { session: { user: { id: me.id, email: 'me@example.test', created_at: '2026-01-01T00:00:00Z' } } }, error: null }),
-      getUser: () => Promise.resolve({ data: { user: { id: me.id } } }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
-      signOut: () => Promise.resolve({ error: null }), signInWithOAuth: () => Promise.resolve({ error: null }), signInWithOtp: () => Promise.resolve({ error: null }),
+      getSession: () => Promise.resolve({ data: { session: signedIn ? { user: { id: me.id, email: 'me@example.test', created_at: '2026-01-01T00:00:00Z' } } : null }, error: null }),
+      getUser: () => Promise.resolve({ data: { user: signedIn ? { id: me.id } : null } }),
+      onAuthStateChange: cb => { authCb = cb; return { data: { subscription: { unsubscribe() {} } } }; },
+      signOut: () => { signedIn = false; if (authCb) authCb('SIGNED_OUT', null); return Promise.resolve({ error: null }); }, signInWithOAuth: () => Promise.resolve({ error: null }), signInWithOtp: () => Promise.resolve({ error: null }),
     },
     from: query,
-    rpc(fn, a) {
+    rpc(fn, a) { return trip().then(() => fake.rpc0(fn, a)); },
+    rpc0(fn, a) {
       log.push({ rpc: fn, args: a });
       if (fn === 'get_rival_ghost') {
+        if (window.__fake.failRpc) return Promise.resolve({ data: null, error: { message: 'boom' } });
         if (!linked(a.p_rival_id)) return Promise.resolve({ data: [], error: null });
         const u = T.profiles.find(p => p.id === a.p_rival_id) || {}, name = (u.display_name || '').split(' ')[0] || null, sets = (seed.ghosts || {})[a.p_rival_id];
         return Promise.resolve({ data: a.p_exercise_id && u.share_lifts && sets ? sets.map(s => ({ display_name: name, ...s })) : [{ display_name: name, started_at: null, set_index: null, weight: null, reps: null }], error: null });

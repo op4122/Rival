@@ -2503,6 +2503,29 @@ async function authInit() {
 const RV_KEY = 'rival.invite';
 const RV = {list:null, code:null, loading:false};
 const rvName = n => n || 'Rival';
+/* Rival ghosts the phone has seen, kept per exercise ({name, at, sets, fetchedAt}) so a workout started with no signal (the gym
+   basement) still has the chips. Written when rvFetch succeeds, replaced by every fresh fetch, cleared on sign-out, when a rival
+   is removed and when there are no rivals. Entries older than 30 days are not used. */
+const RVC_KEY = 'rival.rvcache', RVC_DAYS = 30;
+let rvcGen = 0; // bumps on every clear, so a fetch that was already running can't write the cache back afterwards
+const rvcOk = c => isObj(c) && fin(c.fetchedAt) && fin(c.at) && (c.name == null || typeof c.name === 'string') && Array.isArray(c.sets) && c.sets.length > 0 && c.sets.length <= 20
+  && c.sets.every(x => isObj(x) && fin(x.w) && x.w >= 0 && Number.isInteger(x.r) && x.r > 0);
+function rvcRead() { try { const m = JSON.parse(localStorage.getItem(RVC_KEY)); return isObj(m) ? m : {}; } catch (e) { return {}; } }
+function rvcWrite(m) {
+  const keep = {}; Object.keys(m).forEach(k => { if (rvcOk(m[k]) && Date.now() - m[k].fetchedAt <= RVC_DAYS * DAY) keep[k] = m[k]; });
+  try { if (Object.keys(keep).length) localStorage.setItem(RVC_KEY, JSON.stringify(keep)); else localStorage.removeItem(RVC_KEY); } catch (e) {}
+}
+function rvcClear() { rvcGen++; try { localStorage.removeItem(RVC_KEY); } catch (e) {} }
+// Workout start: chips from the cache for the exercises in it. rvFetch then refreshes them when online.
+function rvFill(a) {
+  if (!db || !authUid() || !a) return;
+  const m = rvcRead();
+  a.entries.forEach(en => {
+    const c = m[en.exId]; if (!rvcOk(c) || Date.now() - c.fetchedAt > RVC_DAYS * DAY || (isObj(a.rv) && en.exId in a.rv)) return;
+    if (!isObj(a.rv)) a.rv = {};
+    a.rv[en.exId] = {name:c.name || null, at:c.at, sets:c.sets.map(x => ({w:x.w, r:x.r})), cached:1};
+  });
+}
 const inviteUrl = code => location.origin + location.pathname + '#rival=' + code;
 // An invite link opened: keep the code until the person is signed in, and tidy the address bar.
 function rvCapture() {
@@ -2521,6 +2544,7 @@ async function rvLoad(force) {
     const ids = (r.data || []).map(x => x.user_a === me ? x.user_b : x.user_a);
     const names = await Promise.all(ids.map(id => db.rpc('get_rival_ghost', {p_rival_id:id, p_exercise_id:null}).then(x => x.data && x.data[0] ? x.data[0].display_name : null, () => null)));
     RV.list = ids.map((id, i) => ({id, name:names[i]})); RV.code = c.data ? c.data.code : null;
+    if (!RV.list.length) rvcClear();
   } catch (e) { if (!RV.list) RV.list = null; }
   return RV.list || [];
 }
@@ -2568,7 +2592,7 @@ async function rvAccept() {
 }
 onAuth((user, event) => {
   if (user) { meLoad(); RV.list = null; if (rvPending()) setTimeout(rvAccept, 300); }
-  else { RV.list = null; RV.code = null; if (S.profile.dname || S.profile.shareLifts) { delete S.profile.dname; S.profile.shareLifts = false; persist(); } }
+  else { RV.list = null; RV.code = null; rvcClear(); if (S.profile.dname || S.profile.shareLifts) { delete S.profile.dname; S.profile.shareLifts = false; persist(); } }
 });
 function rivalsHTML() {
   if (!db) return '';
@@ -2602,23 +2626,34 @@ async function rvFetch(a) {
   if (rvBusy || !db || !authUid() || !navigator.onLine || !a) return;
   rvBusy = true;
   try {
-    const list = await rvLoad(); if (!list.length) return;
-    const map = await Sync.exMap();
-    a.rv = isObj(a.rv) ? a.rv : {};
-    const want = [...new Set(a.entries.map(e => e.exId))].filter(id => !(id in a.rv) && map[id]);
-    if (!want.length) return;
-    await Promise.all(want.map(async id => {
-      const res = await Promise.all(list.map(r => db.rpc('get_rival_ghost', {p_rival_id:r.id, p_exercise_id:map[id]}).then(x => x.data || [], () => [])));
-      let best = null;
-      res.forEach(rows => { const sets = rows.filter(x => x.set_index != null && x.weight != null && x.reps > 0); if (!sets.length) return;
-        const at = Date.parse(sets[0].started_at); if (!best || at > best.at) best = {name:sets[0].display_name || null, at, sets:sets.map(x => ({w:+x.weight, r:x.reps}))}; });
-      a.rv[id] = best;
-    }));
-    if (S.active !== a) return;
+    const list = await rvLoad(), gen = rvcGen, cache = rvcRead(), moved = new Set(); // moved: exercises whose chips changed
+    let dirty = false;
+    if (!list.length) { // no rivals (RV.list stays unset when the load failed): ghosts the phone remembered don't belong here
+      if (!RV.list || !isObj(a.rv)) return;
+      Object.keys(a.rv).forEach(id => { if (a.rv[id] && a.rv[id].cached) { delete a.rv[id]; moved.add(id); dirty = true; } });
+    } else {
+      const map = await Sync.exMap();
+      a.rv = isObj(a.rv) ? a.rv : {};
+      const want = [...new Set(a.entries.map(e => e.exId))].filter(id => map[id] && (!(id in a.rv) || (a.rv[id] && a.rv[id].cached)));
+      await Promise.all(want.map(async id => {
+        let bad = false; // a rival we couldn't ask is not the same as a rival with nothing to show
+        const res = await Promise.all(list.map(r => db.rpc('get_rival_ghost', {p_rival_id:r.id, p_exercise_id:map[id]}).then(x => { if (x.error) bad = true; return x.data || []; }, () => { bad = true; return []; })));
+        let best = null;
+        res.forEach(rows => { const sets = rows.filter(x => x.set_index != null && x.weight != null && x.reps > 0); if (!sets.length) return;
+          const at = Date.parse(sets[0].started_at); if (!best || at > best.at) best = {name:sets[0].display_name || null, at, sets:sets.map(x => ({w:+x.weight, r:x.reps}))}; });
+        dirty = true;
+        if (bad && a.rv[id]) { delete a.rv[id].cached; return; } // keep what the phone remembered; don't ask again this workout
+        if (a.rv[id] || best) moved.add(id);
+        a.rv[id] = best;
+        if (!bad) { if (best) cache[id] = {name:best.name, at:best.at, sets:best.sets, fetchedAt:Date.now()}; else delete cache[id]; }
+      }));
+      if (want.length && gen === rvcGen) rvcWrite(cache);
+    }
+    if (S.active !== a || !dirty) return;
     persist();
     if (!wo.classList.contains('open')) return;
     const bar = $('#rv-bar'); if (bar) bar.innerHTML = rvBarHTML();
-    a.entries.forEach((en, ei) => { const sec = wo.querySelector(`.ex[data-e="${ei}"]`); if (a.rv[en.exId] && sec && !sec.contains(document.activeElement)) refreshEx(ei); });
+    a.entries.forEach((en, ei) => { const sec = wo.querySelector(`.ex[data-e="${ei}"]`); if (moved.has(en.exId) && sec && !sec.contains(document.activeElement)) refreshEx(ei); });
   } catch (e) {} finally { rvBusy = false; }
 }
 function rvBarHTML() {
@@ -2863,6 +2898,7 @@ function startWorkout(idx, o) {
       sets: planSets(sl, tier)}))
   };
   markPlateaus(S.active);
+  rvFill(S.active);
   persist(); openWorkout();
   A.track('workout_started', {mode:S.active.mode, exercise_count:S.active.entries.length});
   S.active.entries.forEach(trackSuggested); persist();
@@ -3771,7 +3807,7 @@ const acts = {
     const id = el.dataset.id, me = authUid(), [ua, ub] = me < id ? [me, id] : [id, me];
     const {error} = await db.from('rivals').delete().eq('user_a', ua).eq('user_b', ub);
     if (error) { toast("Couldn't remove. Try again."); return; }
-    RV.list = (RV.list || []).filter(r => r.id !== id); closeSheet(); render();
+    RV.list = (RV.list || []).filter(r => r.id !== id); rvcClear(); closeSheet(); render();
     const del = await db.from('invite_codes').delete().eq('user_id', me);
     const fresh = del.error ? del : await db.from('invite_codes').insert({}).select('code').single();
     if (fresh.error) { RV.code = del.error ? RV.code : null; render(); toast("Rival removed. Couldn't reset your invite link: revoke it below."); return; }
