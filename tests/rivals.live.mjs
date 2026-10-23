@@ -123,7 +123,7 @@ console.log('Remove and revoke');
 await A.goto(URL + '#rival=' + code); await A.waitForTimeout(3500);
 ok(A.toasts.some(t => /your own invite/.test(t)), 'own link: "That\'s your own invite link"');
 await settings(B);
-await B.locator('#rivals [data-act=rvremove]').click(); await B.waitForTimeout(1500);
+await B.locator('#rivals [data-act=rvremove]').click(); await B.waitForTimeout(400); await B.locator('.sheet [data-act=rvremoveok]').click(); await B.waitForTimeout(1500);
 ok(JSON.stringify(await q(B, 'rivals')) === '[]' && JSON.stringify(await q(A, 'rivals')) === '[]', 'B removes Sara: gone for both');
 ok(JSON.stringify(await rpc(B, 'get_rival_ghost', { p_rival_id: A.uid, p_exercise_id: null })) === '[]', 'after removal: nothing, not even the name');
 await settings(A);

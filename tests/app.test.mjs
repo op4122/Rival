@@ -465,7 +465,7 @@ console.log('Plateau and deload hints');
     profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: rq,
       days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }, { id: 'squat', sets: 3, lo: 6, hi: 8 }, { id: 'bbrow', sets: 4, lo: 8, hi: 12 }] }], ...profile },
     sessions: [10, 7, 4, 2].map((ago, i) => ({ id: 'p' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, readiness, entries: [
-      { exId: 'bench', sets: s3(80, 8) }, { exId: 'squat', sets: s3(100 + i * 5, 8) }, { exId: 'bbrow', sets: s3(rowW[i], 10) }] })), active: null });
+      { exId: 'bench', sets: s3(80, 7) }, { exId: 'squat', sets: s3(100 + i * 5, 8) }, { exId: 'bbrow', sets: s3(rowW[i], 10) }] })), active: null });
   const spy = () => { window.__ev = []; let real; Object.defineProperty(window, 'RivalAnalytics', { configurable: true, get: () => real,
     set: v => { real = Object.assign({}, v, { track: (n, p) => { window.__ev.push([n, p]); } }); } }); };
   async function open(seed, w = 390) {
@@ -505,7 +505,8 @@ console.log('Plateau and deload hints');
   ok(det.length === 1 && det[0].exercise_id === 'bench' && det[0].sessions === 3, 'plateau_detected once for bench: ' + JSON.stringify(det));
   ok(await noHScroll(p), 'no sideways scroll with the card');
   await p.locator('.ex[data-e="0"] [data-act=pllight]').click(); await p.waitForTimeout(300);
-  ok(await p.inputValue('#w-0-0') === '75' && await p.inputValue('#w-0-2') === '75', 'lighter: 82.5 suggested → 75 kg (−10%, rounded to a plate)');
+  ok(await p.inputValue('#w-0-0') === '72.5' && await p.inputValue('#w-0-2') === '72.5', 'lighter: 80 → 72.5 kg (−10%, rounded to a plate)');
+  ok(await p.inputValue('#r-0-0') === '7' && await p.inputValue('#r-0-2') === '7', "BUG-8: lighter keeps the ghost's reps (7), not the progression's +1 (8)");
   ok((await p.locator('.set[data-e="0"][data-s="0"] .sug-b:not([hidden])').textContent()) === '−10%', 'labelled "−10%"');
   ok(await p.locator('.plat').count() === 0, 'card gone after acting');
   let act = await ev(p, 'plateau_action');
@@ -525,7 +526,7 @@ console.log('Plateau and deload hints');
   const d = await open(plSeed()); await startW(d);
   await d.locator('.ex[data-e="0"] [data-act=plx]').click(); await d.waitForTimeout(200);
   ok(await d.locator('.plat').count() === 0 && (await ev(d, 'plateau_action'))[0].action === 'dismiss', 'dismiss hides the card, plateau_action dismiss');
-  ok(await d.inputValue('#w-0-0') === '82.5', 'dismiss leaves the weights alone');
+  ok(await d.inputValue('#w-0-0') === '80' && await d.inputValue('#r-0-0') === '8', 'dismiss leaves the suggestion alone (80 × 8)');
   await d.context().close();
   const w = await open(plSeed()); await startW(w);
   await w.locator('.ex[data-e="0"] [data-act=plswap]').click(); await w.waitForTimeout(500);
@@ -549,7 +550,7 @@ console.log('Plateau and deload hints');
   ok(/Deload week/.test(await q.locator('.ovr.deload').textContent()) && await q.locator('[data-act=dlok]').count() === 0, 'banner replaces the offer');
   await startW(q);
   ok(await q.locator('.ex[data-e="0"] .set').count() === 2 && await q.locator('.ex[data-e="2"] .set').count() === 2, 'deload: bench 3 → 2 sets, row 4 → 2');
-  ok(await q.inputValue('#w-0-0') === '80' && await q.inputValue('#r-0-0') === '8', 'same weights as last time, no progression, no easing (80 × 8)');
+  ok(await q.inputValue('#w-0-0') === '80' && await q.inputValue('#r-0-0') === '7', 'same weights as last time, no progression, no easing (80 × 7)');
   ok(await q.locator('.plat').count() === 0 && await q.locator('.sug-b:not([hidden])').count() === 0, 'no plateau cards or badges during a deload');
   ok(/Deload week/.test(await q.locator('.adjust-note').textContent()), 'workout says it is a deload week');
   // Swapping inside a deload keeps the set count
@@ -616,7 +617,10 @@ console.log('Supersets');
   ok(ce.length === 1 && ce[0].size === 2 && ce[0].where === 'plan', 'superset_created size 2: ' + JSON.stringify(ce));
   await p.keyboard.press('Escape'); await p.waitForTimeout(400);
   await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
-  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0 && await p.locator('.sheet [data-act=slotunlink]').count() === 1, 'A2 shows the group with Unlink');
+  ok(await p.locator('.sheet [data-act=slotunlink]').count() === 1, 'A2 shows the group with Unlink');
+  // BUG-1: A2 of a pair can still bring the next exercise in as A3
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 1 && /Link with the next one\s*Adds EZ-Bar Curl as A3/.test(await p.locator('.sheet').textContent()), 'A2 of 2 also offers "Link with the next one" (adds EZ-Bar Curl as A3)');
+  ok(await p.evaluate(() => window.RivalSuperset.ssCanLink([{ ln: 1 }, {}, {}], 0)) === 0, 'already linked to the next one: ssCanLink says no');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
   ok(JSON.stringify(await labels(p)) === JSON.stringify(['A1', 'A2']) && await p.locator('.day .ssg').count() === 1, 'plan shows A1 / A2 and one shared bar');
   ok(await p.locator('.day .ssg').evaluate(el => getComputedStyle(el, '::before').backgroundColor !== 'rgba(0, 0, 0, 0)'), 'the bar is coloured');
@@ -734,6 +738,216 @@ console.log('Share card');
   await q.locator('.share-prev').screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/card-dark.png' : '/dev/null' }).catch(() => {});
   ok(q.errors.length === 0, 'no console errors ' + q.errors.join(' | '));
   await q.context().close();
+}
+
+// ---------- BUG-5: superset cards fit narrow phones ----------
+console.log('Superset layout (BUG-5)');
+{
+  const seed = { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: true,
+    days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8, ln: 1 }, { id: 'pushdown__rope', sets: 3, lo: 8, hi: 12, ln: 1 }, { id: 'bbrow', sets: 3, lo: 8, hi: 12 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: Date.now() - 2 * 86400000, dur: 50, entries: [{ exId: 'bench', sets: [{ w: 100, r: 8 }, { w: 100, r: 8 }, { w: 100, r: 8 }] }] }], active: null };
+  for (const w of [320, 360, 390]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: 800 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+    await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed));
+    await p.goto(URL); await p.waitForTimeout(600);
+    await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+    const m = await p.evaluate(() => ({ list: document.querySelector('#wo-list').getBoundingClientRect().right,
+      right: Math.max(...[...document.querySelectorAll('#wo .ssg .ex, #wo .ssg .set')].map(e => e.getBoundingClientRect().right)),
+      over: [...document.querySelectorAll('#wo .ssg')].some(g => g.scrollWidth > g.clientWidth + 1) }));
+    ok(m.right <= m.list + 0.5 && m.right <= w && !m.over, `${w} px: superset cards (with an attachment row) stay inside the screen (right edge ${Math.round(m.right)} ≤ ${Math.round(m.list)})`);
+    await ctx.close();
+  }
+}
+
+// ---------- BUG-3/BUG-4: removing or moving a plan exercise keeps every other link ----------
+console.log('Superset links on remove and move (BUG-3/4)');
+{
+  const seed = ex => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, days: [{ name: 'Upper', ex }] }, sessions: [], active: null });
+  const sl = (id, ln) => ({ id, sets: 3, lo: 8, hi: 12, ...(ln ? { ln: 1 } : {}) });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+  p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(seed([sl('bench', 1), sl('bbrow'), sl('ezcurl'), sl('squat')])));
+  await p.goto(URL); await p.waitForTimeout(600);
+  // The rule, on letters: names are the items, a "+" after one means it links to the next.
+  const run = (list, op, i, d) => p.evaluate(([list, op, i, d]) => {
+    const l = list.map(n => ({ n: n.replace('+', ''), ...(n.endsWith('+') ? { ln: 1 } : {}) })), S = window.RivalSuperset;
+    if (op === 'rm') S.ssRemove(l, i); else S.ssMove(l, i, d);
+    const g = S.ssGroups(l); return l.map((x, k) => x.n + (g[k] ? g[k].g + g[k].n : '')).join(' ');
+  }, [list, op, i, d]);
+  ok(await run(['a+', 'b', 'c'], 'rm', 1) === 'a c', 'remove the last member of a pair: the one before does not join the next exercise');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'rm', 2) === 'aA1 bA2 d', 'remove the last of three: A1 A2 stay, the next exercise does not join');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'rm', 1) === 'aA1 cA2 d', 'remove the middle of three: the other two stay a pair');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'rm', 0) === 'bA1 cA2 d', 'remove the first: the rest stay');
+  ok(await run(['x', 'a+', 'b', 'c'], 'rm', 0) === 'aA1 bA2 c', 'remove an exercise outside the group: group unchanged');
+  ok(await run(['a+', 'b', 'c'], 'mv', 1, 1) === 'a c b', 'move the last of a pair down: it leaves, and the one before does not link to the next');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'mv', 2, 1) === 'aA1 bA2 d c', 'move the last of three down: it leaves, A1 A2 stay');
+  ok(await run(['a+', 'b+', 'c', 'd'], 'mv', 0, 1) === 'bA1 aA2 cA3 d', 'move within the group: order changes, group stays');
+  ok(await run(['x', 'a+', 'b', 'c'], 'mv', 0, 1) === 'aA1 bA2 x c', 'move an outside exercise down: it jumps over the group, never lands inside it');
+  ok(await run(['a+', 'b', 'x'], 'mv', 2, -1) === 'x aA1 bA2', 'and up: it jumps over the whole group');
+  ok(await run(['a+', 'b', 'c+', 'd'], 'mv', 1, 1) === 'a cA1 dA2 b', 'move the last of A into B: it leaves A and jumps over B');
+
+  // In the plan editor
+  const links = async () => (await state(p)).profile.days[0].ex.map(x => x.id + (x.ln ? '+' : '')).join(' ');
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=rmslot]').click(); await p.waitForTimeout(400);
+  ok(await links() === 'bench ezcurl squat' && await p.locator('#view .ss-l').count() === 0, 'remove A2 (row): bench is not linked to curl: ' + await links());
+  await p.locator('#toasts button').click(); await p.waitForTimeout(400);
+  ok(await links() === 'bench+ bbrow ezcurl squat' && await p.locator('#view .ss-l').count() === 2, 'Undo puts the exact links back');
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=slotmove][data-v="1"]').click(); await p.waitForTimeout(400);
+  ok(await links() === 'bench ezcurl bbrow squat', 'move A2 (row) down: it leaves, bench is not linked to curl: ' + await links());
+  ok(/exercise 3 of 4/.test(await p.locator('.sheet .sub').first().textContent()), 'the sheet follows the moved exercise');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await ctx.close();
+
+  // In the logger: removing A2 doesn't link A1 to the next exercise; Undo restores
+  const q = await page({}, { ...seed([sl('bench', 1), sl('bbrow'), sl('ezcurl')]), profile: { ...seed([]).profile, days: [{ name: 'Upper', ex: [sl('bench', 1), sl('bbrow'), sl('ezcurl')] }] } });
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  await q.locator('.ex[data-e="1"] [data-act=exmenu]').click(); await q.waitForTimeout(400);
+  await q.locator('.sheet [data-act=rmex]').click(); await q.waitForTimeout(500);
+  ok(await q.locator('#wo .ss-l').count() === 0 && !(await state(q)).active.entries[0].ln, 'logger: remove A2, bench stays on its own');
+  await q.locator('#toasts button').click(); await q.waitForTimeout(400);
+  ok(await q.locator('#wo .ss-l').count() === 2, 'logger Undo restores the pair');
+  await q.context().close();
+}
+
+// ---------- BUG-1: an exercise in a group can link the next one ----------
+console.log('Link a third (BUG-1)');
+{
+  const sl = (id, ln) => ({ id, sets: 3, lo: 8, hi: 12, ...(ln ? { ln: 1 } : {}) });
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, days: [{ name: 'Upper', ex: [sl('bench', 1), sl('bbrow'), sl('ezcurl'), sl('squat')] }] }, sessions: [], active: null });
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="1"]').click(); await p.waitForTimeout(400);
+  ok(await p.locator('.sheet [data-act=slotunlink]').count() === 1 && await p.locator('.sheet [data-act=slotlink]').count() === 1, 'A2 of 2 shows Unlink and "Link with the next one"');
+  await p.locator('.sheet [data-act=slotlink]').click(); await p.waitForTimeout(300);
+  ok(/A1 Barbell Bench Press, A2 Barbell Row, A3 EZ-Bar Curl/.test(await p.locator('.sheet').textContent()), 'linked: bench, row and curl are A1 A2 A3');
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0, 'group of 3 is full: no more Link');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="0"]').click(); await p.waitForTimeout(400);
+  ok(await p.locator('.sheet [data-act=slotlink]').count() === 0, 'A1 (already linked to A2) shows no Link');
+  await p.context().close();
+}
+
+// ---------- BUG-2: "Remove from superset" takes out only the tapped exercise ----------
+console.log('Remove from superset (BUG-2)');
+{
+  const sl = (id, ln) => ({ id, sets: 3, lo: 8, hi: 12, ...(ln ? { ln: 1 } : {}) });
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, days: [{ name: 'Upper', ex: [sl('bench', 1), sl('bbrow', 1), sl('ezcurl'), sl('squat')] }] }, sessions: [], active: null });
+  const U = (list, i) => p.evaluate(([list, i]) => { const l = list.map(n => ({ n: n.replace('+', ''), ...(n.endsWith('+') ? { ln: 1 } : {}) })), S = window.RivalSuperset;
+    S.ssUnlink(l, i); const g = S.ssGroups(l); return l.map((x, k) => x.n + (g[k] ? g[k].g + g[k].n : '')).join(' '); }, [list, i]);
+  ok(await U(['a+', 'b+', 'c'], 0) === 'a bA1 cA2', 'first of three: only it leaves, the other two stay a pair');
+  ok(await U(['a+', 'b+', 'c'], 2) === 'aA1 bA2 c', 'last of three: only it leaves');
+  ok(await U(['a+', 'b+', 'c'], 1) === 'a b c', 'middle of three: the group splits');
+  ok(await U(['a+', 'b'], 1) === 'a b', 'last of a pair: both are on their own');
+  await p.locator('[data-act=tab][data-tab=plan]').click(); await p.waitForTimeout(300);
+  await p.locator('.slot[data-d="0"][data-s="2"]').click(); await p.waitForTimeout(400);
+  ok((await p.locator('.sheet [data-act=slotunlink]').textContent()).trim() === 'Remove from superset', 'button says "Remove from superset"');
+  await p.locator('.sheet [data-act=slotunlink]').click(); await p.waitForTimeout(300);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  ok(JSON.stringify(await p.locator('#view .ss-l').allTextContents()) === JSON.stringify(['A1', 'A2']), 'plan: A3 (curl) removed, bench and row are still A1 / A2');
+  // In the logger: remove the first of a pair
+  await p.locator('[data-act=tab][data-tab=today]').click(); await p.waitForTimeout(300);
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+  await p.locator('.ex[data-e="0"] [data-act=exmenu]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=exunlink]').click(); await p.waitForTimeout(300);
+  ok(await p.locator('#wo .ss-l').count() === 0 && /Removed from superset/.test(await p.locator('#toasts').textContent()), 'logger: removing A1 of a pair leaves both on their own, toast "Removed from superset"');
+  await p.context().close();
+}
+
+// ---------- BUG-7: removing a rival asks first, then resets the invite link ----------
+// Uses tests/fake-supabase.js (an in-memory Supabase client), so it runs offline.
+console.log('Remove a rival (BUG-7)');
+{
+  const ME = '00000000-0000-4000-8000-000000000001', SARA = '00000000-0000-4000-8000-0000000000aa', OLD = 'a'.repeat(32);
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+  p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.addInitScript(sd => { window.__fakeSeed = sd; }, { me: { id: ME, display_name: 'Omar Test' }, users: [{ id: SARA, display_name: 'Sara Test' }], rivals: [[ME, SARA]], codes: [{ code: OLD, user_id: ME }] });
+  await p.addInitScript({ path: new globalThis.URL('./fake-supabase.js', import.meta.url).pathname });
+  await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } },
+    JSON.stringify({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, sampleCleared: true, days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }] }] }, sessions: [], active: null }));
+  await p.goto(URL); await p.waitForTimeout(800);
+  await p.locator('[data-act=tab][data-tab=settings]').click(); await p.waitForTimeout(800);
+  ok(/Sara/.test(await p.locator('#rivals').textContent()) && (await p.locator('.rv-link').textContent()).endsWith(OLD), 'Settings lists Sara and the current invite link');
+  await p.locator('#rivals [data-act=rvremove]').click(); await p.waitForTimeout(400);
+  ok(/Remove Sara\?/.test(await p.locator('.sheet .h2').textContent()) && /invite link is also reset/.test(await p.locator('.sheet').textContent()), 'a confirmation sheet comes first');
+  ok((await p.evaluate(() => window.__fake.tables.rivals.length)) === 1, 'nothing removed before confirming');
+  await p.locator('.sheet [data-act=closesheet]').click(); await p.waitForTimeout(400);
+  ok((await p.evaluate(() => window.__fake.tables.rivals.length)) === 1 && /Sara/.test(await p.locator('#rivals').textContent()), 'Cancel keeps Sara');
+  await p.locator('#rivals [data-act=rvremove]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=rvremoveok]').click(); await p.waitForTimeout(800);
+  const t = await p.evaluate(() => ({ rivals: window.__fake.tables.rivals.length, codes: window.__fake.tables.invite_codes.map(c => c.code) }));
+  ok(t.rivals === 0, 'rival removed');
+  ok(t.codes.length === 1 && t.codes[0] !== OLD && /^[0-9a-f]{32}$/.test(t.codes[0]), 'old invite code deleted and a new one made');
+  ok((await p.locator('.rv-link').textContent()).endsWith(t.codes[0]), 'Settings shows the new link');
+  ok(/Rival removed\. Your old invite link no longer works\./.test(await p.locator('#toasts').textContent()), 'toast: "Rival removed. Your old invite link no longer works."');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+
+// ---------- BUG-8: plateau cards only where they help ----------
+console.log('Plateau rules (BUG-8)');
+{
+  const D = 86400000, now = Date.now(), s3 = (w, r) => [{ w, r }, { w, r }, { w, r }];
+  const sd = (ex, sets) => ({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, warmups: false, days: [{ name: 'Upper', ex }] },
+    sessions: [10, 7, 4, 2].map((ago, i) => ({ id: 'p' + i, dayIdx: 0, dayName: 'Upper', date: now - ago * D, dur: 50, entries: sets(i) })), active: null });
+  // Bench ties at the top of its range (80 × 8, range 6–8): progression will add weight, so no plateau card.
+  const p = await page({}, sd([{ id: 'bench', sets: 3, lo: 6, hi: 8 }], () => [{ exId: 'bench', sets: s3(80, 8) }]));
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(800);
+  ok(await p.locator('.plat').count() === 0 && await p.inputValue('#w-0-0') === '82.5', 'ties at the top of the rep range: no plateau card, progression suggests 82.5');
+  await p.context().close();
+  // Three stuck lifts in one workout: cards on the first two only.
+  const q = await page({}, sd([{ id: 'bench', sets: 3, lo: 6, hi: 8 }, { id: 'bbrow', sets: 3, lo: 8, hi: 12 }, { id: 'ohp', sets: 3, lo: 6, hi: 8 }],
+    () => [{ exId: 'bench', sets: s3(80, 7) }, { exId: 'bbrow', sets: s3(60, 10) }, { exId: 'ohp', sets: s3(40, 6) }]));
+  await q.locator('#startbar [data-act=start]').click(); await q.waitForTimeout(800);
+  ok(await q.locator('.ex[data-e="0"] .plat').count() === 1 && await q.locator('.ex[data-e="1"] .plat').count() === 1 && await q.locator('.ex[data-e="2"] .plat').count() === 0, '3 stuck lifts: cards on the first 2 exercises only');
+  ok(!(await state(q)).profile.plateau.ohp, 'the third is not marked as seen, so it can show another day');
+  await q.context().close();
+}
+
+// ---------- BUG-6: share card day name never runs past the margins ----------
+console.log('Share card day name (BUG-6)');
+{
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, theme: 'light', days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 1, lo: 6, hi: 8 }] }] }, sessions: [], active: null });
+  const lay = day => p.evaluate(async day => { const cv = await window.RivalShare.drawCard({ day, date: Date.now(), mins: 50, sets: 9, beat: 3, of: 9, prs: [], muscles: {} }, ''); return cv.layout; }, day);
+  for (const day of ['Push', 'Upper Hypertrophy', 'Full Body Strength Day B', 'Upper Body Hypertrophy Push And Pull Day', 'Supercalifragilisticexpialidocious Legs']) {
+    const l = await lay(day);
+    ok(l.dayWidth <= l.maxW && l.dayLines.length <= 2 && l.dayLines.join(' ') === day, `"${day}": ${l.dayLines.length} line(s) at ${l.daySize} px, ${Math.round(l.dayWidth)} ≤ ${l.maxW}`);
+  }
+  ok((await lay('Push')).daySize === 168 && (await lay('Push')).dayLines.length === 1, 'a short name stays big on one line');
+  await p.context().close();
+}
+
+// ---------- Share card design: light-theme map, map position, "N sets logged", Share from history ----------
+console.log('Share card design');
+{
+  const day = Date.now() - 4 * 86400000;
+  const p = await page({}, { profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, theme: 'light', days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 2, lo: 6, hi: 8 }] }] },
+    sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: day, dur: 50, entries: [{ exId: 'bench', sets: [{ w: 80, r: 8 }, { w: 80, r: 8 }] }] },
+      { id: 's2', dayIdx: 0, dayName: 'Upper', date: day + 2 * 86400000, dur: 47, entries: [{ exId: 'bench', sets: [{ w: 85, r: 8, res: 'beat' }, { w: 80, r: 8, res: 'match' }, { w: 70, r: 10 }] }, { exId: 'squat', sets: [{ w: 100, r: 5 }] }] }], active: null });
+  const lay = d => p.evaluate(async d => (await window.RivalShare.drawCard({ day: 'Upper', date: Date.now(), mins: 50, muscles: { chest: 3 }, ...d }, '')).layout, d);
+  const pr = n => ({ n, v: 100, d: 2.5 });
+  const lum = c => { const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(c) || [0, ...c.replace('#', '').match(/../g).map(h => parseInt(h, 16))]; return [1, 2, 3].map(i => { const v = +m[i] / 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0); };
+  const l0 = await lay({ sets: 9, beat: 3, of: 9, prs: [] }), l3 = await lay({ sets: 9, beat: 3, of: 9, prs: [pr('Bench'), pr('Row'), pr('Squat')] });
+  const contrast = (lum(l0.bg) + .05) / (lum(l0.mapBase) + .05);
+  ok(contrast >= 1.6, `light theme: the map's base stands out from the background (contrast ${contrast.toFixed(2)}, was 1.25)`);
+  ok(l0.mapTop < l3.mapTop && l0.mapTop < 1040, `map moves up with fewer new bests (top ${Math.round(l0.mapTop)} with none, ${Math.round(l3.mapTop)} with 3)`);
+  ok(l3.mapTop + l3.mapH < 1720, 'with 3 new bests the map still ends above the footer');
+  const z = await lay({ sets: 9, beat: 0, of: 9, prs: [] });
+  ok(z.score === '9' && z.unit === 'sets logged' && z.head === 'Logged today', 'no ghost beaten: "9 sets logged", not "0/9"');
+  ok(l0.score === '3/9' && l0.head === 'Beat my ghost', 'ghosts beaten: still "Beat my ghost 3/9"');
+  // Share a saved workout from history
+  await p.locator('[data-act=tab][data-tab=progress]').click(); await p.waitForTimeout(400);
+  await p.locator('.hist[data-id="s2"]').click(); await p.waitForTimeout(500);
+  ok(await p.locator('.sheet [data-act=sharesession]').count() === 1, 'saved workout sheet has Share');
+  await p.locator('.sheet [data-act=sharesession]').click(); await p.waitForTimeout(1500);
+  ok(await p.locator('.share-prev').evaluate(im => im.complete && im.naturalWidth === 1080), 'the card is drawn for the saved workout');
+  const d = await p.evaluate(() => window.RivalShare.cardDataSaved(JSON.parse(localStorage.getItem('rival.v1')).sessions.find(x => x.id === 's2')));
+  ok(d.day === 'Upper' && d.mins === 47 && d.sets === 4 && d.beat === 1 && d.of === 2 && d.prs.length === 1 && /Bench/.test(d.prs[0].n) && d.muscles.quads > 0, 'saved data: 4 sets, 1 of 2 ghosts beaten, bench new best, squat counted: ' + JSON.stringify({ ...d, muscles: undefined }));
+  await p.locator('.sheet [data-act=shareback]').click(); await p.waitForTimeout(500);
+  ok(await p.locator('.sheet [data-act=sharesession]').count() === 1, 'Back returns to the saved workout');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
 }
 
 // ---------- settings tab: appearance, help, feedback ----------

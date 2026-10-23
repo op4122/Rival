@@ -513,7 +513,7 @@ body.gated .toasts{z-index:95}
 .plat .starter-x{top:2px;right:2px}
 .deload{margin-top:14px}
 /* Supersets: linked exercises share a coloured bar down the left and an A1 / A2 label */
-.ssg{position:relative;display:grid;gap:8px;padding-left:12px}
+.ssg{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding-left:12px} /* minmax: cards never grow past the screen to fit wide content */
 .ssg::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:4px;background:var(--ssc)}
 .day .ssg{gap:0;padding-left:10px}
 .ss-l{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:7px;border-radius:7px;vertical-align:2px;
@@ -1413,13 +1413,36 @@ function ssGroups(list) {
   }
   return out;
 }
-// Can item i be linked to the one after it without making a group bigger than 3? Returns the new group size, or 0.
+// Can item i be linked to the one after it without making a group bigger than 3? Returns the new group size, or 0
+// (also 0 when the two are already in the same group).
 function ssCanLink(list, i) {
   if (i < 0 || i >= list.length - 1) return 0;
+  const now = ssGroups(list); if (now[i] && now[i + 1] && now[i].g === now[i + 1].g) return 0;
   const g = ssGroups(list.map((x, k) => ({ln:k === i ? 1 : x.ln})));
   return g[i] && g[i + 1] && g[i].g === g[i + 1].g ? g[i].size : 0;
 }
-window.RivalSuperset = {ssGroups, ssCanLink, MAX:SS_MAX};
+/* Removing or moving an item must not make any other exercise join or leave a group. So: note which group each
+   item is in (by the item itself), change the list, then rebuild the links from that. */
+function ssMembership(list) { const gs = ssGroups(list), m = new Map(); list.forEach((x, i) => { if (gs[i]) m.set(x, gs[i].g); }); return m; }
+function ssRelink(list, m) { list.forEach((x, i) => { const g = m.get(x), n = list[i + 1]; if (g && n && m.get(n) === g) x.ln = 1; else delete x.ln; }); }
+// Remove item i. A removed last member no longer leaves the item before it linked to whatever comes next.
+function ssRemove(list, i) { const m = ssMembership(list), [gone] = list.splice(i, 1); ssRelink(list, m); return gone; }
+/* Move item i one step (d = -1 up, +1 down). Returns its new index, or -1 if it can't move.
+   - Within its own group: the two swap and the group stays the same (A1/A2 reorder).
+   - Off the edge of its group: it leaves the group.
+   - Into another group: it jumps over the whole group instead of landing inside it. */
+function ssMove(list, i, d) {
+  const j = i + d; if (j < 0 || j >= list.length) return -1;
+  const gs = ssGroups(list), m = ssMembership(list), x = list[i], gi = gs[i], gj = gs[j];
+  if (gi && gj && gi.g === gj.g) { [list[i], list[j]] = [list[j], list[i]]; ssRelink(list, m); return j; }
+  m.delete(x); list.splice(i, 1);
+  const to = gj ? (d > 0 ? gj.end : gj.start) : j;
+  list.splice(to, 0, x); ssRelink(list, m); return to;
+}
+// The links as they are now, and putting them back exactly (for Undo).
+const ssLinks = list => list.map(x => !!x.ln);
+const ssRestore = (list, links) => { if (links.length === list.length) list.forEach((x, k) => { if (links[k]) x.ln = 1; else delete x.ln; }); };
+window.RivalSuperset = {ssGroups, ssCanLink, ssRemove, ssMove, ssUnlink: (l, i) => ssUnlink(l, i), MAX:SS_MAX};
 const ssLabel = gi => gi ? `<span class="ss-l">${gi.g}${gi.n}</span>` : '';
 // Wraps each group's items in one block with a shared coloured bar.
 function ssWrap(list, item) {
@@ -1457,20 +1480,29 @@ function deloadOn() { return inDeload(Date.now()); }
 function plateauPts(exId) {
   const ack = (S.profile.plateau || {})[exId];
   return S.sessions.filter(s => !s.sample && !inDeload(s.date) && !(ack && ack.light && s.date === ack.at))
-    .map(s => { const en = s.entries.find(e => e.exId === exId); return en && en.sets.length ? {date:s.date, best:Math.max(...en.sets.map(x => e1(x.w || 0, x.r || 0)))} : null; })
+    .map(s => { const en = s.entries.find(e => e.exId === exId); return en && en.sets.length ? {date:s.date, best:Math.max(...en.sets.map(x => e1(x.w || 0, x.r || 0))), sets:en.sets} : null; })
     .filter(Boolean).sort((a, b) => a.date - b.date);
 }
 // How many sessions in a row this exercise has been stuck (0 below 3). raw: ignore cards already acted on.
-function plateauOf(exId, raw) {
-  const pts = plateauPts(exId), ack = (S.profile.plateau || {})[exId];
+// hi: top of the rep range. If the latest session hit it on every working set, it isn't a plateau: progression
+// already puts the weight up next time.
+function plateauOf(exId, raw, hi) {
+  const pts = plateauPts(exId), ack = (S.profile.plateau || {})[exId], last = pts[pts.length - 1];
+  if (last && fin(hi) && last.sets.every(x => x.r >= hi)) return null;
   const n = stuckRun(pts, raw || !ack ? null : ack.at);
   return n >= PLATEAU_N ? {n, key:pts[pts.length - n].date} : null;
+}
+// The top of the rep range for an exercise in the plan (or this week's / today's plan), if it's there.
+function hiFor(exId) {
+  const p = S.profile, days = p.days.concat(p.today ? [p.today.day] : [], p.week ? p.week.days : []);
+  for (const d of days) { const sl = d.ex.find(x => x.id === exId); if (sl) return sl.hi; }
+  return null;
 }
 // Exercises trained in the last 3 weeks that are stuck right now (whatever was done with their cards).
 function stuckLifts() {
   const from = Date.now() - 21 * DAY, ids = new Set();
   S.sessions.forEach(s => { if (!s.sample && s.date >= from) s.entries.forEach(e => ids.add(e.exId)); });
-  return [...ids].filter(id => plateauOf(id, true));
+  return [...ids].filter(id => plateauOf(id, true, hiFor(id)));
 }
 // Average readiness over the last 7 days: one score per day (the latest), today's check-in included. Needs 2 days.
 function avgReadiness() {
@@ -1490,9 +1522,12 @@ function deloadOffer() {
 function markPlateaus(a) {
   if (a.dl) return;
   if (!isObj(S.profile.plateau)) S.profile.plateau = {};
+  let shown = 0;
   a.entries.forEach(en => {
-    const pl = plateauOf(en.exId); if (!pl) return;
-    en.pl = pl.n;
+    // At most 2 plateau cards per workout (the first two stuck exercises); the rest wait for another day.
+    if (shown >= 2) return;
+    const pl = plateauOf(en.exId, false, en.hi); if (!pl) return;
+    en.pl = pl.n; shown++;
     const m = S.profile.plateau, e = m[en.exId] || {};
     if (e.seen !== pl.key) { m[en.exId] = Object.assign(e, {seen:pl.key}); A.track('plateau_detected', {exercise_id:en.exId, sessions:pl.n}); touch(); }
   });
@@ -2572,7 +2607,7 @@ function rivalLinesHTML() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '29'; // matches the service worker cache, rival-v29
+const APP_VERSION = '30'; // matches the service worker cache, rival-v30
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2982,7 +3017,7 @@ function logSet0(row) {
    detail it can carry is the display name, and that can be switched off. Shared as a file where the phone supports it,
    otherwise downloaded as a PNG. */
 const SITE = 'op4122.github.io/Rival';
-const hexRgb = h => { h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.replace(/./g, c => c + c); const n = parseInt(h.slice(0, 6), 16); return isNaN(n) ? [128, 128, 128] : [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const hexRgb = h => { const m = /rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(String(h)); if (m) return [+m[1], +m[2], +m[3]]; h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.replace(/./g, c => c + c); const n = parseInt(h.slice(0, 6), 16); return isNaN(n) ? [128, 128, 128] : [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const mixRgb = (a, b, t) => 'rgb(' + hexRgb(a).map((x, i) => Math.round(x * t + hexRgb(b)[i] * (1 - t))).join(',') + ')';
 // What the card shows, from the workout in progress (or a saved one). Pure enough to test: window.RivalShare.cardData.
 function cardData(a) {
@@ -3000,6 +3035,10 @@ async function drawCard(d, name) {
   const W = 1080, H = 1920, P = 96, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d'), cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
   const T = {bg:v('--bg'), surface:v('--surface'), ink:v('--ink'), muted:v('--muted'), accent:v('--accent'), win:v('--win'), mus0:v('--mus0'), skin:v('--skin'), line:v('--line')};
+  // Light theme: the app's body colours are made for a white card and almost vanish on the chalk background, so the
+  // map's base and outline are darkened, with background-coloured gaps between muscles.
+  const light = hexRgb(T.bg).reduce((a, x) => a + x, 0) / 3 > 128;
+  const mapC = light ? {base:mixRgb(T.ink, T.mus0, .24), skin:mixRgb(T.ink, T.skin, .12), gap:T.bg} : {base:T.mus0, skin:T.skin, gap:T.skin};
   const DISP = '"Archivo","Arial Narrow",sans-serif', TXT = '"Instrument Sans",system-ui,sans-serif';
   try { await Promise.all([document.fonts.load(`800 120px ${DISP}`), document.fonts.load(`600 40px ${TXT}`), document.fonts.load(`400 40px ${TXT}`)]); } catch (e) {}
   const logo = await loadLogo();
@@ -3013,14 +3052,30 @@ async function drawCard(d, name) {
   if (name) { c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.textAlign = 'right'; c.fillText(name, W - P, 168); c.textAlign = 'left'; }
   // date, day name, duration
   c.fillStyle = T.muted; c.font = `500 40px ${TXT}`; c.fillText(fmtDate(d.date, {weekday:'long', day:'numeric', month:'long'}) + ' · ' + d.mins + ' min', P, 330);
-  const dz = fit(d.day, `800 $px ${DISP}`, 168, W - 2 * P); c.fillStyle = T.ink; c.font = `800 ${dz}px ${DISP}`; c.fillText(d.day, P, 330 + dz * 0.95);
+  // Day name: one line, shrinking to 120 px; if it still doesn't fit, two balanced lines that keep shrinking until
+  // both fit. It never runs past the margins (W − 2P).
+  const maxW = W - 2 * P, dw = (t, z) => { c.font = `800 ${z}px ${DISP}`; return c.measureText(t).width; };
+  let dz = 168, lines = [d.day];
+  while (dz > 120 && dw(d.day, dz) > maxW) dz -= 4;
+  if (dw(d.day, dz) > maxW) {
+    const words = d.day.split(/\s+/).filter(Boolean); let best = null;
+    for (let k = 1; k < words.length; k++) { const l = [words.slice(0, k).join(' '), words.slice(k).join(' ')], m = Math.max(dw(l[0], 120), dw(l[1], 120)); if (!best || m < best.m) best = {m, l}; }
+    lines = best ? best.l : [d.day]; dz = 140;
+    while (dz > 24 && Math.max(...lines.map(l => dw(l, dz))) > maxW) dz -= 2;
+  }
+  c.fillStyle = T.ink; c.font = `800 ${dz}px ${DISP}`;
+  lines.forEach((l, k) => c.fillText(l, P, 330 + dz * 0.95 + k * dz * 1.02));
+  cv.layout = {dayLines:lines, daySize:dz, dayWidth:Math.max(...lines.map(l => dw(l, dz))), maxW};
   // ghost score
-  let y = 330 + dz * 0.95 + 70;
+  let y = 330 + dz * 0.95 + (lines.length - 1) * dz * 1.02 + 70;
   rr(P, y, W - 2 * P, 230, 40); c.fillStyle = T.surface; c.fill();
-  c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.fillText(d.of ? 'Beat my ghost' : 'First time on these lifts', P + 48, y + 78);
-  c.fillStyle = d.beat ? T.win : T.ink; c.font = `800 120px ${DISP}`;
-  const score = d.of ? `${d.beat}/${d.of}` : `${d.sets}`; c.fillText(score, P + 44, y + 192);
-  const sw = c.measureText(score).width; c.fillStyle = T.muted; c.font = `500 36px ${TXT}`; c.fillText(d.of ? 'sets' : (d.sets === 1 ? 'set logged' : 'sets logged'), P + 64 + sw, y + 190);
+  // "Beat my ghost 3/9 sets"; with no ghost beaten (or none to beat) it's just "9 sets logged", never "0/9".
+  const won = d.of && d.beat > 0, head = won ? 'Beat my ghost' : d.of ? 'Logged today' : 'First time on these lifts';
+  const score = won ? `${d.beat}/${d.of}` : `${d.sets}`, unit = won ? 'sets' : d.sets === 1 ? 'set logged' : 'sets logged';
+  c.fillStyle = T.muted; c.font = `600 36px ${TXT}`; c.fillText(head, P + 48, y + 78);
+  c.fillStyle = won ? T.win : T.ink; c.font = `800 120px ${DISP}`; c.fillText(score, P + 44, y + 192);
+  const sw = c.measureText(score).width; c.fillStyle = T.muted; c.font = `500 36px ${TXT}`; c.fillText(unit, P + 64 + sw, y + 190);
+  Object.assign(cv.layout, {head, score, unit});
   y += 230 + 40;
   // new bests
   d.prs.forEach(pr => {
@@ -3033,33 +3088,56 @@ async function drawCard(d, name) {
     y += 140;
   });
   // mini heat map of today's work: front and back
-  const top = Math.max(y + 20, 1040), bh = 1700 - top, sc = bh / 428, bw = 200 * sc, gap = 70, x0 = (W - 2 * bw - gap) / 2;
+  // Sits right under the last block (higher with fewer new bests), at most 700 px tall.
+  const top = y + 20, bh = Math.min(1700 - top, 700), sc = bh / 428, bw = 200 * sc, gap = 70, x0 = (W - 2 * bw - gap) / 2;
   const lvlToday = n => n <= 0 ? 0 : n < 2 ? 1 : n < 4 ? 2 : 3;
-  const fills = [T.mus0, mixRgb(T.accent, T.mus0, .26), mixRgb(T.accent, T.mus0, .55), T.accent];
+  const fills = [mapC.base, mixRgb(T.accent, mapC.base, .3), mixRgb(T.accent, mapC.base, .6), T.accent];
+  Object.assign(cv.layout, {mapTop:top, mapH:bh, mapBase:mapC.base, bg:T.bg});
   ['front', 'back'].forEach((side, k) => {
     const ox = x0 + k * (bw + gap), M = side === 'front' ? BODY.front : BODY.back;
     const draw = (paths, fill) => { c.fillStyle = fill; paths.forEach(pd => { const p2 = new Path2D(pd); [false, true].forEach(mir => {
-      c.save(); c.translate(ox, top); c.scale(sc, sc); if (mir) { c.translate(200, 0); c.scale(-1, 1); } c.fill(p2); c.lineWidth = 1.2; c.strokeStyle = T.skin; c.stroke(p2); c.restore(); }); }); };
+      c.save(); c.translate(ox, top); c.scale(sc, sc); if (mir) { c.translate(200, 0); c.scale(-1, 1); } c.fill(p2); c.lineWidth = 1.2; c.strokeStyle = mapC.gap; c.stroke(p2); c.restore(); }); }); };
     c.save();
     const clip = new Path2D(); BODY.skin.forEach(pd => { const m1 = new DOMMatrix().translate(ox, top).scale(sc, sc), m2 = m1.translate(200, 0).scale(-1, 1); clip.addPath(new Path2D(pd), m1); clip.addPath(new Path2D(pd), m2); });
-    c.fillStyle = T.skin; c.fill(clip); c.clip(clip);
-    if (side === 'front') draw(BODY.frontNt, T.mus0);
+    c.fillStyle = mapC.skin; c.fill(clip); c.clip(clip);
+    if (side === 'front') draw(BODY.frontNt, mapC.base);
     Object.keys(M).forEach(mu => draw(M[mu], fills[lvlToday(d.muscles[mu] || 0)]));
     c.restore();
   });
-  c.fillStyle = T.muted; c.font = `500 30px ${TXT}`; c.textAlign = 'center'; c.fillText("Today's muscles", W / 2, 1748); c.textAlign = 'left';
+  c.fillStyle = T.muted; c.font = `500 30px ${TXT}`; c.textAlign = 'center'; c.fillText('Muscles worked', W / 2, top + bh + 48); c.textAlign = 'left';
   // footer
   c.fillStyle = T.line; c.fillRect(P, 1790, W - 2 * P, 2);
   c.fillStyle = T.ink; c.font = `800 38px ${DISP}`; c.fillText('Rival', P, 1852);
   c.fillStyle = T.muted; c.font = `500 34px ${TXT}`; c.textAlign = 'right'; c.fillText(SITE, W - P, 1852); c.textAlign = 'left';
   return cv;
 }
-window.RivalShare = {cardData, drawCard};
+// The same card for a saved workout (from history). Saved sets don't keep their ghost, so a set counts as having one
+// when the previous workout with that exercise had a set at that position; new bests compare with earlier workouts only.
+function cardDataSaved(s) {
+  const m = {}; Object.keys(MUSCLES).forEach(k => m[k] = 0);
+  const before = S.sessions.filter(x => x.date < s.date && x.id !== s.id).sort((a, b) => b.date - a.date);
+  let sets = 0, beat = 0, of = 0; const prs = [];
+  s.entries.forEach(en => {
+    const ex = EX[en.exId]; sets += en.sets.length; beat += en.sets.filter(x => x.res === 'beat').length;
+    const prev = before.map(x => x.entries.find(e => e.exId === en.exId && e.sets.length)).find(Boolean);
+    if (prev) of += Math.min(en.sets.length, prev.sets.length);
+    if (ex) Object.entries(ex.m).forEach(([mu, f]) => { m[mu] += en.sets.length * f; });
+    if (ex && !ex.bw && en.sets.length) {
+      const best = bestE1(en.sets), pb = Math.max(0, ...before.flatMap(x => x.entries.filter(e => e.exId === en.exId).flatMap(e => e.sets.map(z => e1(z.w, z.r)))));
+      if (pb && best > pb + 0.05) prs.push({n:ex.n, v:best, d:best - pb});
+    }
+  });
+  return {day:s.dayName, date:s.date, mins:s.dur, sets, beat, of, prs:prs.sort((x, y) => y.d - x.d).slice(0, 3), muscles:m};
+}
+window.RivalShare = {cardData, cardDataSaved, drawCard};
 let shareCard = null; // {blob, url, data}
-async function shareSheet() {
-  if (!S.active) return;
+let shareSrc = null; // null: the workout in progress; a session id: a saved workout from history
+async function shareSheet(src) {
+  shareSrc = src === undefined ? shareSrc : src;
+  const saved = shareSrc ? S.sessions.find(x => x.id === shareSrc) : null;
+  if (shareSrc ? !saved : !S.active) return;
   const p = S.profile, name = p.dname && p.shareName !== false ? firstName(p.dname) : '';
-  const d = cardData(S.active), cv = await drawCard(d, name);
+  const d = saved ? cardDataSaved(saved) : cardData(S.active), cv = await drawCard(d, name);
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
   if (shareCard && shareCard.url) URL.revokeObjectURL(shareCard.url);
   shareCard = {blob, url:URL.createObjectURL(blob), w:cv.width, h:cv.height};
@@ -3100,7 +3178,14 @@ function ssLink(list, i, where) {
   const size = ssCanLink(list, i); if (!size) return;
   list[i].ln = 1; A.track('superset_created', {size, where}); toast(size === 2 ? 'Superset linked' : 'Added to the superset');
 }
-function ssUnlink(list, i) { const gi = ssGroups(list)[i]; if (!gi) return; for (let k = gi.start; k <= gi.end; k++) delete list[k].ln; toast('Superset unlinked'); }
+// Remove one exercise from its superset. First or last: only it leaves and the rest stay grouped. A middle one can't
+// leave without splitting the group, so its links on both sides go.
+function ssUnlink(list, i) {
+  const gi = ssGroups(list)[i]; if (!gi) return false;
+  if (i > gi.start) delete list[i - 1].ln;
+  if (i < gi.end) delete list[i].ln;
+  return true;
+}
 function focusSet({ei, si}) {
   const row = wo.querySelector(`.set[data-e="${ei}"][data-s="${si}"]`); if (!row) return;
   row.scrollIntoView({behavior:reduced() ? 'auto' : 'smooth', block:'center'});
@@ -3411,9 +3496,11 @@ let slotCtx = null, noteT = 0, wuT = 0;
 // The Superset row in the plan's exercise sheet and the logger's ⋯ menu. kind: 'slot' (plan) or 'ex' (logger).
 function ssRowHTML(list, i, kind, ei) {
   const gi = ssGroups(list)[i], nm = x => esc(EX[x.id || x.exId] ? EX[x.id || x.exId].n : (x.id || x.exId)), de = ei != null ? ` data-e="${ei}"` : '';
-  if (gi) return `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">${list.slice(gi.start, gi.end + 1).map((x, k) => gi.g + (k + 1) + ' ' + nm(x)).join(', ')}</span></span><button class="link" data-act="${kind}unlink"${de}>Unlink</button></div>`;
-  const nx = ssCanLink(list, i) ? list[i + 1] : null;
-  return nx ? `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">Alternate sets with ${nm(nx)}, rest after each round</span></span><button class="link" data-act="${kind}link"${de}>Link</button></div>` : '';
+  // Both rows can show: an exercise already in a group can still bring the next one in (A2 of 2 adds an A3).
+  const size = ssCanLink(list, i), nx = size ? list[i + 1] : null;
+  const unlink = gi ? `<div class="set-row"><span>Superset<span class="menu-s" style="display:block">${list.slice(gi.start, gi.end + 1).map((x, k) => gi.g + (k + 1) + ' ' + nm(x)).join(', ')}</span></span><button class="link" data-act="${kind}unlink"${de}>Remove from superset</button></div>` : '';
+  const link = nx ? `<div class="set-row"><span>Link with the next one<span class="menu-s" style="display:block">${gi ? `Adds ${nm(nx)} as ${gi.g}${size}` : `Alternate sets with ${nm(nx)}, rest after each round`}</span></span><button class="link" data-act="${kind}link"${de}>Link</button></div>` : '';
+  return unlink + link;
 }
 
 
@@ -3435,7 +3522,7 @@ function sessionSheet(id) {
     return `<div class="set-row" style="align-items:flex-start"><span class="h3" style="font-size:15px">${esc(ex.n)}${ex.ea ? '<span class="sub" style="font-size:12px;font-weight:500"> (per side)</span>' : ''}</span><span class="num" style="text-align:right">${en.sets.map(x => `<span style="${x.res === 'beat' ? 'color:var(--win);font-weight:700' : ''}">${ex.bw && !x.w ? 'BW' : inU(en.exId, () => fmtW(x.w))}×${x.r}</span>`).join('<br>')}</span></div>`;
   }).join('');
   openSheet(`<h2 class="h2">${esc(s.dayName)}${s.sample ? '<span class="tag-sample">Sample</span>' : ''}</h2><p class="sub">${fmtDate(s.date)}, ${s.dur} min${s.readiness != null ? ', readiness ' + s.readiness : ''}. Sets that beat the ghost are highlighted.</p><div style="margin-top:6px">${body}</div>
-    <div class="sheet-actions" style="margin-top:14px"><button class="btn danger press" data-act="delsession" data-id="${esc(s.id)}">Delete this workout</button></div>`);
+    <div class="sheet-actions" style="margin-top:14px"><button class="btn press" data-act="sharesession" data-id="${esc(s.id)}">${I.share}Share</button><button class="btn danger press" data-act="delsession" data-id="${esc(s.id)}">Delete this workout</button></div>`);
 }
 
 /* ================= actions ================= */
@@ -3618,28 +3705,43 @@ const acts = {
     if (error) { toast("Couldn't revoke the link. Try again."); return; }
     RV.code = null; render(); toast('Link revoked. Your rivals stay.');
   },
-  async rvremove(el) {
+  rvremove(el) {
+    const id = el.dataset.id, r = (RV.list || []).find(x => x.id === id); if (!r) return;
+    const nm = esc(rvName(r.name));
+    openSheet(`<h2 class="h2">Remove ${nm}?</h2><p class="sub">You'll stop seeing each other's ghosts. Your invite link is also reset, so the old one can't be used to reconnect.</p>
+      <div class="sheet-actions" style="margin-top:14px"><button class="btn danger big press" data-act="rvremoveok" data-id="${esc(id)}">Remove ${nm}</button><button class="btn press" data-act="closesheet">Cancel</button></div>`);
+  },
+  // Removing a rival also replaces my invite code: whoever still has the old link (the removed rival included) can't
+  // use it to reconnect.
+  async rvremoveok(el) {
     const id = el.dataset.id, me = authUid(), [ua, ub] = me < id ? [me, id] : [id, me];
     const {error} = await db.from('rivals').delete().eq('user_a', ua).eq('user_b', ub);
     if (error) { toast("Couldn't remove. Try again."); return; }
-    RV.list = (RV.list || []).filter(r => r.id !== id); render(); toast('Rival removed');
+    RV.list = (RV.list || []).filter(r => r.id !== id); closeSheet(); render();
+    const del = await db.from('invite_codes').delete().eq('user_id', me);
+    const fresh = del.error ? del : await db.from('invite_codes').insert({}).select('code').single();
+    if (fresh.error) { RV.code = del.error ? RV.code : null; render(); toast("Rival removed. Couldn't reset your invite link: revoke it below."); return; }
+    RV.code = fresh.data.code; render(); toast('Rival removed. Your old invite link no longer works.');
   },
-  share() { shareSheet(); },
+  share() { shareSheet(null); },
+  sharesession(el) { shareSheet(el.dataset.id); },
   sharego() { shareGo(false); },
   sharesave() { shareGo(true); },
-  shareback() { finishSheet(); },
+  shareback() { if (shareSrc) sessionSheet(shareSrc); else finishSheet(); },
   sharename(el) { S.profile.shareName = el.dataset.v === '1'; touch(); shareSheet(); },
   slotlink() { ssLink(S.profile.days[slotCtx.d].ex, slotCtx.s, 'plan'); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
-  slotunlink() { ssUnlink(S.profile.days[slotCtx.d].ex, slotCtx.s); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
+  slotunlink() { if (ssUnlink(S.profile.days[slotCtx.d].ex, slotCtx.s)) toast('Removed from superset'); touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render(); },
   exlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; ssLink(S.active.entries, ei, 'workout'); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
-  exunlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; ssUnlink(S.active.entries, ei); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
+  exunlink(el) { const ei = +el.dataset.e; if (!S.active || !S.active.entries[ei]) return; if (ssUnlink(S.active.entries, ei)) toast('Removed from superset'); persist(); renderWorkout(); setSheet(exMenuHTML(ei)); },
   plswap(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'swap'); refreshEx(+el.dataset.e); acts.swap(el); },
   plx(el) { const en = S.active && S.active.entries[+el.dataset.e]; if (!en) return; plateauAct(en, 'dismiss'); refreshEx(+el.dataset.e); },
   pllight(el) {
     const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
     const inc = incOf(en.exId);
     inU(en.exId, () => en.sets.forEach(x => { if (x.done || !(x.w > 0)) return;
-      x.w = roundW(x.w * 0.9, inc); if (x.sg) x.sg = Object.assign({}, x.sg, {w:x.w, r:x.r, e:true, l:true}); }));
+      // 10% less weight, the same reps as the ghost (not the progression's reps for a heavier weight)
+      x.w = roundW(x.w * 0.9, inc); if (x.g && x.g.r > 0) x.r = Math.min(x.g.r, MAX_REPS);
+      if (x.sg) x.sg = Object.assign({}, x.sg, {w:x.w, r:x.r, e:true, l:true}); }));
     plateauAct(en, 'lighter'); persist(); refreshEx(ei); toast('10% lighter for this session');
   },
   dlok() {
@@ -3735,10 +3837,10 @@ const acts = {
   rmex(el) {
     const ei = +el.dataset.e, en = S.active && S.active.entries[ei]; if (!en) return;
     if (sheetEl) closeSheet(true);
-    const [gone] = S.active.entries.splice(ei, 1); persist();
+    const links = ssLinks(S.active.entries), gone = ssRemove(S.active.entries, ei); persist();
     const y = wo.querySelector('.wo-body') ? wo.querySelector('.wo-body').scrollTop : 0;
     renderWorkout(); const body = wo.querySelector('.wo-body'); if (body) body.scrollTop = y;
-    toast('Removed ' + (EX[gone.exId] ? EX[gone.exId].n : 'exercise'), {label:'Undo', fn: () => { if (!S.active) return; S.active.entries.splice(ei, 0, gone); persist(); renderWorkout(); }});
+    toast('Removed ' + (EX[gone.exId] ? EX[gone.exId].n : 'exercise'), {label:'Undo', fn: () => { if (!S.active) return; S.active.entries.splice(ei, 0, gone); ssRestore(S.active.entries, links); persist(); renderWorkout(); }});
   },
   finish() { finishSheet(); },
   save() { saveWorkout(); },
@@ -3811,13 +3913,13 @@ const acts = {
     touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render();
   },
   rmslot() {
-    const d = S.profile.days[slotCtx.d], at = slotCtx.s, [gone] = d.ex.splice(at, 1);
+    const d = S.profile.days[slotCtx.d], at = slotCtx.s, links = ssLinks(d.ex), gone = ssRemove(d.ex, at);
     touch(); closeSheet(); render();
-    toast('Removed ' + EX[gone.id].n, {label:'Undo', fn: () => { d.ex.splice(at, 0, gone); touch(); render(); }});
+    toast('Removed ' + EX[gone.id].n, {label:'Undo', fn: () => { d.ex.splice(at, 0, gone); ssRestore(d.ex, links); touch(); render(); }});
   },
   slotmove(el) {
-    const d = S.profile.days[slotCtx.d], to = slotCtx.s + +el.dataset.v; if (to < 0 || to >= d.ex.length) return;
-    [d.ex[slotCtx.s], d.ex[to]] = [d.ex[to], d.ex[slotCtx.s]]; slotCtx.s = to; touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render();
+    const d = S.profile.days[slotCtx.d], to = ssMove(d.ex, slotCtx.s, +el.dataset.v); if (to < 0) return;
+    slotCtx.s = to; touch(); setSheet(slotHTML(slotCtx.d, slotCtx.s)); render();
   },
   swapslot() {
     const sl = S.profile.days[slotCtx.d].ex[slotCtx.s], alt = EX[sl.id].alt; if (!alt) return;
