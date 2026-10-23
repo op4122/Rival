@@ -3650,11 +3650,23 @@ const acts = {
     if (error) { toast("Couldn't revoke the link. Try again."); return; }
     RV.code = null; render(); toast('Link revoked. Your rivals stay.');
   },
-  async rvremove(el) {
+  rvremove(el) {
+    const id = el.dataset.id, r = (RV.list || []).find(x => x.id === id); if (!r) return;
+    const nm = esc(rvName(r.name));
+    openSheet(`<h2 class="h2">Remove ${nm}?</h2><p class="sub">You'll stop seeing each other's ghosts. Your invite link is also reset, so the old one can't be used to reconnect.</p>
+      <div class="sheet-actions" style="margin-top:14px"><button class="btn danger big press" data-act="rvremoveok" data-id="${esc(id)}">Remove ${nm}</button><button class="btn press" data-act="closesheet">Cancel</button></div>`);
+  },
+  // Removing a rival also replaces my invite code: whoever still has the old link (the removed rival included) can't
+  // use it to reconnect.
+  async rvremoveok(el) {
     const id = el.dataset.id, me = authUid(), [ua, ub] = me < id ? [me, id] : [id, me];
     const {error} = await db.from('rivals').delete().eq('user_a', ua).eq('user_b', ub);
     if (error) { toast("Couldn't remove. Try again."); return; }
-    RV.list = (RV.list || []).filter(r => r.id !== id); render(); toast('Rival removed');
+    RV.list = (RV.list || []).filter(r => r.id !== id); closeSheet(); render();
+    const del = await db.from('invite_codes').delete().eq('user_id', me);
+    const fresh = del.error ? del : await db.from('invite_codes').insert({}).select('code').single();
+    if (fresh.error) { RV.code = del.error ? RV.code : null; render(); toast("Rival removed. Couldn't reset your invite link: revoke it below."); return; }
+    RV.code = fresh.data.code; render(); toast('Rival removed. Your old invite link no longer works.');
   },
   share() { shareSheet(); },
   sharego() { shareGo(false); },

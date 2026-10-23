@@ -854,6 +854,36 @@ console.log('Remove from superset (BUG-2)');
   await p.context().close();
 }
 
+// ---------- BUG-7: removing a rival asks first, then resets the invite link ----------
+// Uses tests/fake-supabase.js (an in-memory Supabase client), so it runs offline.
+console.log('Remove a rival (BUG-7)');
+{
+  const ME = '00000000-0000-4000-8000-000000000001', SARA = '00000000-0000-4000-8000-0000000000aa', OLD = 'a'.repeat(32);
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+  p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.addInitScript(sd => { window.__fakeSeed = sd; }, { me: { id: ME, display_name: 'Omar Test' }, users: [{ id: SARA, display_name: 'Sara Test' }], rivals: [[ME, SARA]], codes: [{ code: OLD, user_id: ME }] });
+  await p.addInitScript({ path: new globalThis.URL('./fake-supabase.js', import.meta.url).pathname });
+  await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } },
+    JSON.stringify({ profile: { units: 'kg', tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, sampleCleared: true, days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 3, lo: 6, hi: 8 }] }] }, sessions: [], active: null }));
+  await p.goto(URL); await p.waitForTimeout(800);
+  await p.locator('[data-act=tab][data-tab=settings]').click(); await p.waitForTimeout(800);
+  ok(/Sara/.test(await p.locator('#rivals').textContent()) && (await p.locator('.rv-link').textContent()).endsWith(OLD), 'Settings lists Sara and the current invite link');
+  await p.locator('#rivals [data-act=rvremove]').click(); await p.waitForTimeout(400);
+  ok(/Remove Sara\?/.test(await p.locator('.sheet .h2').textContent()) && /invite link is also reset/.test(await p.locator('.sheet').textContent()), 'a confirmation sheet comes first');
+  ok((await p.evaluate(() => window.__fake.tables.rivals.length)) === 1, 'nothing removed before confirming');
+  await p.locator('.sheet [data-act=closesheet]').click(); await p.waitForTimeout(400);
+  ok((await p.evaluate(() => window.__fake.tables.rivals.length)) === 1 && /Sara/.test(await p.locator('#rivals').textContent()), 'Cancel keeps Sara');
+  await p.locator('#rivals [data-act=rvremove]').click(); await p.waitForTimeout(400);
+  await p.locator('.sheet [data-act=rvremoveok]').click(); await p.waitForTimeout(800);
+  const t = await p.evaluate(() => ({ rivals: window.__fake.tables.rivals.length, codes: window.__fake.tables.invite_codes.map(c => c.code) }));
+  ok(t.rivals === 0, 'rival removed');
+  ok(t.codes.length === 1 && t.codes[0] !== OLD && /^[0-9a-f]{32}$/.test(t.codes[0]), 'old invite code deleted and a new one made');
+  ok((await p.locator('.rv-link').textContent()).endsWith(t.codes[0]), 'Settings shows the new link');
+  ok(/Rival removed\. Your old invite link no longer works\./.test(await p.locator('#toasts').textContent()), 'toast: "Rival removed. Your old invite link no longer works."');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await ctx.close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
