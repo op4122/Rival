@@ -602,6 +602,39 @@ body.gated .toasts{z-index:95}
   .chip:hover,.btn:hover{filter:brightness(.97)}
   .lift:hover,.hist:hover,.slot:hover,.lib:hover,.mrow:hover{background:var(--surface-2)}
 }
+/* Gym-readable logger: big numbers, high-contrast ghost, 44px tap areas (some are invisible padding so the layout stays compact) */
+.wo-in,#wo-list{grid-template-columns:minmax(0,1fr)} /* a long attachment row can't widen the cards past the screen */
+.cols,.set{grid-template-columns:24px minmax(0,1fr) 80px 60px 44px}
+.cols{font-size:12.5px}
+.set{min-height:52px}
+.set input{height:48px;font-size:21px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.set input::placeholder{font-size:15px;font-weight:600;color:var(--muted)}
+.set .n{font-size:15px}
+.ghost{height:48px}
+.g-txt{height:32px;padding:0 9px;border:1.5px solid color-mix(in oklab,var(--ghost) 40%,transparent);background:color-mix(in oklab,var(--ghost) 16%,var(--surface));
+  color:var(--ink);font-size:14.5px;font-weight:700}
+.g-txt i{font-style:normal}
+.g-txt.none{font-size:14px;font-weight:600;color:var(--ink);background:none;border-color:transparent}
+.g-win{height:30px;font-size:13px}
+.check{width:44px;height:48px}
+.wu-l,.att-l{font-size:12.5px}
+.ea-tag{font-size:12.5px}
+.finish{height:44px}
+.wu{row-gap:10px}
+.wu-c{color:var(--ink)}
+.swap,.wu-c,.att-o .chip,.ex-act button{position:relative}
+.swap::after,.wu-c::after,.att-o .chip::after,.ex-act button::after{content:'';position:absolute;left:-2px;right:-2px;top:50%;height:44px;min-width:44px;transform:translateY(-50%)}
+.att-o{padding-top:4px;padding-bottom:4px;margin:-4px 0}
+@media (max-width:380px){
+  .cols,.set{grid-template-columns:20px minmax(0,1fr) 70px 52px 44px;gap:6px}
+  .set input{font-size:20px;padding:0 2px}
+  .g-txt{font-size:14px;padding:0 6px;height:32px;white-space:nowrap;line-height:1}
+  .g-txt i{display:none} /* "82.5×7": no spaces on narrow phones */
+  .wu{column-gap:5px}
+  .wu-c{padding:0 8px}
+  .wu-l{margin-right:0}
+  .check{width:44px}
+}
 @media (prefers-reduced-motion: reduce){
   .press:active,.check:active,.tab:active .press-in{transform:none}
   .sheet,.wo,.rest,.toast,.g-win,.g-txt{transition-property:opacity,visibility!important}
@@ -2395,7 +2428,7 @@ function minimizeWorkout() {
 function setRow(en, s, ei, si) { return inU(en.exId, () => setRow0(en, s, ei, si)); }
 function setRow0(en, s, ei, si) {
   const ex = EX[en.exId] || {}, g = s.g;
-  const gtxt = g ? `<span class="g-txt">${ex.bw && !g.w ? 'BW' : fmtW(g.w)} × ${g.r}</span>` : `<span class="g-txt none">New</span>`;
+  const gtxt = g ? `<span class="g-txt">${ex.bw && !g.w ? 'BW' : fmtW(g.w)}<i> </i>×<i> </i>${g.r}</span>` : `<span class="g-txt none">New</span>`;
   const win = s.done && s.res === 'beat' && g ? beatLabel(s, g) : s.done && s.res === 'match' ? 'Matched' : '';
   return `<div class="set${s.done ? ' done' : ''}${s.done && s.res ? ' ' + s.res : ''}" data-e="${ei}" data-s="${si}">
     <span class="n">${si + 1}</span>

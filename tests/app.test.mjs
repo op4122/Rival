@@ -249,6 +249,34 @@ console.log('Rest when the phone locks');
   await p.context().close();
 }
 
+console.log('Gym-readable logger');
+for (const [w, dark] of [[360, false], [390, true]]) {
+  const p = await page({ w, dark });
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.profile.restTip = true; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(900);
+  await p.fill('#w-0-0', '102.5'); await p.fill('#r-0-0', '10');
+  const m = await p.evaluate(() => {
+    const vw = innerWidth, cs = (e, ps) => getComputedStyle(e, ps);
+    const wide = [...document.querySelectorAll('.wo .ex')].filter(e => e.getBoundingClientRect().right > vw).length;
+    const inp = cs(document.querySelector('#w-0-0'));
+    const g = document.querySelector('.g-txt:not(.none)'), gs = cs(g);
+    const small = [...document.querySelectorAll('.wo button')].filter(e => { const r = e.getBoundingClientRect(); if (!r.width || e.closest('.useg')) return false; const a = cs(e, '::after'); const h = a.content !== 'none' ? Math.max(r.height, parseFloat(a.height)) : r.height; return h < 44 || r.width < 44; }).map(e => e.dataset.act);
+    const tiny = [...document.querySelectorAll('.wo *')].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(cs(e).fontSize) < 12.5).map(e => e.className);
+    const clipped = [...document.querySelectorAll('.set input, .g-txt')].filter(e => e.scrollWidth > e.clientWidth + 1).length;
+    return { wide, f: parseFloat(inp.fontSize), wgt: +inp.fontWeight, tab: inp.fontVariantNumeric.includes('tabular'), gf: parseFloat(gs.fontSize), gbg: gs.backgroundColor, gc: gs.color, ink: cs(document.body).color, small, tiny, clipped, gsp: g.querySelector('i') ? cs(g.querySelector('i')).display !== 'none' : null, gtxt: g.textContent };
+  });
+  const tag = `${w}px${dark ? ' dark' : ''}`;
+  ok(m.wide === 0 && await noHScroll(p), `${tag}: cards fit the screen`);
+  ok(m.f >= 20 && m.wgt >= 700 && m.tab, `${tag}: weight and reps ${m.f}px bold tabular`);
+  ok(m.gf >= 14 && m.gbg !== 'rgba(0, 0, 0, 0)' && m.gc === m.ink, `${tag}: ghost ${m.gf}px, full contrast on a solid chip`);
+  ok(m.small.length === 0, `${tag}: every tap target at least 44×44 ` + m.small.join(','));
+  ok(m.tiny.length === 0, `${tag}: no text under 12.5px ` + m.tiny.join(','));
+  ok(m.clipped === 0, `${tag}: "102.5" and the ghost are not cut off`);
+  ok(w > 380 ? m.gsp === true : m.gsp === false, `${tag}: ghost "${m.gtxt}" ${w > 380 ? 'with spaces' : 'shown without spaces'}`);
+  ok(p.errors.length === 0, 'no errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+
 // ---------- settings tab: appearance, help, feedback ----------
 console.log('Settings');
 for (const opt of [{ w: 390 }, { w: 320, dark: true }]) {
