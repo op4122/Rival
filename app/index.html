@@ -547,6 +547,7 @@ body.wo-open .startbar,body.has-resume .startbar{display:none}
 .mv-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .opts.one{grid-template-columns:1fr}
 .btn:disabled{opacity:.45}
+.toast.tap{pointer-events:auto;cursor:pointer}
 .toast button{pointer-events:auto;color:var(--accent);font-weight:700;padding:4px 2px}
 .slot .nm{display:block}
 
@@ -2057,7 +2058,7 @@ function closeGate(then) {
   const g = gateEl; if (!g) return; gateEl = null;
   Auth.returnedWithError = false;
   g.classList.add('out'); document.body.classList.remove('gated');
-  setTimeout(() => { g.remove(); if (then) then(); }, reduced() ? 0 : 180);
+  setTimeout(() => { g.remove(); if (then) then(); if (updateWaiting) setTimeout(offerUpdate, 600); }, reduced() ? 0 : 180);
 }
 // What a new arrival sees after the sign-in screen: the tour, or the "What's new" note.
 function startIntro() {
@@ -2104,7 +2105,7 @@ async function authInit() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '24'; // matches the service worker cache, rival-v24
+const APP_VERSION = '25'; // matches the service worker cache, rival-v25
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2278,16 +2279,17 @@ function dragToDismiss(wrap) {
 }
 
 /* ================= toast ================= */
-function toast(msg, action) {
+function toast(msg, action, ms) {
   const box = $('#toasts'), t = document.createElement('div');
   box.querySelectorAll('.toast').forEach(o => o.remove());
   t.className = 'toast'; const sp = document.createElement('span'); sp.textContent = msg; t.appendChild(sp);
   let timer = 0;
   const hide = () => { clearTimeout(timer); t.classList.remove('show'); setTimeout(() => t.remove(), 260); };
   if (action) { const b = document.createElement('button'); b.textContent = action.label; b.addEventListener('click', () => { action.fn(); hide(); }); t.appendChild(b); }
+  if (action && action.whole) { t.classList.add('tap'); t.addEventListener('click', e => { if (e.target === t || e.target === sp) { action.fn(); hide(); } }); }
   box.appendChild(t);
   requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
-  timer = setTimeout(hide, action ? 5000 : 2400);
+  timer = setTimeout(hide, ms || (action ? 5000 : 2400));
 }
 
 /* ================= workout ================= */
@@ -2317,8 +2319,15 @@ function openWorkout() {
   if (!S.profile.tour.wo && !coach) setTimeout(() => { if (wo.classList.contains('open') && !coach && !sheetEl) startCoach('wo'); }, reduced() ? 60 : 520);
   try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {}); } catch (e) {}
 }
+let updateWaiting = false;
+function offerUpdate() {
+  if (wo.classList.contains('open') || gateEl || coach) { updateWaiting = true; return; }
+  updateWaiting = false;
+  toast('Update ready, tap to refresh', {label:'Refresh', whole:true, fn:() => location.reload()}, 12000);
+}
 function minimizeWorkout() {
   wo.classList.remove('open'); wo.setAttribute('aria-hidden', 'true'); document.body.classList.remove('wo-open');
+  if (updateWaiting) setTimeout(offerUpdate, 2800); // after the "Workout saved" toast
   restEl.classList.remove('show');
   render();
   try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null;
@@ -2823,6 +2832,7 @@ function placeCoach(instant) {
 }
 function endCoach(instant) {
   const c = coach; if (!c) return; coach = null;
+  if (updateWaiting && c.kind !== 'wo') setTimeout(offerUpdate, 800);
   if (c.kind === 'wo') S.profile.tour.wo = true; else S.profile.tour.done = true;
   persist();
   if (instant) { c.el.remove(); return; }
@@ -3273,7 +3283,13 @@ document.addEventListener('toggle', e => { if (e.target.classList && e.target.cl
 addEventListener('online', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
 addEventListener('offline', () => { if (tab === 'settings' && !authUid()) rerenderAuth(); });
 if (S.active) updateResume();
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  // The service worker shows the saved copy instantly and fetches a fresh one in the background.
+  // When the fresh one differs, offer a refresh. Never reload on its own, and wait while a workout is open.
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'rival-update') offerUpdate(); });
+  navigator.serviceWorker.ready.then(r => { const w = navigator.serviceWorker.controller || r.active; if (w) w.postMessage({type:'rival-hello'}); }).catch(() => {});
+}
 })();
 </script>
 </body>
