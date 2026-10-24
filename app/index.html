@@ -2671,7 +2671,7 @@ function rivalLinesHTML() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '32'; // matches the service worker cache, rival-v32
+const APP_VERSION = '33'; // matches the service worker cache, rival-v33
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -3106,6 +3106,8 @@ function logSet0(row) {
    detail it can carry is the display name, and that can be switched off. Shared as a file where the phone supports it,
    otherwise downloaded as a PNG. */
 const SITE = 'op4122.github.io/Rival';
+// QR code for https://op4122.github.io/Rival/app/?utm_source=share_card (version 4, ECC M, 33x33), one 33-bit row per integer, MSB = left.
+const QR_ROWS = [8535339903,  4392968769,  6251426653,  6242137693,  6274532957,  4371477057,  8545195391,  11188224,  5717728274,  6999873761,  8014643367,  8090680850,  1970642121,  1074730249,  6534420631,  5827316554,  7884409024,  3016331489,  3451933063,  301395824,  5996783849,  2327731527,  6170183867,  3264408904,  5495184376,  26056987,  8535793495,  4375232273,  6258006522,  6243619349,  6274258329,  4365217682,  8543021979];
 const hexRgb = h => { const m = /rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(String(h)); if (m) return [+m[1], +m[2], +m[3]]; h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.replace(/./g, c => c + c); const n = parseInt(h.slice(0, 6), 16); return isNaN(n) ? [128, 128, 128] : [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const mixRgb = (a, b, t) => 'rgb(' + hexRgb(a).map((x, i) => Math.round(x * t + hexRgb(b)[i] * (1 - t))).join(',') + ')';
 // What the card shows, from the workout in progress (or a saved one). Pure enough to test: window.RivalShare.cardData.
@@ -3178,7 +3180,7 @@ async function drawCard(d, name) {
   });
   // mini heat map of today's work: front and back
   // Sits right under the last block (higher with fewer new bests), at most 700 px tall.
-  const top = y + 20, bh = Math.min(1700 - top, 700), sc = bh / 428, bw = 200 * sc, gap = 70, x0 = (W - 2 * bw - gap) / 2;
+  const top = y + 20, bh = Math.min(1640 - top, 700), sc = bh / 428, bw = 200 * sc, gap = 70, x0 = (W - 2 * bw - gap) / 2;
   const lvlToday = n => n <= 0 ? 0 : n < 2 ? 1 : n < 4 ? 2 : 3;
   const fills = [mapC.base, mixRgb(T.accent, mapC.base, .3), mixRgb(T.accent, mapC.base, .6), T.accent];
   Object.assign(cv.layout, {mapTop:top, mapH:bh, mapBase:mapC.base, bg:T.bg});
@@ -3194,10 +3196,16 @@ async function drawCard(d, name) {
     c.restore();
   });
   c.fillStyle = T.muted; c.font = `500 30px ${TXT}`; c.textAlign = 'center'; c.fillText('Muscles worked', W / 2, top + bh + 48); c.textAlign = 'left';
-  // footer
-  c.fillStyle = T.line; c.fillRect(P, 1790, W - 2 * P, 2);
-  c.fillStyle = T.ink; c.font = `800 38px ${DISP}`; c.fillText('Rival', P, 1852);
-  c.fillStyle = T.muted; c.font = `500 34px ${TXT}`; c.textAlign = 'right'; c.fillText(SITE, W - P, 1852); c.textAlign = 'left';
+  // footer: brand + site on the left, a scannable QR (opens the app) on the right
+  c.fillStyle = T.line; c.fillRect(P, 1708, W - 2 * P, 2);
+  const QM = 4, QN = 33, QQ = 16, QS = QN * QM + 2 * QQ, qx = W - P - QS, qy = 1730;
+  Object.assign(cv.layout, {qr:{x:qx, y:qy, size:QS}});
+  c.fillStyle = '#ffffff'; c.beginPath(); c.roundRect(qx, qy, QS, QS, 14); c.fill();
+  c.fillStyle = '#000000';
+  QR_ROWS.forEach((row, r) => { for (let col = 0; col < QN; col++) if (Math.floor(row / 2 ** (QN - 1 - col)) % 2 === 1) c.fillRect(qx + QQ + col * QM, qy + QQ + r * QM, QM, QM); });
+  c.fillStyle = T.ink; c.font = `800 46px ${DISP}`; c.fillText('Rival', P, 1786);
+  c.fillStyle = T.ink; c.font = `600 32px ${TXT}`; c.fillText('Scan to open the app', P, 1838);
+  c.fillStyle = T.muted; c.font = `500 28px ${TXT}`; c.fillText(SITE, P, 1878);
   return cv;
 }
 // The same card for a saved workout (from history). Saved sets don't keep their ghost, so a set counts as having one
