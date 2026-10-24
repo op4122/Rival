@@ -4,7 +4,7 @@
 // - config.js: network first, but only waits 3 seconds before using the saved copy.
 // - Everything else (scripts, fonts, icons): saved copy first.
 // Only files from Rival's own site are handled, so Supabase and PostHog requests are never cached.
-const CACHE = 'rival-v33';
+const CACHE = 'rival-v3.3-beta';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './config.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png',

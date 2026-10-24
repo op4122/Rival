@@ -32,7 +32,7 @@ console.log('Offline and caching');
   await p.waitForTimeout(800);
   const keys = await p.evaluate(() => caches.keys());
   const cached = await p.evaluate(async () => { const out = []; for (const k of await caches.keys()) for (const r of await (await caches.open(k)).keys()) out.push(r.url); return out; });
-  const ver = (await (await fetch(URL + 'sw.js')).text()).match(/rival-v\d+/)[0];
+  const ver = (await (await fetch(URL + 'sw.js')).text()).match(/rival-v[\w.-]+/)[0];
   ok(keys.length === 1 && keys[0] === ver, `one cache, the current version (${ver}): ` + keys.join(', '));
   ok((await (await fetch(URL)).text()).includes(`APP_VERSION = '${ver.slice(7)}'`), 'APP_VERSION matches the cache version');
   ok(cached.some(u => u.endsWith('/app/vendor/dexie.js')) && cached.some(u => u.endsWith('/app/index.html')) && cached.some(u => u.endsWith('/app/config.js')), `app shell cached (${cached.length} files)`);
