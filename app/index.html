@@ -182,6 +182,7 @@ body.gated{overflow:hidden}
 .set-note{font-size:12.5px;padding:0 0 12px;border-bottom:1px solid var(--line);margin-top:-6px}
 .set-note a{color:inherit;text-underline-offset:3px}
 .acct-sync{font-size:14px;line-height:1.5}
+.blk{display:grid;gap:8px;margin-top:10px}.blk:empty{display:none}
 .hdr-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .syncpill{display:inline-flex;align-items:center;gap:6px;flex:none;padding:3px 9px 3px 8px;border-radius:999px;font-size:12px;font-weight:650;line-height:1.4;color:var(--muted);background:var(--surface);vertical-align:middle}
 .syncpill i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
@@ -1793,7 +1794,7 @@ const Sync = (() => {
   // ---------- status ----------
   function label() {
     if (!st.uid) return null;
-    if (st.blocked) return {cls:'err', t:'Not syncing', d:"This phone's workouts belong to another account. Sign out to keep them separate."};
+    if (st.blocked) return {cls:'err', t:'Not syncing', d:"Syncing is paused: the workouts saved on this phone belong to a different account than this one. Choose what to do with them."};
     if (st.failed) return {cls:'err', t:`${st.failed} not synced`, d:`${pl(st.failed, 'item')} couldn't be saved online. They're safe on this phone.`};
     if (!navigator.onLine) return st.pending ? {cls:'wait', t:`${st.pending} waiting`, d:`Offline. ${pl(st.pending, 'change')} will sync when you're back online.`} : {cls:'off', t:'Offline', d:'Offline. Everything is saved on this phone.'};
     if (st.phase === 'syncing') return {cls:'wait', t:'Syncing…', d:'Saving your workouts online…'};
@@ -1801,11 +1802,23 @@ const Sync = (() => {
     return {cls:'ok', t:'Synced', d:st.last ? `Everything is backed up. Last synced ${new Date(st.last).toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'})}.` : 'Everything is backed up.'};
   }
   function pillHTML() { const l = label(); return l ? `<span class="syncpill ${l.cls}" data-sync="pill" role="status" aria-label="Sync: ${esc(l.d)}"><i></i>${esc(l.t)}</span>` : ''; }
-  function statusHTML() { const l = label(); return l ? `<span class="syncpill ${l.cls}" data-sync="pill"><i></i>${esc(l.t)}</span> <span class="sub" data-sync="desc">${esc(l.d)}</span>${st.failed || st.pending ? ' <button class="link" data-act="syncnow">Sync now</button>' : ''}` : ''; }
+  // When this phone's workouts belong to another account, syncing stays paused until the person picks what happens to them.
+  function blockedHTML() { return st.blocked ? '<button class="btn press" data-act="syncadopt">Add them to this account</button><button class="btn danger press" data-act="syncfresh">Erase them and start fresh</button>' : ''; }
+  function statusHTML() { const l = label(); return l ? `<span class="syncpill ${l.cls}" data-sync="pill"><i></i>${esc(l.t)}</span> <span class="sub" data-sync="desc">${esc(l.d)}</span>${st.failed || st.pending ? ' <button class="link" data-act="syncnow">Sync now</button>' : ''}<div class="blk" data-sync="blk">${blockedHTML()}</div>` : ''; }
+  // mode 'adopt': keep this phone's workouts and upload them to the signed-in account. 'fresh': erase them, then use this account's online copy.
+  async function claim(mode) {
+    if (!st.uid || !st.blocked) return;
+    if (mode === 'fresh') { S.sessions = []; S.profile.sampleCleared = true; S.profile.nextDay = 0; }
+    S.profile.owner = st.uid; S.profile.updatedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(S));
+    st.blocked = false; st.pulledAt = 0; paint();
+    await push(); await pull(true); push();
+    render();
+  }
   function paint() {
     const l = label();
     document.querySelectorAll('[data-sync=pill]').forEach(el => { if (!l) { el.remove(); return; } el.className = 'syncpill ' + l.cls; el.innerHTML = '<i></i>' + esc(l.t); el.setAttribute('aria-label', 'Sync: ' + l.d); });
     document.querySelectorAll('[data-sync=desc]').forEach(el => { if (l) el.textContent = l.d; });
+    document.querySelectorAll('[data-sync=blk]').forEach(el => { const h = blockedHTML(); if (el.innerHTML !== h) el.innerHTML = h; });
   }
   function emit(type, detail) { st.listeners.forEach(f => { try { f(type, detail); } catch (e) {} }); }
 
@@ -1825,7 +1838,7 @@ const Sync = (() => {
   syncHook = soon;
   return {
     state:'local', init() {}, profile() {}, session() {}, remove() {}, // older call sites: persist() already schedules a sync
-    setUser, soon, push, pull, exMap, statusHTML, pillHTML, paint, on(f) { st.listeners.push(f); },
+    setUser, claim, soon, push, pull, exMap, statusHTML, pillHTML, paint, on(f) { st.listeners.push(f); },
     get status() { return {uid:st.uid, pending:st.pending, failed:st.failed, phase:st.phase, blocked:st.blocked, last:st.last}; },
     _store:store,
   };
@@ -4187,6 +4200,11 @@ const acts = {
   },
   analytics(el) { A.setEnabled(el.dataset.v === '1'); render(); toast(el.dataset.v === '1' ? 'Usage analytics on' : 'Usage analytics off on this phone'); },
   syncnow() { Sync.push(); Sync.pull(true); },
+  syncadopt() { Sync.claim('adopt'); toast("This phone's workouts are now on your account"); },
+  syncfresh(el) {
+    if (!el.classList.contains('armed')) { el.classList.add('armed'); el.textContent = 'Tap again to erase them'; return; }
+    Sync.claim('fresh'); toast('Erased. Starting fresh with this account');
+  },
   gateskip() { S.profile.gateSkipped = true; Auth.err = ''; touch(); closeGate(startIntro); },
   authrestart() { Auth.step = 'start'; Auth.err = ''; Auth.mailOpen = true; rerenderAuth(); },
   authsignout(el) {

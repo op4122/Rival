@@ -885,6 +885,38 @@ console.log('Remove a rival (BUG-7)');
   await ctx.close();
 }
 
+// ---------- Phone's workouts belong to another account: the person chooses what happens to them ----------
+console.log('Workouts from another account on this phone');
+for (const mode of ['adopt', 'fresh']) {
+  const ME = '00000000-0000-4000-8000-000000000001', OTHER = '00000000-0000-4000-8000-0000000000bb';
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' }), p = await ctx.newPage();
+  p.errors = []; p.on('pageerror', e => p.errors.push(String(e)));
+  await p.addInitScript(sd => { window.__fakeSeed = sd; }, { me: { id: ME, display_name: 'Ahmed Test' } });
+  await p.addInitScript({ path: new globalThis.URL('./fake-supabase.js', import.meta.url).pathname });
+  const day = Date.now() - 2 * 86400000;
+  await p.addInitScript(s => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('rival.v1', s); sessionStorage.setItem('seeded', '1'); } },
+    JSON.stringify({ profile: { units: 'kg', owner: OTHER, tour: { done: true, wo: true, n: 9 }, gateSkipped: true, readiness: null, sampleCleared: true, days: [{ name: 'Upper', ex: [{ id: 'bench', sets: 1, lo: 6, hi: 8 }] }] },
+      sessions: [{ id: 's1', dayIdx: 0, dayName: 'Upper', date: day, dur: 50, entries: [{ exId: 'bench', sets: [{ w: 80, r: 8 }] }] }], active: null }));
+  await p.goto(URL); await p.waitForTimeout(900);
+  await p.locator('[data-act=tab][data-tab=settings]').click(); await p.waitForTimeout(700);
+  ok(await p.evaluate(() => window.RivalSync.status.blocked), `${mode}: sync is paused because the phone's workouts belong to another account`);
+  ok(await p.locator('.acct [data-act=syncadopt]').count() === 1 && await p.locator('.acct [data-act=syncfresh]').count() === 1, `${mode}: Settings offers both choices`);
+  if (mode === 'adopt') {
+    await p.locator('.acct [data-act=syncadopt]').click();
+  } else {
+    await p.locator('.acct [data-act=syncfresh]').click(); await p.waitForTimeout(200);
+    ok(await p.evaluate(() => JSON.parse(localStorage.getItem('rival.v1')).sessions.length) === 1, 'fresh: the first tap only asks again, nothing erased');
+    await p.locator('.acct [data-act=syncfresh]').click();
+  }
+  await p.waitForTimeout(1200);
+  const st = await state(p), rs = await p.evaluate(() => window.RivalSync.status);
+  ok(!rs.blocked && st.profile.owner === ME, `${mode}: the phone now belongs to the signed-in account and sync is running`);
+  ok(st.sessions.length === (mode === 'adopt' ? 1 : 0), mode === 'adopt' ? 'adopt: the phone\'s workouts are kept' : 'fresh: the phone\'s old workouts are erased');
+  ok(await p.locator('.acct [data-act=syncadopt]').count() === 0, `${mode}: the choices are gone`);
+  ok(p.errors.length === 0, `${mode}: no console errors ` + p.errors.join(' | '));
+  await ctx.close();
+}
+
 // ---------- Rivals with the fake Supabase: ask email sign-ups for a first name, keep ghosts for offline workouts ----------
 // Both use tests/fake-supabase.js (an in-memory Supabase client), so they run offline.
 const ME = '00000000-0000-4000-8000-000000000001', SARA = '00000000-0000-4000-8000-0000000000aa';
