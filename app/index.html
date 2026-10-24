@@ -358,6 +358,7 @@ body.gated{overflow:hidden}
 .add{display:flex;align-items:center;gap:8px;color:var(--accent);font-weight:650;padding:12px 2px 2px}
 .set-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
 .set-row:last-child{border-bottom:0}
+.set-row.nb{border-bottom:0} /* its note below carries the divider, so the row's own line doesn't cut through the note */
 .sync{display:flex;align-items:center;gap:8px;font-size:14px}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
 .sync.on i{background:#2FA36B}
@@ -2709,7 +2710,7 @@ function vSettings() {
       <div class="set-row"><span>Theme</span><div class="seg" role="group" aria-label="Theme" style="width:216px">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-act="theme" data-v="${v}" aria-pressed="${(p.theme || 'system') === v}">${l}</button>`).join('')}</div></div>
     </div></section>
     <section class="section"><div class="section-head"><h2 class="h2">Workouts</h2></div><div class="card" style="padding:4px 16px">
-      <div class="set-row"><span>Usage analytics</span><div class="seg" style="width:140px"><button data-act="analytics" data-v="1" aria-pressed="${A.enabled()}">On</button><button data-act="analytics" data-v="0" aria-pressed="${!A.enabled()}">Off</button></div></div>
+      <div class="set-row nb"><span>Usage analytics</span><div class="seg" style="width:140px"><button data-act="analytics" data-v="1" aria-pressed="${A.enabled()}">On</button><button data-act="analytics" data-v="0" aria-pressed="${!A.enabled()}">Off</button></div></div>
       <p class="sub set-note">Anonymous usage stats and screen recordings (typed text hidden) help improve Rival. <a href="../privacy.html">Privacy</a></p>
       <div class="set-row"><span>Rest timer sound</span><div class="seg" style="width:140px"><button data-act="restsnd" data-v="1" aria-pressed="${p.restSound !== false}">On</button><button data-act="restsnd" data-v="0" aria-pressed="${p.restSound === false}">Off</button></div></div>
       <div class="set-row"><span>Warm-up sets</span><div class="seg" style="width:140px"><button data-act="warmset" data-v="1" aria-pressed="${p.warmups !== false}">On</button><button data-act="warmset" data-v="0" aria-pressed="${p.warmups === false}">Off</button></div></div>
