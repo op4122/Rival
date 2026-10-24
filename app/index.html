@@ -2671,7 +2671,7 @@ function rivalLinesHTML() {
 
 /* ================= settings & help ================= */
 const SUPPORT_EMAIL = 'almahrouqiahmed6@gmail.com';
-const APP_VERSION = '33'; // matches the service worker cache, rival-v33
+const APP_VERSION = '3.3-beta'; // matches the service worker cache, rival-v3.3-beta; change both on every app update (shown as "3.3 beta")
 const HELP = [
   ['How do I change my plan?', 'Open the Plan tab. Tap <b>Change program</b> for a split that fits your week, <b>Build your own</b> to pick each day\'s focus, or tap any exercise to change its sets, reps, rest or attachment.'],
   ['Can I skip my program for a day or a week?', 'Yes. On Today, tap <b>Train something else</b>. Pick a focus for just today, or line up a few sessions for this week. Your program waits where you left it.'],
@@ -2684,12 +2684,12 @@ const HELP = [
   ['How do I get the newest version?', 'Updates download in the background when you\'re online. When one is ready, Rival shows "Update ready, tap to refresh" (never in the middle of a workout).']
 ];
 function feedbackHref() {
-  const body = '\n\n\n---\nRival version ' + APP_VERSION + (isStandalone() ? ', installed' : ', in browser') + (isIOS ? ', iPhone/iPad' : '');
+  const body = '\n\n\n---\nRival version ' + APP_VERSION.replace('-', ' ') + (isStandalone() ? ', installed' : ', in browser') + (isIOS ? ', iPhone/iPad' : '');
   return 'mailto:' + SUPPORT_EMAIL + '?subject=' + encodeURIComponent('Rival feedback') + '&body=' + encodeURIComponent(body);
 }
 function vSettings() {
   const p = S.profile;
-  return `<header><p class="date" data-act="vertap">Rival version ${APP_VERSION}</p><h1 class="title">Settings</h1></header>
+  return `<header><p class="date" data-act="vertap">Rival version ${APP_VERSION.replace('-', ' ')}</p><h1 class="title">Settings</h1></header>
     ${accountHTML()}
     ${rivalsHTML()}
     <section class="section" style="margin-top:20px"><div class="section-head"><h2 class="h2">Appearance</h2></div><div class="card" style="padding:4px 16px">
