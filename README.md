@@ -70,3 +70,9 @@ users a, b and c) and `tests/supersets.live.mjs` (superset groups sync; user c).
 Rivals security: `tests/rivals.rls.sql` makes three throwaway users inside one transaction, proves a non-rival gets
 nothing (tables and `get_rival_ghost`), and always rolls back. Paste it in the Supabase SQL editor; the message reads
 `RLS TEST PASSED: 25 checks` or names the check that failed.
+
+## Promo video
+
+`promo/rival-promo.mp4` is a 37-second vertical (1080x1920) promo. It is drawn in code: `promo/index.html` renders any moment of the animation (open it in a browser to watch it loop), `promo/music.py` synthesises the soundtrack and `promo/render.mjs` steps through the frames and encodes the MP4.
+
+To rebuild it: `python3 -m http.server 8765 &`, then `python3 promo/music.py`, then `node promo/render.mjs` (needs Playwright, ffmpeg and numpy).
