@@ -1170,6 +1170,7 @@ function cleanActive(a) {
   a.entries.forEach(en => { en.lo = fin(en.lo) ? en.lo : 8; en.hi = fin(en.hi) ? en.hi : en.lo; en.rest = fin(en.rest) ? en.rest : 90; en.note = str(en.note, 80); });
   // The rest timer is stored as its end time, so it's right even if the phone closed the app in the background.
   if (!(isObj(a.rest) && fin(a.rest.end) && fin(a.rest.total) && a.rest.total > 0 && a.rest.total <= 3600)) delete a.rest;
+  if (!fin(a.touchedAt)) delete a.touchedAt; // last time the workout screen was used (see endStaleWorkout)
   return a;
 }
 function cleanProfile(p0) {
@@ -2918,6 +2919,8 @@ function startWorkout(idx, o) {
   S.active.entries.forEach(trackSuggested); persist();
 }
 function openWorkout() {
+  if (endStaleWorkout()) return;
+  if (S.active) { S.active.touchedAt = Date.now(); persist(); }
   document.body.classList.add('wo-open');
   A.screen('workout');
   renderWorkout();
@@ -3390,7 +3393,7 @@ function hideRest() {
 }
 
 /* finish */
-function summary() {
+function summary(end) {
   const a = S.active; let sets = 0, vol = 0, beat = 0, match = 0; const prs = [];
   a.entries.forEach(en => {
     const done = en.sets.filter(s => s.done);
@@ -3402,7 +3405,7 @@ function summary() {
       if (prevBest && best > prevBest + 0.05) prs.push({n: EX[en.exId].n, v: best, d: best - prevBest});
     }
   });
-  return {sets, vol, beat, match, prs, mins: Math.max(1, Math.round((Date.now() - a.startedAt) / 60000))};
+  return {sets, vol, beat, match, prs, mins: Math.max(1, Math.round(((end || Date.now()) - a.startedAt) / 60000))};
 }
 function finishSheet() {
   const s = summary();
@@ -3413,8 +3416,9 @@ function finishSheet() {
     <div class="sheet-actions">${s.sets ? `<button class="btn primary big press" data-act="save">Save workout</button><button class="btn press" data-act="share">${I.share}Share</button>` : ''}<button class="btn press" data-act="closesheet">Keep training</button><button class="btn danger press" data-act="discard">Discard workout</button></div>`;
   openSheet(html);
 }
-function saveWorkout() {
-  const a = S.active, s = summary();
+// end: when the workout ended (default now). auto: Rival ended a forgotten workout itself, so it says that instead.
+function saveWorkout(end, auto) {
+  const a = S.active, s = summary(end);
   const prog = !a.mode || a.mode === 'program';
   const rid = activeRid(a);
   const sess = {id:a.id, rid, dayIdx:prog ? a.dayIdx : -1, dayName:a.dayName, date:a.startedAt, dur:s.mins, readiness:a.readiness, ...(cleanRq(a.rq) ? {rq:cleanRq(a.rq)} : {}),
@@ -3437,8 +3441,28 @@ function saveWorkout() {
   touch(); Sync.session(sess);
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
   hideRest(); closeSheet(); minimizeWorkout();
-  toast(s.beat ? `Workout saved. You beat your ghost on ${pl(s.beat, 'set')}.` : 'Workout saved');
-  A.track('workout_completed', {duration_min:s.mins, set_count:s.sets, total_volume:Math.round(s.vol)});
+  if (auto) toast(auto, null, 7000);
+  else toast(s.beat ? `Workout saved. You beat your ghost on ${pl(s.beat, 'set')}.` : 'Workout saved');
+  A.track('workout_completed', {duration_min:s.mins, set_count:s.sets, total_volume:Math.round(s.vol), auto_ended:!!auto});
+}
+// A browser can't run anything while the app is closed, so a forgotten workout used to keep counting until the next visit.
+// Now, on return (and every minute while open), a workout with no activity for STALE_MS is ended at its last activity:
+// saved if it has sets, dropped if not. Activity = starting it, logging a set, or using the workout screen.
+const STALE_MS = 2 * 3600e3;
+function lastActivity(a) {
+  let t = Math.max(a.startedAt, fin(a.touchedAt) ? a.touchedAt : 0);
+  a.entries.forEach(en => en.sets.forEach(x => { if (x.done && fin(x.at)) t = Math.max(t, x.at); }));
+  return Math.min(t, Date.now());
+}
+function endStaleWorkout() {
+  const a = S.active; if (!a) return false;
+  const end = lastActivity(a); if (Date.now() - end < STALE_MS) return false;
+  const name = a.dayName, at = new Date(end).toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'});
+  const day = new Date(end).toDateString() === new Date().toDateString() ? '' : new Date(end).toDateString() === new Date(Date.now() - 864e5).toDateString() ? ' yesterday' : ' on ' + new Date(end).toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+  if (wo.classList.contains('open') || sheetEl) closeSheet(true);
+  if (a.entries.some(en => en.sets.some(x => x.done))) saveWorkout(end, `You left ${name} running, so Rival saved it, ending at your last set${day} (${at}).`);
+  else { S.active = null; persist(); hideRest(); minimizeWorkout(); toast(`You left ${name} open with no sets logged, so Rival closed it.`, null, 7000); }
+  return true;
 }
 
 /* ================= library & slot editor ================= */
@@ -4320,11 +4344,18 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('focusin', e => { if (e.target.matches('.set input')) setTimeout(() => e.target.select && e.target.select(), 0); });
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && endStaleWorkout()) return;
   if (document.visibilityState === 'visible' && wo.classList.contains('open') && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => wakeLock = l).catch(() => {});
   if (document.visibilityState === 'visible' && restEnd && restEl.classList.contains('show')) tickRest();
   else if (document.visibilityState === 'visible' && wo.classList.contains('open') && S.active && S.active.rest && !restEnd) resumeRest();
 });
-addEventListener('pageshow', () => { if (restEnd && restEl.classList.contains('show')) tickRest(); });
+addEventListener('pageshow', () => { if (endStaleWorkout()) return; if (restEnd && restEl.classList.contains('show')) tickRest(); });
+// Using the workout screen keeps the workout alive (saved at most once a minute, so typing doesn't write on every key).
+['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, () => {
+  const a = S.active; if (!a || !wo.classList.contains('open') || endStaleWorkout()) return;
+  const was = a.touchedAt || 0; a.touchedAt = Date.now(); if (a.touchedAt - was > 60000) persist();
+}, true));
+setInterval(() => { if (S.active && document.visibilityState === 'visible') endStaleWorkout(); }, 60000);
 setInterval(() => {
   if (!S.active) return;
   const t = fmtClock((Date.now() - S.active.startedAt) / 1000);
@@ -4334,6 +4365,7 @@ setInterval(() => {
 /* ================= boot ================= */
 $('#importfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readBackup(f); e.target.value = ''; });
 $('#planfile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) readPlanFile(f); e.target.value = ''; });
+endStaleWorkout(); // before the first render, so a forgotten workout never shows hours on its clock
 render();
 authInit().then(() => {
   A.track('app_opened', {standalone:isStandalone(), signed_in:!!authUid(), surface:'app'}); A.screen(tab); if (gateNeeded() && !S.active) openGate(); else startIntro();
