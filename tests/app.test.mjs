@@ -1551,6 +1551,48 @@ console.log("Tour, tips and What's new");
   }
 }
 
+// ---------- a forgotten workout ends itself ----------
+console.log('Forgotten workout');
+{
+  const p = await page();
+  await edit(p, s => { s.profile.tour = { done: true, wo: true, n: 9 }; s.sessions = []; s.profile.nextDay = 0; });
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(700);
+  await p.fill('#w-0-0', '60'); await p.fill('#r-0-0', '8');
+  await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(300);
+  let st = await state(p);
+  ok(st.active && st.active.touchedAt >= st.active.startedAt, 'opening and using the workout screen records activity');
+  // 40 minutes idle: still running
+  await edit(p, s => { const m = 60000; s.active.startedAt -= 80 * m; s.active.touchedAt -= 40 * m; s.active.entries[0].sets[0].at -= 40 * m; });
+  st = await state(p);
+  ok(!!st.active && st.sessions.length === 0, '40 minutes idle: the workout keeps going');
+  // left overnight: the set was logged 9 hours ago, 35 minutes after the start
+  await edit(p, s => { const h = 3600e3, now = Date.now(); s.active.startedAt = now - 9 * h - 35 * 60000; s.active.touchedAt = now - 9 * h; s.active.entries[0].sets[0].at = now - 9 * h; });
+  st = await state(p);
+  ok(st.active === null, 'left for 9 hours: the workout is ended on the next visit');
+  ok(st.sessions.length === 1 && st.sessions[0].dur === 35, 'saved, ending at the last set (35 min, not 9 hours) ' + (st.sessions[0] && st.sessions[0].dur));
+  ok(st.sessions[0].entries[0].sets[0].w === 60 && st.sessions[0].entries[0].sets[0].r === 8, 'with its set');
+  ok(st.profile.nextDay === 1, 'the program moves on as for a normal save');
+  ok(/left .* running, so Rival saved it/.test(await p.locator('#toasts').textContent()), 'a toast says what happened');
+  ok(await p.locator('#resume').isHidden(), 'no Resume bar');
+  // started, nothing logged, then forgotten: dropped
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(700);
+  await edit(p, s => { const h = 3600e3; s.active.startedAt -= 3 * h; s.active.touchedAt -= 3 * h; });
+  st = await state(p);
+  ok(st.active === null && st.sessions.length === 1, 'an empty forgotten workout is closed, not saved');
+  // the app was left open in the background: ended when it comes back into view
+  await p.locator('#startbar [data-act=start]').click(); await p.waitForTimeout(700);
+  await p.fill('#w-0-0', '60'); await p.fill('#r-0-0', '8');
+  await p.locator('.set[data-e="0"][data-s="0"] [data-act=log]').click(); await p.waitForTimeout(300);
+  await p.clock.install(); await p.clock.fastForward(3 * 3600e3);
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await p.waitForTimeout(400);
+  st = await state(p);
+  ok(st.active === null && st.sessions.length === 2 && st.sessions[1].dur <= 2, 'left open for 3 hours: ended on return, at the last set ' + (st.sessions[1] && st.sessions[1].dur));
+  ok(await p.locator('#wo.open').count() === 0, 'the workout screen closes');
+  ok(p.errors.length === 0, 'no console errors ' + p.errors.join(' | '));
+  await p.context().close();
+}
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nAll passed');
 process.exit(failed ? 1 : 0);

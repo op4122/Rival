@@ -13,7 +13,7 @@
    * @property {{standalone: boolean, signed_in: boolean, surface: 'app'}} app_opened
    * @property {{method: 'google'|'email'}} signup_completed
    * @property {{mode: 'program'|'today'|'week', exercise_count: number}} workout_started
-   * @property {{duration_min: number, set_count: number, total_volume: number}} workout_completed
+   * @property {{duration_min: number, set_count: number, total_volume: number, auto_ended: boolean}} workout_completed
    * @property {{exercise_id: string, weight_kg: number, reps: number, offline: boolean}} set_logged
    * @property {{exercise_id: string, margin: number}} ghost_set_beaten
    * @property {{score: number}} readiness_checkin_completed
